@@ -1,0 +1,35 @@
+metadata:
+  run_description: Stubbed synchronous simulation scenario
+  output_folder: synchronous_sim_stubbed_bundle
+modules:
+  entry_point:
+    module_type: EntryPoint
+    inputs:
+      time_grid: SyncTimeGrid ../synchronous_sim/time_grid.json
+      initial_state: BatteryState ../synchronous_sim/initial_state.json
+      price_trajectory: PriceTrajectory ../synchronous_sim/actual_pricing.json
+      forecast_config: MockForecastConfig ../synchronous_sim/forecast_config.json
+      guidance_config: GuidanceConfig ../synchronous_sim/guidance_config.json
+      dynamics_config: DynamicSimConfig ../synchronous_sim/dynamic_sim_config.json
+  synchronous_sim:
+    module_type: SynchronousSim
+    inputs:
+      time_grid: SyncTimeGrid time_grid
+      initial_state: BatteryState initial_state
+      price_trajectory: PriceTrajectory price_trajectory
+      forecast_config: MockForecastConfig forecast_config
+      guidance_config: GuidanceConfig guidance_config
+      dynamics_config: DynamicSimConfig dynamics_config
+    outputs:
+      synchronous_sim: SyncSimOutputs synchronous_sim
+      forecasts: MockForecastSeries forecasts
+      guidances: SyncGuidanceSeries guidances
+      telemetry: SyncTelemetrySeries telemetry
+  exit_point:
+    module_type: ExitPoint
+    inputs:
+      synchronous_sim: SyncSimOutputs synchronous_sim
+    outputs:
+      forecasts: MockForecastSeries forecasts.json
+      guidances: SyncGuidanceSeries guidances.json
+      telemetry: SyncTelemetrySeries telemetry.parquet

@@ -1,0 +1,10 @@
+{
+  "discount_rate": 0.08,
+  "analysis_years": 10,
+  "depreciation_method": "straight_line",
+  "tax_rate": 0.25,
+  "escalation_energy": 0.02,
+  "escalation_om": 0.02,
+  "upfront_capex_usd": 250000.0,
+  "annual_om_usd": 5000.0
+}

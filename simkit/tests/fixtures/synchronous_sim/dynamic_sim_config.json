@@ -1,0 +1,10 @@
+{
+  "bridge": "stub",
+  "fail_at_outer_step": null,
+  "integration_step": {"raw": "5T"},
+  "telemetry_fields": [
+    "soc_kwh",
+    "charge_in_kw",
+    "discharge_in_kw"
+  ]
+}

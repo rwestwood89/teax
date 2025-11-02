@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-01-01T00:00:00Z",
+  "state_of_charge_kwh": 240.0,
+  "nominal_capacity_kwh": 300.0,
+  "available_charge_kw": 0.0,
+  "available_discharge_kw": 0.0,
+  "max_charge_kw": 120.0,
+  "max_discharge_kw": 120.0,
+  "thermal_state_c": 23.5
+}
