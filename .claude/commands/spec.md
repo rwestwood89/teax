@@ -2,7 +2,7 @@
 
 **Purpose:** Feature requirements definition in EARS format with ticket linkage
 **Input:** Feature ideas, user stories, business requirements, optional ticket reference
-**Output:** `thoughts/specs/{feature-name}.md`
+**Output:** `thoughts/active/{feature-name}/{YYYY-MM-DD}-spec.md`
 
 ## Overview
 
@@ -80,8 +80,11 @@ When invoked:
    ```
 5. **Iterate until user approves** all acceptance criteria
 
-### Stage 4: Document Creation
-Write comprehensive spec to `thoughts/specs/{feature-name}.md` using this template:
+### Stage 3: Document Creation
+1. **Plan the Specification**
+- Focus on observable outcomes, not implementation
+- Include Edge Cases: Cover boundary conditions and error scenarios
+2. **Write** comprehensive spec to `thoughts/active/{feature-name}/{YYYY-MM-DD}-spec.md` using this template:
 
 ```markdown
 # Spec: [Feature Name]
@@ -137,6 +140,9 @@ Write comprehensive spec to `thoughts/specs/{feature-name}.md` using this templa
 ## Status Tracking
 [Links to implementation plan, validation reports, and related tickets]
 ```
+
+### Stage 4: Feedback 
+Engage with the user to address any feedback.
 
 ## Guidelines
 

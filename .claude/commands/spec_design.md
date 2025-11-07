@@ -2,7 +2,7 @@
 
 **Purpose:** Implementation-specific technical design for approved specifications
 **Input:** Approved spec document, related research artifacts, design context
-**Output:** `thoughts/specs/{feature-name}/design.md`
+**Output:** `thoughts/specs/{feature-name}/{YYYY-MM-DD}-design.md`
 
 ## Overview
 
@@ -108,7 +108,7 @@ If spec is missing, incomplete, or unclear, STOP and request:
    ```
 
 ### Stage 4: Document Creation & Review
-1. **Write Comprehensive Design Document** to `thoughts/specs/{feature-name}/design.md` using this template:
+1. **Write Comprehensive Design Document** to `thoughts/specs/{feature-name}/{YYYY-MM-DD}-design.md` using this template:
 
 ```markdown
 # [Feature Name] Implementation Design

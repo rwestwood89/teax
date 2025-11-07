@@ -59,10 +59,40 @@ def _build_provenance(
     )
 
 
-def execute_pipeline(spec_path: str | Path, output_dir: str | Path | None = None) -> RunResult:
+def execute_pipeline(
+    spec_path: str | Path,
+    output_dir: str | Path | None = None,
+    registry: PipelineModuleRegistry | None = None,
+) -> RunResult:
+    """Execute pipeline with optional custom module registry.
+
+    Args:
+        spec_path: Path to pipeline YAML specification
+        output_dir: Optional output directory (defaults to temp dir)
+        registry: Optional custom module registry. If None, uses built-in TEAx modules.
+
+    Returns:
+        RunResult with execution outputs, metadata, and provenance
+
+    Example:
+        >>> # Execute with built-in modules (backward compatible)
+        >>> result = execute_pipeline("demo_pipeline.yaml", "outputs/")
+
+        >>> # Execute with custom registry
+        >>> from simkit.core.registry_builder import create_registry
+        >>> custom_registry = create_registry([MyCustomModule])
+        >>> result = execute_pipeline(
+        ...     "custom_pipeline.yaml",
+        ...     "outputs/",
+        ...     registry=custom_registry
+        ... )
+    """
     specification = entry_point_validate(spec_path)
 
-    registry = PipelineModuleRegistry.from_static_modules()
+    # Use custom registry if provided, otherwise default to builtins
+    if registry is None:
+        registry = PipelineModuleRegistry.from_static_modules()
+
     router = create_default_router()
     executor = SerialPipelineExecutor(registry, output_router=router)
     context = PipelineExecutionContext(registry)

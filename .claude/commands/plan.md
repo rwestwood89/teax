@@ -2,7 +2,7 @@
 
 **Purpose:** Detailed implementation steps and sequencing for approved designs
 **Input:** Spec and implementation design documents, related research artifacts
-**Output:** `thoughts/specs/{feature-name}/plan.md`
+**Output:** `thoughts/specs/{feature-name}/{YYYY-MM-DD}-plan.md`
 
 ## Overview
 
@@ -14,12 +14,12 @@ Your plan document will be used for:
 
 When invoked:
 - If spec and design provided: proceed to planning process
-- If missing inputs: ask "Which spec and design documents should I plan for?" and request paths to required artifacts
+- If missing inputs: ask "Which spec and/or design documents should I plan for?" and request paths to required artifacts
 
 ## Process
 
 ### Stage 1: Document Analysis & Research
-1. **Read All Input Documents Completely** - Read spec and design documents FULLY using Read tool without limit/offset
+1. **Read All Input Documents Completely** - Read spec and/or design documents FULLY using Read tool without limit/offset
 2. **Critical Feasibility Assessment** - Independently evaluate the proposed design for potential issues:
    - Will this design actually work with the current codebase architecture?
    - Are the proposed APIs and data structures realistic and maintainable?
@@ -32,6 +32,7 @@ When invoked:
    - **pattern-finder**: Identify similar features and conventions to follow
 4. **Cross-reference Requirements** - Verify design addresses all spec requirements and identify any gaps
 
+For smaller tasks, the user may only specify a spec. In this case, you should include details about the design in your plan. 
 If inputs are missing or unclear, STOP and request:
 - Path to complete spec document
 - Path to implementation design document

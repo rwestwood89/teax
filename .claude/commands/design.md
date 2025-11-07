@@ -1,8 +1,8 @@
-# Design Command
+# Architect Command
 
 **Purpose:** System-level architecture design and component planning
 **Input:** Requirements, research findings, high-level specifications
-**Output:** `thoughts/design/{datetime}_{system-name}.md`
+**Output:** `thoughts/design/{YYYY-MM-DD}-_{system-name}.md`
 
 ## Overview
 
@@ -85,7 +85,7 @@ If no parameters provided, STOP and ask for:
    - Move to documentation: If user approves and sufficient due diligence complete
 
 ### Stage 4: Complete Design Write-Up
-Write comprehensive design to `thoughts/design/{datetime}_{system-name}.md` using this template:
+Write comprehensive design to `thoughts/design/{YYYY-MM-DD}-{system-name}.md` using this template:
 
 ```markdown
 # [System Name] Design
