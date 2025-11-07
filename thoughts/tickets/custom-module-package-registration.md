@@ -24,6 +24,9 @@ TEAx `execute_pipeline()` and `SerialPipelineExecutor` have hardcoded module dis
 - Blocks all future code-generated module packages from executing via TEAx
 - Custom domain-specific modules cannot integrate with TEAx pipelines
 
+### Reference
+Read `/home/reid/apps/fusion_modeling/tests/teax_simkit` in FULL for context on usage patterns referenced below
+
 **Concrete Use Case (Fusion Modeling):**
 ```python
 # fusion_simkit generates custom modules following ModuleBase pattern
