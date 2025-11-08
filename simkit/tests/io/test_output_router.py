@@ -8,7 +8,13 @@ import pandas as pd
 
 from simkit.config import schema
 from simkit.config.pipeline_schema import ChannelSource, PipelineChannelBinding
-from simkit.io.output_router import OutputRouter, OutputRouterError, WriteHandler, create_default_router
+from simkit.io.output_router import (
+    OutputRouter,
+    OutputRouterError,
+    WriteHandler,
+    create_default_router,
+    create_output_router_with_json_schemas,
+)
 from simkit.io import writers
 from simkit.io.readers import read_pipeline_spec
 from simkit.tests import fixtures as fixture_builders
@@ -188,3 +194,150 @@ def test_output_router_handles_synchronous_sim(tmp_path: Path, sync_outputs: sch
     assert schema.MockForecastSeries.__name__ in recorded_types
     assert schema.SyncGuidanceSeries.__name__ in recorded_types
     assert schema.SyncTelemetrySeries.__name__ in recorded_types
+
+
+def test_create_output_router_with_json_schemas_includes_builtins():
+    """Test that custom JSON schemas include built-in handlers when requested."""
+    router = create_output_router_with_json_schemas(
+        ["CustomSchema1", "CustomSchema2"],
+        include_builtins=True,
+    )
+
+    # Check custom schemas are registered
+    assert router.has_handler("CustomSchema1")
+    assert router.has_handler("CustomSchema2")
+
+    # Check built-ins are still there
+    assert router.has_handler("RateInfo")
+    assert router.has_handler("BatteryConfig")
+    assert router.has_handler("FinancialResults")
+
+
+def test_create_output_router_with_json_schemas_custom_only():
+    """Test that custom-only mode excludes built-in handlers."""
+    router = create_output_router_with_json_schemas(
+        ["CustomSchema1"],
+        include_builtins=False,
+    )
+
+    # Check custom schema is registered
+    assert router.has_handler("CustomSchema1")
+
+    # Check built-ins are NOT there
+    assert not router.has_handler("RateInfo")
+    assert not router.has_handler("BatteryConfig")
+
+
+def test_create_output_router_with_json_schemas_rejects_duplicates():
+    """Test that duplicate schema types raise ValueError."""
+    with pytest.raises(ValueError, match="Duplicate schema types"):
+        create_output_router_with_json_schemas(
+            ["CustomSchema1", "CustomSchema1", "CustomSchema2"]
+        )
+
+
+def test_output_router_in_memory_mode_validates_without_writing(tmp_path: Path):
+    """Test that in-memory mode validates but doesn't write files."""
+    router = create_output_router_with_json_schemas(
+        ["CustomType"],
+        in_memory=True,
+    )
+
+    bindings = {
+        "custom": PipelineChannelBinding(
+            type_name="CustomType",
+            channel_name="custom",
+            source=ChannelSource.MODULE,
+            destination_filename="custom.json",
+        )
+    }
+    values = {"custom": fixture_builders.sample_rate_info()}  # Any pydantic model will work
+
+    result = router.write_outputs(
+        bindings,
+        values,
+        run_name="test_run",
+        pipeline_metadata={"foo": "bar"},
+    )
+
+    # Verify result has synthetic paths
+    assert result.run_dir == Path("<in-memory>") / "test_run-mem"
+    assert result.manifest.short_id == "mem"
+    assert result.manifest.base_output_dir == "<in-memory>"
+    assert result.manifest.run_name == "test_run"
+
+    # Verify manifest has correct artifacts
+    assert len(result.manifest.artifacts) == 1
+    assert result.manifest.artifacts[0].channel == "custom"
+    assert result.manifest.artifacts[0].type_name == "CustomType"
+    assert result.manifest.artifacts[0].produced is True
+    assert result.manifest.artifacts[0].relative_path == "custom.json"
+
+    # Verify no files were written to disk
+    assert not result.run_dir.exists()
+
+
+def test_output_router_in_memory_still_validates():
+    """Test that in-memory mode still performs validation checks."""
+    router = create_output_router_with_json_schemas(
+        ["CustomType"],
+        in_memory=True,
+    )
+
+    # Missing handler should still fail
+    bindings = {
+        "unknown": PipelineChannelBinding(
+            type_name="UnknownType",
+            channel_name="unknown",
+            source=ChannelSource.MODULE,
+            destination_filename="unknown.json",
+        )
+    }
+    values = {"unknown": fixture_builders.sample_rate_info()}
+
+    with pytest.raises(OutputRouterError, match="No writer registered for type 'UnknownType'"):
+        router.write_outputs(bindings, values, run_name="test")
+
+    # Duplicate filenames should still fail
+    bindings = {
+        "first": PipelineChannelBinding(
+            type_name="CustomType",
+            channel_name="first",
+            source=ChannelSource.MODULE,
+            destination_filename="duplicate.json",
+        ),
+        "second": PipelineChannelBinding(
+            type_name="CustomType",
+            channel_name="second",
+            source=ChannelSource.MODULE,
+            destination_filename="duplicate.json",
+        ),
+    }
+    values = {
+        "first": fixture_builders.sample_rate_info(),
+        "second": fixture_builders.sample_rate_info(),
+    }
+
+    with pytest.raises(OutputRouterError, match="Destination filename 'duplicate.json' declared more than once"):
+        router.write_outputs(bindings, values, run_name="test")
+
+
+def test_create_default_router_supports_in_memory():
+    """Test that create_default_router accepts in_memory parameter."""
+    router = create_default_router(in_memory=True)
+
+    bindings = {
+        "rate_info": PipelineChannelBinding(
+            type_name="RateInfo",
+            channel_name="rate_info",
+            source=ChannelSource.MODULE,
+            destination_filename="rate_info.json",
+        )
+    }
+    values = {"rate_info": fixture_builders.sample_rate_info()}
+
+    result = router.write_outputs(bindings, values, run_name="test")
+
+    # Should succeed without writing files
+    assert result.manifest.short_id == "mem"
+    assert not result.run_dir.exists()

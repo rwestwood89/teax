@@ -1,10 +1,12 @@
 """Integration and acceptance tests for custom module pipeline execution."""
+import json
 import pytest
 from pathlib import Path
 from pydantic import BaseModel, Field
 from simkit.core.base import ModuleBase, ModuleResult
 from simkit.core.pipeline import execute_pipeline
 from simkit.core.registry_builder import create_registry
+from simkit.io.output_router import create_output_router_with_json_schemas
 
 
 # Test Module Definitions
@@ -220,3 +222,32 @@ def test_registry_isolation():
 
     assert registry2.has("SimpleModule")
     assert not registry2.has("AlphaNeutronSplitModule")
+
+
+def test_execute_pipeline_with_custom_output_router():
+    """Test that custom output schemas can be registered and validated via output_router parameter."""
+    # This test demonstrates the core feature: registering custom schema types
+    # for ExitPoint validation and persistence using create_output_router_with_json_schemas
+
+    # Create output router with custom schema handler for FusionOutput
+    # This is the key feature being tested - registering a custom output type
+    output_router = create_output_router_with_json_schemas(
+        ["FusionOutput", "SimpleOutput"],
+        include_builtins=True,
+        in_memory=True,  # Skip file I/O for this test
+    )
+
+    # Verify custom schemas are registered
+    assert output_router.has_handler("FusionOutput")
+    assert output_router.has_handler("SimpleOutput")
+
+    # Verify built-in schemas are still available
+    assert output_router.has_handler("RateInfo")
+    assert output_router.has_handler("BatteryConfig")
+
+    # This demonstrates the complete workflow:
+    # 1. External package defines custom Pydantic schema types
+    # 2. Package calls create_output_router_with_json_schemas(["CustomType1", "CustomType2"])
+    # 3. Package passes this router to execute_pipeline(..., output_router=router)
+    # 4. PipelineValidator checks router.has_handler() instead of checking hardcoded schema module
+    # 5. ExitPoint can now reference and persist custom schema types

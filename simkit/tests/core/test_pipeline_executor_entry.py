@@ -146,13 +146,13 @@ def test_resolve_input_dir_defaults_when_env_missing(tmp_path, monkeypatch):
 
 
 def test_executor_validates_output_router_handlers():
+    """Test that validation fails early if output router doesn't have required handlers."""
     registry = PipelineModuleRegistry.from_static_modules()
     executor = SerialPipelineExecutor(registry, output_router=OutputRouter(type_handlers={}))
-    context = PipelineExecutionContext(registry)
 
     spec_path = FIXTURE_DIR / "pipeline_configs" / "demo_linear_alt.yaml"
     spec = readers.read_pipeline_spec(spec_path)
-    graph = executor.build_graph(spec)
 
-    with pytest.raises(OutputRouterError, match="No writer registered"):
-        executor.run(graph, context)
+    # Validation now happens at build_graph time, not runtime
+    with pytest.raises(PipelineValidationError, match="no registered write handler"):
+        executor.build_graph(spec)

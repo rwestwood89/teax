@@ -67,8 +67,8 @@ class SerialPipelineExecutor:
         output_router: OutputRouter | None = None,
     ) -> None:
         self._registry = registry or PipelineModuleRegistry.from_static_modules()
-        self._validator = PipelineValidator(self._registry)
         self._output_router = output_router or create_default_router()
+        self._validator = PipelineValidator(self._registry, self._output_router)
 
     def build_graph(self, spec: PipelineSpecification) -> PipelineGraph:
         return self._validator.validate(spec)

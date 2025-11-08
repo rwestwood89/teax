@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
 
 from ..config import schema
 from ..config.pipeline_schema import (
@@ -13,6 +13,9 @@ from ..config.pipeline_schema import (
 )
 from .pipeline_graph import PipelineDagBuilder, PipelineGraph, PipelineGraphError
 from .pipeline_registry import ModuleDescriptor, PipelineModuleRegistry
+
+if TYPE_CHECKING:
+    from ..io.output_router import OutputRouter
 
 
 class PipelineValidationError(Exception):
@@ -32,8 +35,13 @@ class _ValidationContext:
 class PipelineValidator:
     """Validates a pipeline specification against the module registry."""
 
-    def __init__(self, registry: PipelineModuleRegistry) -> None:
+    def __init__(
+        self,
+        registry: PipelineModuleRegistry,
+        output_router: OutputRouter,
+    ) -> None:
         self._registry = registry
+        self._output_router = output_router
         self._builder = PipelineDagBuilder()
 
     def validate(self, spec: PipelineSpecification) -> PipelineGraph:
@@ -110,11 +118,15 @@ class PipelineValidator:
                     module=module.key,
                     details={"output": field},
                 )
-            if not hasattr(schema, type_name):
+            if not self._output_router.has_handler(type_name):
                 raise PipelineValidationError(
-                    "ExitPoint output references unknown schema type",
+                    "ExitPoint output type has no registered write handler",
                     module=module.key,
-                    details={"output": field, "type": type_name},
+                    details={
+                        "output": field,
+                        "type": type_name,
+                        "hint": "Register a handler with output_router.register_handler() or use create_output_router_with_json_schemas()"
+                    },
                 )
 
     def _validate_outputs(self, module: PipelineModuleSpec, descriptor: ModuleDescriptor) -> None:

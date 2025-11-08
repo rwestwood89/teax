@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Dict, Mapping
+from typing import TYPE_CHECKING, Dict, Mapping
 
 from dataclasses import replace
 
@@ -15,6 +15,9 @@ from ..io.output_router import create_default_router
 from .pipeline_executor import PipelineExecutionContext, RunResult, SerialPipelineExecutor
 from .pipeline_registry import PipelineModuleRegistry
 from .pipeline_validator import PipelineValidationError
+
+if TYPE_CHECKING:
+    from ..io.output_router import OutputRouter
 
 def _config_hash(payload: Dict[str, object]) -> str:
     encoded = json.dumps(payload, sort_keys=True).encode("utf-8")
@@ -63,28 +66,35 @@ def execute_pipeline(
     spec_path: str | Path,
     output_dir: str | Path | None = None,
     registry: PipelineModuleRegistry | None = None,
+    output_router: OutputRouter | None = None,
 ) -> RunResult:
-    """Execute pipeline with optional custom module registry.
+    """Execute pipeline with optional custom module registry and output router.
 
     Args:
         spec_path: Path to pipeline YAML specification
         output_dir: Optional output directory (defaults to temp dir)
         registry: Optional custom module registry. If None, uses built-in TEAx modules.
+        output_router: Optional custom output router. If None, uses default router with
+                      built-in schema handlers.
 
     Returns:
         RunResult with execution outputs, metadata, and provenance
 
     Example:
-        >>> # Execute with built-in modules (backward compatible)
+        >>> # Execute with built-in modules and schemas (backward compatible)
         >>> result = execute_pipeline("demo_pipeline.yaml", "outputs/")
 
-        >>> # Execute with custom registry
+        >>> # Execute with custom modules and schemas
         >>> from simkit.core.registry_builder import create_registry
-        >>> custom_registry = create_registry([MyCustomModule])
+        >>> from simkit.io.output_router import create_output_router_with_json_schemas
+        >>>
+        >>> registry = create_registry([MyCustomModule])
+        >>> router = create_output_router_with_json_schemas(["MyCustomSchema"])
         >>> result = execute_pipeline(
         ...     "custom_pipeline.yaml",
         ...     "outputs/",
-        ...     registry=custom_registry
+        ...     registry=registry,
+        ...     output_router=router,
         ... )
     """
     specification = entry_point_validate(spec_path)
@@ -93,7 +103,8 @@ def execute_pipeline(
     if registry is None:
         registry = PipelineModuleRegistry.from_static_modules()
 
-    router = create_default_router()
+    # Use custom router if provided, otherwise default to builtins
+    router = output_router or create_default_router()
     executor = SerialPipelineExecutor(registry, output_router=router)
     context = PipelineExecutionContext(registry)
 

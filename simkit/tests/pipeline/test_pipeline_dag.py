@@ -18,6 +18,8 @@ from simkit.core.pipeline_registry import ModuleDescriptor, PipelineModuleRegist
 from simkit.core.pipeline_validator import PipelineValidationError, PipelineValidator
 from simkit.core.base import ModuleBase
 from simkit.io.readers import read_pipeline_spec
+from simkit.io.output_router import OutputRouter, WriteHandler, create_default_router
+from simkit.io import writers
 
 
 def _write_spec(tmp_path: Path, payload: Dict) -> Path:
@@ -31,6 +33,11 @@ def registry() -> PipelineModuleRegistry:
     return PipelineModuleRegistry.from_static_modules()
 
 
+@pytest.fixture
+def output_router() -> OutputRouter:
+    return create_default_router()
+
+
 def test_registry_includes_synchronous_sim(registry: PipelineModuleRegistry):
     descriptor = registry.get("SynchronousSim")
     assert descriptor.module_type == "SynchronousSim"
@@ -42,9 +49,9 @@ def test_registry_includes_synchronous_sim(registry: PipelineModuleRegistry):
     ]
 
 
-def test_pipeline_dag_builder_orders_modules(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry):
+def test_pipeline_dag_builder_orders_modules(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry, output_router: OutputRouter):
     spec = read_pipeline_spec(sample_pipeline_yaml_path)
-    graph = PipelineValidator(registry).validate(spec)
+    graph = PipelineValidator(registry, output_router).validate(spec)
     order = list(graph.topological_order)
 
     assert order[0] == "entry_point"
@@ -68,17 +75,17 @@ def _clone_module(module: PipelineModuleSpec) -> PipelineModuleSpec:
     )
 
 
-def test_validator_rejects_unregistered_module(sample_pipeline_spec: Dict, tmp_path: Path, registry: PipelineModuleRegistry):
+def test_validator_rejects_unregistered_module(sample_pipeline_spec: Dict, tmp_path: Path, registry: PipelineModuleRegistry, output_router: OutputRouter):
     broken_spec = deepcopy(sample_pipeline_spec)
     broken_spec["modules"]["rate_data"]["module_type"] = "UnknownModule"
     path = _write_spec(tmp_path, broken_spec)
     spec = read_pipeline_spec(path)
 
     with pytest.raises(PipelineValidationError, match="not registered"):  # _resolve_descriptor() raises
-        PipelineValidator(registry).validate(spec)
+        PipelineValidator(registry, output_router).validate(spec)
 
 
-def test_validator_rejects_missing_dependency(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry):
+def test_validator_rejects_missing_dependency(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry, output_router: OutputRouter):
     spec = read_pipeline_spec(sample_pipeline_yaml_path)
     modules = dict(spec.modules)
     project_analyzer = _clone_module(modules["project_analyzer"])
@@ -101,10 +108,10 @@ def test_validator_rejects_missing_dependency(sample_pipeline_yaml_path: Path, r
     )
 
     with pytest.raises(PipelineValidationError, match="Unresolved channels"):
-        PipelineValidator(registry).validate(broken_spec)  # missing_channels in PipelineDagBuilder.build()
+        PipelineValidator(registry, output_router).validate(broken_spec)  # missing_channels in PipelineDagBuilder.build()
 
 
-def test_validator_rejects_output_field_mismatch(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry):
+def test_validator_rejects_output_field_mismatch(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry, output_router: OutputRouter):
     spec = read_pipeline_spec(sample_pipeline_yaml_path)
     broken_spec = _clone_spec(spec)
     rate_module = _clone_module(broken_spec.modules["rate_data"])
@@ -123,10 +130,10 @@ def test_validator_rejects_output_field_mismatch(sample_pipeline_yaml_path: Path
     )
 
     with pytest.raises(PipelineValidationError, match="Output bindings do not match"):
-        PipelineValidator(registry).validate(broken_spec)
+        PipelineValidator(registry, output_router).validate(broken_spec)
 
 
-def test_validator_rejects_output_type_mismatch(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry):
+def test_validator_rejects_output_type_mismatch(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry, output_router: OutputRouter):
     spec = read_pipeline_spec(sample_pipeline_yaml_path)
     broken_spec = _clone_spec(spec)
     rate_module = _clone_module(broken_spec.modules["rate_data"])
@@ -144,10 +151,10 @@ def test_validator_rejects_output_type_mismatch(sample_pipeline_yaml_path: Path,
     )
 
     with pytest.raises(PipelineValidationError, match="expects type"):
-        PipelineValidator(registry).validate(broken_spec)
+        PipelineValidator(registry, output_router).validate(broken_spec)
 
 
-def test_validator_rejects_missing_required_input(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry):
+def test_validator_rejects_missing_required_input(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry, output_router: OutputRouter):
     spec = read_pipeline_spec(sample_pipeline_yaml_path)
     broken_spec = _clone_spec(spec)
     perf_module = _clone_module(broken_spec.modules["simple_performance_sim"])
@@ -155,10 +162,10 @@ def test_validator_rejects_missing_required_input(sample_pipeline_yaml_path: Pat
     broken_spec.modules["simple_performance_sim"] = perf_module
 
     with pytest.raises(PipelineValidationError, match="Missing required input"):
-        PipelineValidator(registry).validate(broken_spec)
+        PipelineValidator(registry, output_router).validate(broken_spec)
 
 
-def test_validator_requires_optional_binding(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry):
+def test_validator_requires_optional_binding(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry, output_router: OutputRouter):
     spec = read_pipeline_spec(sample_pipeline_yaml_path)
     broken_spec = _clone_spec(spec)
     analyzer = _clone_module(broken_spec.modules["project_analyzer"])
@@ -166,10 +173,10 @@ def test_validator_requires_optional_binding(sample_pipeline_yaml_path: Path, re
     broken_spec.modules["project_analyzer"] = analyzer
 
     with pytest.raises(PipelineValidationError, match="Optional inputs must be explicitly bound"):
-        PipelineValidator(registry).validate(broken_spec)
+        PipelineValidator(registry, output_router).validate(broken_spec)
 
 
-def test_validator_rejects_default_for_required_input(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry):
+def test_validator_rejects_default_for_required_input(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry, output_router: OutputRouter):
     spec = read_pipeline_spec(sample_pipeline_yaml_path)
     broken_spec = _clone_spec(spec)
     perf_module = _clone_module(broken_spec.modules["simple_performance_sim"])
@@ -181,10 +188,10 @@ def test_validator_rejects_default_for_required_input(sample_pipeline_yaml_path:
     broken_spec.modules["simple_performance_sim"] = perf_module
 
     with pytest.raises(PipelineValidationError, match="Default binding supplied for a required input"):
-        PipelineValidator(registry).validate(broken_spec)
+        PipelineValidator(registry, output_router).validate(broken_spec)
 
 
-def test_validator_rejects_unknown_input(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry):
+def test_validator_rejects_unknown_input(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry, output_router: OutputRouter):
     spec = read_pipeline_spec(sample_pipeline_yaml_path)
     broken_spec = _clone_spec(spec)
     rate_module = _clone_module(broken_spec.modules["rate_data"])
@@ -196,7 +203,7 @@ def test_validator_rejects_unknown_input(sample_pipeline_yaml_path: Path, regist
     broken_spec.modules["rate_data"] = rate_module
 
     with pytest.raises(PipelineValidationError, match="Specification declares inputs not defined"):
-        PipelineValidator(registry).validate(broken_spec)
+        PipelineValidator(registry, output_router).validate(broken_spec)
 
 
 def test_validator_rejects_self_dependency(tmp_path: Path):
@@ -212,6 +219,8 @@ def test_validator_rejects_self_dependency(tmp_path: Path):
             version="v0",
         ),
     )
+    router = create_default_router()
+    router.register_handler("Geography", WriteHandler(fn=writers.write_json_model, extension=".json"))
     payload = {
         "modules": {
             "entry_point": {
@@ -237,7 +246,7 @@ def test_validator_rejects_self_dependency(tmp_path: Path):
     spec = read_pipeline_spec(_write_spec(tmp_path, payload))
 
     with pytest.raises(PipelineValidationError, match="cannot consume its own channel"):
-        PipelineValidator(registry).validate(spec)
+        PipelineValidator(registry, router).validate(spec)
 
 
 def test_validator_rejects_cycle(tmp_path: Path):
@@ -264,6 +273,8 @@ def test_validator_rejects_cycle(tmp_path: Path):
             version="v0",
         ),
     )
+    router = create_default_router()
+    router.register_handler("Geography", WriteHandler(fn=writers.write_json_model, extension=".json"))
 
     payload = {
         "modules": {
@@ -299,10 +310,10 @@ def test_validator_rejects_cycle(tmp_path: Path):
     spec = read_pipeline_spec(path)
 
     with pytest.raises(PipelineValidationError, match="cycle"):
-        PipelineValidator(registry).validate(spec)  # CycleError in PipelineDagBuilder.build() from the graphlib package
+        PipelineValidator(registry, router).validate(spec)  # CycleError in PipelineDagBuilder.build() from the graphlib package
 
 
-def test_validator_requires_exit_filenames(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry) -> None:
+def test_validator_requires_exit_filenames(sample_pipeline_yaml_path: Path, registry: PipelineModuleRegistry, output_router: OutputRouter) -> None:
     spec = read_pipeline_spec(sample_pipeline_yaml_path)
     exit_module = spec.modules["exit_point"].model_copy()
     broken_outputs = dict(exit_module.outputs)
@@ -318,10 +329,10 @@ def test_validator_requires_exit_filenames(sample_pipeline_yaml_path: Path, regi
     )
 
     with pytest.raises(PipelineValidationError, match="destination filenames"):
-        PipelineValidator(registry).validate(broken_spec)
+        PipelineValidator(registry, output_router).validate(broken_spec)
 
 
-def test_validator_rejects_duplicate_entry(tmp_path: Path, registry: PipelineModuleRegistry):
+def test_validator_rejects_duplicate_entry(tmp_path: Path, registry: PipelineModuleRegistry, output_router: OutputRouter):
     entry_binding = PipelineChannelBinding(
         type_name="Geography",
         channel_name="foo",
@@ -374,7 +385,7 @@ def test_validator_rejects_duplicate_entry(tmp_path: Path, registry: PipelineMod
     )
 
     with pytest.raises(PipelineValidationError, match="EntryPoint"):
-        PipelineValidator(registry).validate(spec)
+        PipelineValidator(registry, output_router).validate(spec)
 
 
 class _StubModule(ModuleBase):  # pragma: no cover - execution delegated to later phases
