@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Mapping
 
+from pydantic import BaseModel
+
 from ..config import schema
 from ..config.schema import MultiOutput
 from ..config.environment import loadenv, resolve_input_dir
@@ -303,7 +305,7 @@ def _load_load_profile(path: Path) -> schema.LoadProfile8760:
     return readers.read_parquet_load_profile(path, source="pipeline_entry")
 
 
-_ENTRY_LOADERS: Dict[type[schema.StrictBaseModel], Any] = {
+_ENTRY_LOADERS: Dict[type[BaseModel], Any] = {
     schema.Geography: _load_geography,
     schema.FinancialParams: _load_financial_params,
     schema.LoadProfile8760: _load_load_profile,

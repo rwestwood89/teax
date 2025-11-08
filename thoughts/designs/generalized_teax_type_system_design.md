@@ -141,9 +141,14 @@ class ModuleDescriptor:
 **Risk:** Very low - purely a type hint change
 
 **✅ UPDATE (2025-11-08):** Component 1 implemented and tested.
-- Modified: `simkit/core/pipeline_registry.py:33-35`
-- Test added: `simkit/tests/core/test_registry_builder.py::test_create_registry_accepts_external_basemodel_schemas`
-- All existing tests pass (12/12 in test_registry_builder.py)
+- Modified:
+  - `simkit/core/pipeline_registry.py:33-35` (ModuleDescriptor)
+  - `simkit/io/readers.py:15` (ModelT TypeVar)
+  - `simkit/core/pipeline_executor.py:308` (_ENTRY_LOADERS)
+- Tests added:
+  - `test_create_registry_accepts_external_basemodel_schemas`
+  - `test_external_schema_io.py` (3 I/O tests)
+- Result: External schemas can be used in modules, registered in _ENTRY_LOADERS, and loaded via readers
 
 ---
 
@@ -1095,9 +1100,14 @@ This design addresses all four reported issues:
 ### ✅ Components Implemented
 
 **Component 1: Relax Type Constraints** ✅ COMPLETE
-- Modified: `simkit/core/pipeline_registry.py` (accept any `BaseModel`)
-- Test: `test_create_registry_accepts_external_basemodel_schemas`
-- Result: External users can use plain Pydantic `BaseModel` schemas
+- Modified:
+  - `simkit/core/pipeline_registry.py` (ModuleDescriptor accepts any `BaseModel`)
+  - `simkit/io/readers.py` (ModelT bound relaxed to `BaseModel`)
+  - `simkit/core/pipeline_executor.py` (_ENTRY_LOADERS accepts any `BaseModel`)
+- Tests:
+  - `test_create_registry_accepts_external_basemodel_schemas`
+  - `test_external_schema_io.py` (3 new tests for I/O operations)
+- Result: External users can use plain Pydantic `BaseModel` schemas throughout the system
 
 **Component 2: MultiOutput Base Class** ✅ COMPLETE
 - Modified: `simkit/config/schema.py:28-74` (added `MultiOutput` class)
@@ -1132,22 +1142,25 @@ This design addresses all four reported issues:
 
 ### Test Results
 
-- **All existing tests pass**: 126/126 tests ✅
-- **New tests added**: 13 new tests across 3 files
+- **All tests pass**: 130/130 tests ✅
+- **New tests added**: 16 new tests across 4 files
   - `test_multi_output.py`: 8 tests for MultiOutput base class
   - `test_executor_multi_output.py`: 4 tests for executor integration
   - `test_registry_builder.py`: 1 test for introspection
-- **Backward compatibility verified**: Legacy dict pattern still works
+  - `test_external_schema_io.py`: 3 tests for I/O with external schemas
+- **Backward compatibility verified**: Legacy dict pattern still works, all existing modules unchanged
 
 ### Files Modified
 
-1. `simkit/core/pipeline_registry.py` - Type hint changes
+1. `simkit/core/pipeline_registry.py` - Type hint changes (ModuleDescriptor)
 2. `simkit/config/schema.py` - Added MultiOutput class
-3. `simkit/core/pipeline_executor.py` - MultiOutput detection and routing
-4. `CLAUDE.md` - Documentation
-5. `simkit/tests/config/test_multi_output.py` - New test file
-6. `simkit/tests/core/test_executor_multi_output.py` - New test file
-7. `simkit/tests/core/test_registry_builder.py` - Added introspection test
+3. `simkit/core/pipeline_executor.py` - MultiOutput detection and routing + _ENTRY_LOADERS type
+4. `simkit/io/readers.py` - Type hint changes (ModelT)
+5. `CLAUDE.md` - Documentation
+6. `simkit/tests/config/test_multi_output.py` - New test file
+7. `simkit/tests/core/test_executor_multi_output.py` - New test file
+8. `simkit/tests/core/test_registry_builder.py` - Added introspection test
+9. `simkit/tests/io/test_external_schema_io.py` - New test file for I/O with external schemas
 
 ### Success Criteria Met
 

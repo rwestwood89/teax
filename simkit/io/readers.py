@@ -7,11 +7,12 @@ from typing import Any, Callable, Dict, Type, TypeVar
 
 import pandas as pd
 import yaml
+from pydantic import BaseModel
 
 from ..config import defaults, schema
 from ..config.pipeline_schema import PipelineSpecLoader, PipelineSpecification
 
-ModelT = TypeVar("ModelT", bound=schema.StrictBaseModel)
+ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
 def _load_raw(path: str | Path, loader: Callable[[Path], Any]) -> Any:
