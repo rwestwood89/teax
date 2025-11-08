@@ -10,6 +10,8 @@ dependencies = [
   "pyarrow>=12",
   "PyYAML>=6.0",
   "python-dotenv>=1.0",
+  "pytest>=8.4.2",
+  "pip>=25.3",
 ]
 
 [project.optional-dependencies]
