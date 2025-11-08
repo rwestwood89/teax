@@ -190,3 +190,118 @@ def test_create_registry_preserves_metadata():
     assert "optional_field" in descriptor.optional_inputs
     assert "output1" in descriptor.outputs
     assert "output2" in descriptor.outputs
+
+
+def test_create_registry_accepts_external_basemodel_schemas():
+    """Test that ModuleDescriptor accepts any BaseModel subclass, not just StrictBaseModel.
+
+    This verifies Issue 1 fix: External users can define custom schemas that inherit
+    from pydantic.BaseModel directly, without needing to inherit from
+    simkit.config.schema.StrictBaseModel.
+    """
+    # Define external schemas (plain BaseModel, not StrictBaseModel)
+    class ExternalInput(BaseModel):
+        """Custom input schema from external package."""
+        value: float
+        unit: str = "MW"
+
+    class ExternalOutput(BaseModel):
+        """Custom output schema from external package."""
+        result: float
+        status: str
+
+    class ExternalModule(ModuleBase[ExternalInput, ExternalOutput]):
+        name = "external_module"
+        version = "v1.0"
+
+        def validate_and_fill_default(self, value: float, unit: str = "MW"):
+            return ExternalInput(value=value, unit=unit)
+
+        def run(self, value: float, unit: str = "MW"):
+            inputs = self.validate_and_fill_default(value=value, unit=unit)
+            return ModuleResult(
+                data=ExternalOutput(result=inputs.value * 2.0, status="computed")
+            )
+
+    # Should create registry without type errors
+    registry = create_registry([ExternalModule])
+
+    # Verify registration worked
+    assert registry.has("ExternalModule")
+    descriptor = registry.get("ExternalModule")
+
+    # Verify types are preserved (BaseModel subclasses, not StrictBaseModel)
+    assert issubclass(descriptor.required_inputs["value"].__class__, type)
+    assert issubclass(descriptor.outputs["result"].__class__, type)
+
+    # Verify factory works
+    module = descriptor.factory()
+    assert isinstance(module, ExternalModule)
+
+    # Verify module executes correctly
+    result = module.run(value=100.0)
+    assert result.data.result == 200.0
+    assert result.data.status == "computed"
+
+
+def test_create_registry_introspects_multi_output_modules():
+    """Test that create_registry can introspect MultiOutput modules.
+
+    This verifies Issue 3 fix: Modules using MultiOutput can be auto-registered
+    via create_registry() without manual ModuleDescriptor construction.
+    """
+    from simkit.config.schema import MultiOutput
+
+    # Define multi-output schemas
+    class PowerValue(BaseModel):
+        value: float
+
+    class FusionParams(BaseModel):
+        p_fusion: float
+
+    class AlphaNeutronOutput(MultiOutput):
+        """Multi-output container."""
+        p_alpha: PowerValue
+        p_neutron: PowerValue
+
+    class AlphaNeutronModule(ModuleBase[FusionParams, AlphaNeutronOutput]):
+        name = "alphaneutron"
+        version = "v1.0"
+
+        def validate_and_fill_default(self, p_fusion: float):
+            return FusionParams(p_fusion=p_fusion)
+
+        def run(self, p_fusion: float):
+            params = self.validate_and_fill_default(p_fusion=p_fusion)
+            p_alpha_val = params.p_fusion * 0.2
+            p_neutron_val = params.p_fusion * 0.8
+            return ModuleResult(
+                data=AlphaNeutronOutput(
+                    p_alpha=PowerValue(value=p_alpha_val),
+                    p_neutron=PowerValue(value=p_neutron_val),
+                )
+            )
+
+    # Should successfully introspect and register
+    registry = create_registry([AlphaNeutronModule])
+
+    # Verify registration
+    assert registry.has("AlphaNeutronModule")
+    descriptor = registry.get("AlphaNeutronModule")
+
+    # Verify inputs extracted correctly
+    assert "p_fusion" in descriptor.required_inputs
+    assert descriptor.required_inputs["p_fusion"] == float
+
+    # Verify outputs extracted from MultiOutput fields
+    assert "p_alpha" in descriptor.outputs
+    assert "p_neutron" in descriptor.outputs
+    assert descriptor.outputs["p_alpha"] == PowerValue
+    assert descriptor.outputs["p_neutron"] == PowerValue
+
+    # Verify module executes
+    module = descriptor.factory()
+    result = module.run(p_fusion=100.0)
+    assert isinstance(result.data, AlphaNeutronOutput)
+    assert result.data.p_alpha.value == 20.0
+    assert result.data.p_neutron.value == 80.0

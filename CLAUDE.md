@@ -43,6 +43,62 @@ All pipeline modules inherit from `ModuleBase[InputModel, OutputModel]` (in `sim
 
 Each module declares `name` (str) and `version` (str) class attributes for provenance tracking.
 
+#### Single-Output vs. Multi-Output Modules
+
+**Single-Output Modules** (most common):
+```python
+class SimpleModule(ModuleBase[MyInput, MyOutput]):
+    name = "simple"
+    version = "v1.0"
+
+    def run(self, **kwargs) -> ModuleResult[MyOutput]:
+        # Process inputs...
+        return ModuleResult(data=MyOutput(...))
+```
+
+The entire `MyOutput` object is assigned to the channel specified in YAML.
+
+**Multi-Output Modules** (when routing different types to different downstream modules):
+```python
+from simkit.config.schema import MultiOutput
+
+# Define output container
+class MyMultiOutput(MultiOutput):
+    """Container for multiple typed outputs."""
+    field_a: TypeA
+    field_b: TypeB
+
+class MultiModule(ModuleBase[MyInput, MyMultiOutput]):
+    name = "multi"
+    version = "v1.0"
+
+    def run(self, **kwargs) -> ModuleResult[MyMultiOutput]:
+        # Process inputs...
+        return ModuleResult(
+            data=MyMultiOutput(
+                field_a=TypeA(...),
+                field_b=TypeB(...),
+            )
+        )
+```
+
+In YAML, declare each field as a separate output:
+```yaml
+multi_module:
+  module_type: MultiModule
+  outputs:
+    field_a: TypeA channel_a
+    field_b: TypeB channel_b
+```
+
+The executor automatically extracts each field from `MyMultiOutput` and routes them to separate channels.
+
+**Why use MultiOutput?**
+- Type-safe (no `# type: ignore` needed)
+- Introspectable by `create_registry()` (auto-registration works)
+- Self-documenting (signals multi-output intent)
+- Better than legacy `Dict[str, BaseModel]` pattern (which violates TypeVar constraints)
+
 ### Data Models
 
 All data models in `simkit/config/schema.py` extend `StrictBaseModel`:
@@ -57,6 +113,7 @@ Key model families:
 - **CostBreakdown, FinancialResults**: Economic analysis outputs
 - **SyncTimeGrid, BatteryState, PriceTrajectory**: Synchronous simulation inputs
 - **Provenance, PipelineRunMetadata, RunManifest**: Pipeline execution metadata
+- **MultiOutput**: Base class for modules with multiple typed outputs (see Multi-Output Modules above)
 
 ### Pipeline Execution Modes
 

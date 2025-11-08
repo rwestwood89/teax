@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, Mapping
 
 from ..config import schema
+from ..config.schema import MultiOutput
 from ..config.environment import loadenv, resolve_input_dir
 from ..config.pipeline_schema import (
     ChannelSource,
@@ -164,16 +165,38 @@ class SerialPipelineExecutor:
         outputs = module_spec.outputs
         result = module.run(**kwargs)
         data = result.data
+
+        # Check if module returned MultiOutput container (new pattern)
+        if isinstance(data, MultiOutput):
+            # Multi-output mode - extract fields from MultiOutput container
+            channel_dict = data.to_channel_dict()
+            for field, binding in outputs.items():
+                if field not in channel_dict:
+                    raise RuntimeError(
+                        f"Module '{module_key}' MultiOutput missing field '{field}' "
+                        f"declared in YAML. Available fields: {list(channel_dict.keys())}"
+                    )
+                context.set_channel(binding.channel_name, channel_dict[field])
+            context.module_versions[module_key] = descriptor.version
+            return
+
+        # Legacy multi-output mode - dict pattern (backward compatibility)
+        if len(outputs) > 1 and isinstance(data, Mapping):
+            for field, binding in outputs.items():
+                context.set_channel(binding.channel_name, data[field])
+            context.module_versions[module_key] = descriptor.version
+            return
+
+        # Single-output mode - assign entire data to one channel
         if len(outputs) == 1:
             binding = next(iter(outputs.values()))
             context.set_channel(binding.channel_name, data)
         else:
-            if not isinstance(data, Mapping):
-                raise RuntimeError(
-                    f"Module '{module_key}' produced multiple outputs but returned non-mapping data"
-                )
-            for field, binding in outputs.items():
-                context.set_channel(binding.channel_name, data[field])
+            # Error: multiple outputs declared but data is neither MultiOutput nor dict
+            raise RuntimeError(
+                f"Module '{module_key}' declared {len(outputs)} outputs in YAML "
+                f"but returned {type(data).__name__} instead of MultiOutput or dict"
+            )
 
         context.module_versions[module_key] = descriptor.version
 

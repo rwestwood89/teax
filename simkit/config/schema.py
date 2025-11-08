@@ -25,6 +25,55 @@ class StrictBaseModel(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
+class MultiOutput(StrictBaseModel):
+    """Container base class for modules that produce multiple typed outputs.
+
+    Use this as the OutputModel for modules that need to route different
+    data types to different downstream modules. Each field in the subclass
+    becomes a separate channel in the pipeline.
+
+    Example:
+        >>> class AlphaNeutronSplitOutput(MultiOutput):
+        ...     p_alpha: PowerValue
+        ...     p_neutron: PowerValue
+        ...
+        >>> class AlphaNeutronSplitModule(
+        ...     ModuleBase[FusionInput, AlphaNeutronSplitOutput]
+        ... ):
+        ...     def run(self, ...) -> ModuleResult[AlphaNeutronSplitOutput]:
+        ...         return ModuleResult(
+        ...             data=AlphaNeutronSplitOutput(
+        ...                 p_alpha=PowerValue(value=520.5),
+        ...                 p_neutron=PowerValue(value=2079.4),
+        ...             )
+        ...         )
+
+    The pipeline executor will automatically extract each field and route it
+    to the appropriate channel based on the YAML output declarations.
+
+    See Also:
+        - thoughts/designs/generalized_teax_type_system_design.md (Component 2)
+        - thoughts/research/input_output_asymmetry_analysis.md
+    """
+
+    def to_channel_dict(self) -> Dict[str, BaseModel]:
+        """Convert multi-output fields to channel routing dict.
+
+        Returns:
+            Dictionary with field names as keys and field values as values.
+            Used by executor to route outputs to separate channels.
+
+        Example:
+            >>> output = AlphaNeutronSplitOutput(p_alpha=..., p_neutron=...)
+            >>> channels = output.to_channel_dict()
+            >>> # {"p_alpha": PowerValue(...), "p_neutron": PowerValue(...)}
+        """
+        return {
+            field_name: getattr(self, field_name)
+            for field_name in self.__class__.model_fields.keys()
+        }
+
+
 class Geography(StrictBaseModel):
     country: str
     region: Optional[str]

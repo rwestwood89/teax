@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Dict, Mapping, MutableMapping
 
+from pydantic import BaseModel
+
 from ..config import schema
 from .base import ModuleBase
 from .battery_config import ConfigureBatteryModule
@@ -19,13 +21,18 @@ ModuleFactory = Callable[[], ModuleBase]
 
 @dataclass(frozen=True)
 class ModuleDescriptor:
-    """Metadata describing inputs/outputs for a pipeline module."""
+    """Metadata describing inputs/outputs for a pipeline module.
+
+    Accepts any Pydantic BaseModel subclass for inputs/outputs, not just
+    simkit.config.schema.StrictBaseModel. This allows external users to
+    define custom schemas without depending on TEAx internal schema classes.
+    """
 
     module_type: str
     factory: ModuleFactory
-    required_inputs: Mapping[str, type[schema.StrictBaseModel]]
-    optional_inputs: Mapping[str, type[schema.StrictBaseModel]]
-    outputs: Mapping[str, type[schema.StrictBaseModel]]
+    required_inputs: Mapping[str, type[BaseModel]]
+    optional_inputs: Mapping[str, type[BaseModel]]
+    outputs: Mapping[str, type[BaseModel]]
     version: str
 
 
