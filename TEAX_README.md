@@ -1,0 +1,755 @@
+# TEAx User Guide
+
+**Version:** 0.1
+**Status:** Production-ready for external users
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Quick Start](#quick-start)
+3. [Pipeline Specification (YAML)](#pipeline-specification-yaml)
+4. [Channel-Based DAG System](#channel-based-dag-system)
+5. [Module Development](#module-development)
+6. [I/O System](#io-system)
+7. [Custom Module Registration](#custom-module-registration)
+8. [Debugging Guide](#debugging-guide)
+9. [API Reference](#api-reference)
+
+---
+
+## Overview
+
+**TEAx (Techno-Economic Analysis framework)** is a modular, type-safe pipeline system for battery energy storage simulations. The framework enables users to:
+
+- **Define pipelines** via declarative YAML specifications
+- **Compose modules** into directed acyclic graphs (DAGs) with typed channels
+- **Develop custom modules** using any Pydantic `BaseModel` schemas
+- **Register external packages** with automatic type introspection
+- **Execute simulations** with full provenance tracking
+
+### Core Concepts
+
+1. **Modules**: Functional units with typed inputs and outputs (`ModuleBase[InputModel, OutputModel]`)
+2. **Channels**: Named data flows connecting module outputs to downstream inputs
+3. **Pipeline**: DAG of modules defined in YAML, validated and executed in topological order
+4. **Registry**: Catalog of available modules with metadata for validation
+5. **Provenance**: Automatic tracking of module versions, config hashes, and execution metadata
+
+---
+
+## Quick Start
+
+### Installation
+
+```bash
+pip install -e .
+```
+
+### Minimal Example
+
+**1. Create a pipeline specification (`demo.yaml`):**
+
+```yaml
+metadata:
+  run_description: My first pipeline
+
+modules:
+  entry_point:
+    module_type: EntryPoint
+    inputs:
+      geo: Geography ../geography_us_ca_pge.json
+
+  rate_data:
+    module_type: RateData
+    inputs:
+      geography: Geography geo
+    outputs:
+      rate_info: RateInfo rate_info
+
+  exit_point:
+    module_type: ExitPoint
+    outputs:
+      rate_info: RateInfo rate_info.json
+```
+
+**2. Execute the pipeline:**
+
+```python
+from simkit.core.pipeline import execute_pipeline
+
+result = execute_pipeline("demo.yaml", output_dir="outputs/")
+print(result.outputs)  # {'rate_info': RateInfo(...)}
+```
+
+---
+
+## Pipeline Specification (YAML)
+
+### Structure
+
+```yaml
+metadata:                     # Optional metadata
+  run_description: string     # Human-readable description
+  output_folder: string       # Output directory name hint
+
+modules:                      # Required: module declarations
+  <module_key>:               # Unique identifier for this module instance
+    module_type: string       # Module class name (from registry)
+    inputs:                   # Input bindings (field -> channel)
+      <field>: <Type> <channel_or_path>
+    outputs:                  # Output bindings (field -> channel)
+      <field>: <Type> <channel>
+```
+
+### Input Binding Syntax
+
+| Pattern | Meaning | Example |
+|---------|---------|---------|
+| `Type channel_name` | Read from channel | `Geography geo` |
+| `Type path/to/file.json` | Load from file (EntryPoint only) | `Geography ../geo.json` |
+| `None -> default_name` | Use module's default value | `None -> design_pref_default` |
+
+### Output Binding Syntax
+
+| Pattern | Meaning | Example |
+|---------|---------|---------|
+| `Type channel_name` | Write to channel (internal modules) | `RateInfo rate_info` |
+| `Type filename.ext` | Write to file (ExitPoint only) | `RateInfo rate_info.json` |
+
+### Special Modules
+
+#### EntryPoint
+Loads input data from files and initializes channels. Must appear exactly once.
+
+```yaml
+entry_point:
+  module_type: EntryPoint
+  inputs:
+    geo: Geography ../data/geography.json           # JSON -> Geography model
+    load: LoadProfile8760 ../data/load.parquet      # Parquet -> LoadProfile8760
+```
+
+**Path Resolution:**
+1. Try relative to YAML file location
+2. Fall back to `$PYRONDO_INPUT_DIR/<path>` (env var)
+3. Fall back to `run_data/inputs/<path>` (project default)
+
+#### ExitPoint
+Declares which channels to persist as pipeline outputs. Must appear exactly once.
+
+```yaml
+exit_point:
+  module_type: ExitPoint
+  outputs:
+    rate_info: RateInfo rate_info.json              # Serialize to JSON
+    telemetry: BatteryTelemetry8760 telemetry.parquet  # Serialize to Parquet
+```
+
+Outputs are written to: `<output_dir>/<run_name>/<timestamp>/<filename>`
+
+---
+
+## Channel-Based DAG System
+
+### How Channels Work
+
+Channels are **named, typed data flows** that connect modules. Think of them as strongly-typed pipes:
+
+```yaml
+# Module A produces channel "rate_info" of type RateInfo
+rate_data:
+  outputs:
+    rate_info: RateInfo rate_info
+
+# Module B consumes channel "rate_info"
+configure_battery:
+  inputs:
+    rate_info: RateInfo rate_info  # Must match type and channel name
+```
+
+### Validation and DAG Building
+
+When you call `execute_pipeline()`, the system:
+
+1. **Parses YAML** → `PipelineSpecification` (see `simkit/io/readers.py:84`)
+2. **Validates structure** → Checks for cycles, missing channels, type mismatches (see `simkit/core/pipeline_validator.py`)
+3. **Builds DAG** → `PipelineGraph` with topological order (see `simkit/core/pipeline_graph.py`)
+4. **Executes modules** → In order, routing data through channels (see `simkit/core/pipeline_executor.py`)
+
+**Key File:** `simkit/config/pipeline_schema.py:67-100` - Defines spec structure and validation rules
+
+### Type Checking Rules
+
+The validator enforces:
+
+- **Channel uniqueness**: No two modules can produce the same channel
+- **Type compatibility**: Producer type must match consumer type exactly
+- **Required inputs**: All required module inputs must be bound
+- **Optional inputs**: May use `None -> default` or omit entirely
+- **Output handlers**: ExitPoint outputs must have registered serializers
+
+**Key File:** `simkit/core/pipeline_validator.py` - Contains all validation logic
+
+---
+
+## Module Development
+
+### Module Interface
+
+All modules inherit from `ModuleBase[InputModel, OutputModel]` where both types are Pydantic `BaseModel` subclasses.
+
+**Key File:** `simkit/core/base.py:19-29` - Defines `ModuleBase` interface
+
+```python
+from pydantic import BaseModel
+from simkit.core.base import ModuleBase, ModuleResult
+
+class MyInput(BaseModel):
+    value: float
+
+class MyOutput(BaseModel):
+    result: float
+
+class MyModule(ModuleBase[MyInput, MyOutput]):
+    name = "my_module"      # Required: module identifier
+    version = "v1.0"        # Required: version for provenance
+
+    def validate_and_fill_default(self, **kwargs) -> MyInput:
+        """Validate inputs and fill defaults before execution."""
+        return MyInput(**kwargs)
+
+    def run(self, **kwargs) -> ModuleResult[MyOutput]:
+        """Execute module logic with validated inputs."""
+        inputs = self.validate_and_fill_default(**kwargs)
+        return ModuleResult(data=MyOutput(result=inputs.value * 2))
+```
+
+### Single-Output Modules
+
+Most modules produce **one typed output** assigned to one channel.
+
+```python
+class PowerCalculatorOutput(BaseModel):
+    power_kw: float
+
+class PowerCalculatorModule(ModuleBase[MyInput, PowerCalculatorOutput]):
+    name = "power_calc"
+    version = "v1.0"
+
+    def run(self, **kwargs) -> ModuleResult[PowerCalculatorOutput]:
+        return ModuleResult(data=PowerCalculatorOutput(power_kw=123.4))
+```
+
+**YAML:**
+```yaml
+power_calc:
+  module_type: PowerCalculatorModule
+  inputs:
+    # ... inputs
+  outputs:
+    power_calculator_output: PowerCalculatorOutput power_data  # Single output
+```
+
+The entire `PowerCalculatorOutput` object is assigned to the `power_data` channel.
+
+### Multi-Output Modules
+
+Modules that need to **route different data types to different channels** use the `MultiOutput` pattern.
+
+**Key File:** `simkit/config/schema.py:28-74` - Defines `MultiOutput` base class
+
+```python
+from simkit.config.schema import MultiOutput
+
+# 1. Define output container inheriting from MultiOutput
+class AlphaNeutronSplitOutput(MultiOutput):
+    """Each field becomes a separate channel."""
+    p_alpha: PowerValue      # Field 1: will be routed to one channel
+    p_neutron: PowerValue    # Field 2: will be routed to another channel
+
+# 2. Use MultiOutput as OutputModel
+class AlphaNeutronSplitModule(ModuleBase[MyInput, AlphaNeutronSplitOutput]):
+    name = "alpha_neutron_split"
+    version = "v1.0"
+
+    def run(self, **kwargs) -> ModuleResult[AlphaNeutronSplitOutput]:
+        return ModuleResult(
+            data=AlphaNeutronSplitOutput(
+                p_alpha=PowerValue(value=520.5),
+                p_neutron=PowerValue(value=2079.4),
+            )
+        )
+```
+
+**YAML:**
+```yaml
+split:
+  module_type: AlphaNeutronSplitModule
+  inputs:
+    # ... inputs
+  outputs:
+    p_alpha: PowerValue alpha_channel      # Field 1 → alpha_channel
+    p_neutron: PowerValue neutron_channel  # Field 2 → neutron_channel
+```
+
+**How it works:**
+
+1. Module returns `MultiOutput` instance
+2. Executor detects `isinstance(data, MultiOutput)` (see `simkit/core/pipeline_executor.py:172`)
+3. Executor calls `data.to_channel_dict()` to extract fields
+4. Each field is routed to its declared channel
+
+**Why use MultiOutput?**
+
+- ✅ Type-safe (no `# type: ignore` needed)
+- ✅ Introspectable by `create_registry()` (auto-registration works)
+- ✅ Self-documenting (signals multi-output intent)
+- ✅ Better than legacy `Dict[str, BaseModel]` pattern
+
+**Key Files:**
+- `simkit/config/schema.py:28-74` - `MultiOutput` class
+- `simkit/core/pipeline_executor.py:171-183` - Multi-output detection and routing
+
+---
+
+## I/O System
+
+### Loading Input Data
+
+The `EntryPoint` module loads data files using type-specific readers.
+
+**Key File:** `simkit/io/readers.py` - All file loading functions
+
+**Supported formats:**
+
+| File Type | Loader Function | Model Type |
+|-----------|-----------------|------------|
+| JSON | `read_json_model()` | Any `BaseModel` subclass |
+| Parquet (load) | `read_parquet_load_profile()` | `LoadProfile8760` |
+| Parquet (PV) | `read_parquet_pv_profile()` | `PVProfile8760` |
+
+**Entry loader registry:** `simkit/core/pipeline_executor.py:268-308` - Maps type names to loader functions
+
+**Adding custom loaders:**
+
+```python
+from simkit.core.pipeline_executor import _ENTRY_LOADERS
+from simkit.io.readers import read_json_model
+
+# Register custom type
+_ENTRY_LOADERS["MyCustomType"] = lambda path: read_json_model(path, MyCustomType)
+```
+
+### Saving Output Data
+
+The `ExitPoint` module serializes outputs using the `OutputRouter`.
+
+**Key File:** `simkit/io/output_router.py` - Handles output serialization
+
+**Output handlers:**
+
+| Model Type | Serialization | Extension |
+|------------|---------------|-----------|
+| Any `BaseModel` | JSON | `.json` |
+| `LoadProfile8760` | Parquet | `.parquet` |
+| `PVProfile8760` | Parquet | `.parquet` |
+| `BatteryTelemetry8760` | Parquet | `.parquet` |
+
+**Directory structure:**
+```
+outputs/
+  <run_name>_<timestamp>/
+    rate_info.json
+    telemetry.parquet
+    manifest.json          # RunManifest with provenance
+```
+
+**Adding custom handlers:**
+
+```python
+from simkit.io.output_router import create_output_router_with_json_schemas
+
+# Register custom schemas for JSON serialization
+router = create_output_router_with_json_schemas(["MyCustomType"])
+
+# Pass to execute_pipeline
+result = execute_pipeline("spec.yaml", "outputs/", output_router=router)
+```
+
+**Key Function:** `simkit/io/output_router.py:create_output_router_with_json_schemas()` - Registers JSON handlers
+
+---
+
+## Custom Module Registration
+
+### Using `create_registry()`
+
+TEAx provides **automatic module registration** through type introspection, eliminating manual `ModuleDescriptor` creation.
+
+**Key File:** `simkit/core/registry_builder.py:9-128` - Registry builder implementation
+
+**Basic usage:**
+
+```python
+from simkit.core.registry_builder import create_registry
+from simkit.core.pipeline import execute_pipeline
+
+# Define your modules (must inherit ModuleBase[InputModel, OutputModel])
+class MyModule1(ModuleBase[Input1, Output1]):
+    name = "my_module_1"
+    version = "v1.0"
+    # ... implement validate_and_fill_default() and run()
+
+class MyModule2(ModuleBase[Input2, Output2]):
+    name = "my_module_2"
+    version = "v1.0"
+    # ... implement validate_and_fill_default() and run()
+
+# Create registry from module classes
+registry = create_registry([MyModule1, MyModule2])
+
+# Execute pipeline with custom registry
+result = execute_pipeline("pipeline.yaml", "outputs/", registry=registry)
+```
+
+### Including Built-in Modules
+
+```python
+# Mix custom modules with TEAx built-ins
+registry = create_registry(
+    [MyModule1, MyModule2],
+    include_builtins=True  # Adds RateData, ConfigureBattery, etc.
+)
+```
+
+### Overriding Module Names
+
+```python
+# Change module_type names (useful for avoiding conflicts)
+registry = create_registry(
+    [MyModule1],
+    module_type_override={
+        MyModule1: "CustomName"  # Use "CustomName" in YAML instead of "MyModule1"
+    }
+)
+```
+
+### External Package Pattern
+
+External packages should provide a convenience function:
+
+```python
+# In fusion_simkit/__init__.py
+from simkit.core.registry_builder import create_registry
+from .modules import AlphaNeutronSplitModule, BlanketThermalModule
+
+def create_fusion_registry(include_builtins: bool = True):
+    """Create registry with all fusion physics modules."""
+    return create_registry(
+        [AlphaNeutronSplitModule, BlanketThermalModule, ...],
+        include_builtins=include_builtins
+    )
+
+# Users import and use
+from fusion_simkit import create_fusion_registry
+from simkit.core.pipeline import execute_pipeline
+
+registry = create_fusion_registry()
+result = execute_pipeline("fusion_pipeline.yaml", "outputs/", registry=registry)
+```
+
+### Requirements for Auto-Registration
+
+Your module **must**:
+
+1. ✅ Inherit directly from `ModuleBase[InputModel, OutputModel]`
+2. ✅ Use Pydantic `BaseModel` subclasses for both type parameters
+3. ✅ Define `name` class attribute (string)
+4. ✅ Define `version` class attribute (string)
+
+Auto-registration **will fail** if:
+
+- ❌ InputModel or OutputModel are not `BaseModel` subclasses
+- ❌ Module uses indirect inheritance (e.g., abstract base class between your module and `ModuleBase`)
+- ❌ Type parameters are not explicitly specified
+
+**Key File:** `simkit/core/module_introspector.py` - Introspection logic for extracting module metadata
+
+---
+
+## Debugging Guide
+
+### Common Issues and Solutions
+
+#### 1. Pipeline Validation Errors
+
+**Error:** `PipelineValidationError: Channel 'xyz' not produced during execution`
+
+**Cause:** YAML references a channel that no module produces.
+
+**Debug:**
+1. Check `simkit/core/pipeline_validator.py:validate()` - Validates channel bindings
+2. Verify all input bindings reference existing output channels
+3. Check for typos in channel names
+
+#### 2. Module Not Found
+
+**Error:** `ModuleNotFoundError: Module type 'MyModule' not registered`
+
+**Cause:** Module not in registry.
+
+**Debug:**
+1. Verify `create_registry([YourModule])` includes your module class
+2. Check `module_type` in YAML matches class name (or override)
+3. Inspect `simkit/core/pipeline_registry.py:40-51` - Registry lookup logic
+
+#### 3. Type Mismatch
+
+**Error:** `PipelineValidationError: Type mismatch for channel 'xyz'`
+
+**Cause:** Producer outputs type A, consumer expects type B.
+
+**Debug:**
+1. Check `simkit/core/pipeline_validator.py` - Type checking logic
+2. Verify output type in producer's YAML matches input type in consumer's YAML
+3. Types must match **exactly** (no subclass polymorphism)
+
+#### 4. Multi-Output Field Missing
+
+**Error:** `RuntimeError: Module 'xyz' MultiOutput missing field 'abc'`
+
+**Cause:** YAML declares output field not present in `MultiOutput` container.
+
+**Debug:**
+1. Check `simkit/core/pipeline_executor.py:172-183` - Multi-output extraction logic
+2. Verify all fields in YAML `outputs:` exist in your `MultiOutput` subclass
+3. Check spelling and capitalization
+
+#### 5. EntryPoint File Not Found
+
+**Error:** `FileNotFoundError: File not found: /path/to/file.json`
+
+**Cause:** Input file path cannot be resolved.
+
+**Debug:**
+1. Check `simkit/core/pipeline_executor.py:220-267` - Path resolution logic
+2. Verify file exists relative to YAML location
+3. Check `$PYRONDO_INPUT_DIR` environment variable
+4. Try absolute paths for testing
+
+### Execution Flow (For Debugging)
+
+Understanding the execution flow helps trace issues:
+
+```
+1. execute_pipeline(spec_path, output_dir, registry)
+   ↓
+2. entry_point_validate(spec_path)  [simkit/core/pipeline.py:27]
+   → Loads and validates YAML specification
+   ↓
+3. PipelineValidator.validate(spec)  [simkit/core/pipeline_validator.py]
+   → Type checks all bindings, builds DAG
+   ↓
+4. SerialPipelineExecutor.build_graph(spec)  [simkit/core/pipeline_executor.py:76]
+   → Returns PipelineGraph with topological order
+   ↓
+5. SerialPipelineExecutor.run(graph, context)  [simkit/core/pipeline_executor.py:79]
+   → Executes modules in topological order:
+     a. _execute_entry() - Loads EntryPoint files [line 139]
+     b. _execute_module() - Runs each module [line 153]
+        - Gathers inputs from channels
+        - Calls module.run(**kwargs)
+        - Routes outputs to channels
+     c. ExitPoint - Collects outputs for persistence [line 104]
+   ↓
+6. OutputRouter.write_outputs()  [simkit/io/output_router.py]
+   → Serializes outputs to files
+   ↓
+7. Returns RunResult with outputs, manifest, provenance
+```
+
+### Key Files for Debugging
+
+| Issue | File | Line |
+|-------|------|------|
+| YAML parsing | `simkit/io/readers.py` | 84 |
+| Pipeline validation | `simkit/core/pipeline_validator.py` | entire file |
+| DAG building | `simkit/core/pipeline_graph.py` | entire file |
+| Module execution | `simkit/core/pipeline_executor.py` | 153-203 |
+| Multi-output routing | `simkit/core/pipeline_executor.py` | 172-183 |
+| EntryPoint loading | `simkit/core/pipeline_executor.py` | 139-151 |
+| Output serialization | `simkit/io/output_router.py` | entire file |
+| Type introspection | `simkit/core/module_introspector.py` | entire file |
+| Registry building | `simkit/core/registry_builder.py` | 9-128 |
+
+---
+
+## API Reference
+
+### Core Functions
+
+#### `execute_pipeline()`
+
+**Location:** `simkit/core/pipeline.py:65-99`
+
+```python
+def execute_pipeline(
+    spec_path: str | Path,
+    output_dir: str | Path | None = None,
+    registry: PipelineModuleRegistry | None = None,
+    output_router: OutputRouter | None = None,
+) -> RunResult:
+    """Execute pipeline with optional custom registry and output router."""
+```
+
+**Parameters:**
+- `spec_path`: Path to YAML pipeline specification
+- `output_dir`: Directory for outputs (defaults to temp dir)
+- `registry`: Custom module registry (defaults to built-in modules)
+- `output_router`: Custom output handler (defaults to built-in serializers)
+
+**Returns:** `RunResult` with:
+- `outputs`: Dict of channel names → values
+- `manifest`: File locations and provenance
+- `module_versions`: Module versions used in execution
+
+#### `create_registry()`
+
+**Location:** `simkit/core/registry_builder.py:9-128`
+
+```python
+def create_registry(
+    modules: List[Type[ModuleBase]],
+    include_builtins: bool = False,
+    module_type_override: Dict[Type[ModuleBase], str] | None = None,
+) -> PipelineModuleRegistry:
+    """Create PipelineModuleRegistry from module classes via introspection."""
+```
+
+**Parameters:**
+- `modules`: List of `ModuleBase` subclasses to register
+- `include_builtins`: Include TEAx built-in modules
+- `module_type_override`: Map module classes to custom names
+
+**Returns:** `PipelineModuleRegistry` ready for pipeline execution
+
+**Raises:**
+- `ModuleIntrospectionError`: Module structure invalid
+- `ValueError`: Duplicate module names detected
+
+### Data Classes
+
+#### `ModuleBase[InputModel, OutputModel]`
+
+**Location:** `simkit/core/base.py:19-29`
+
+Base class for all pipeline modules.
+
+**Attributes:**
+- `name: str` - Module identifier
+- `version: str` - Version string for provenance
+
+**Methods:**
+- `validate_and_fill_default(**kwargs) -> InputModel` - Validate inputs
+- `run(**kwargs) -> ModuleResult[OutputModel]` - Execute module logic
+
+#### `ModuleResult[OutputModel]`
+
+**Location:** `simkit/core/base.py:14-16`
+
+Container for module execution results.
+
+**Attributes:**
+- `data: OutputModel` - Module output data
+- `notes: str | None` - Optional execution notes
+
+#### `MultiOutput`
+
+**Location:** `simkit/config/schema.py:28-74`
+
+Base class for multi-output modules.
+
+**Methods:**
+- `to_channel_dict() -> Dict[str, BaseModel]` - Extract fields for routing
+
+#### `RunResult`
+
+**Location:** `simkit/core/pipeline_executor.py:52-60`
+
+Pipeline execution results.
+
+**Attributes:**
+- `outputs: Mapping[str, Any]` - Output channel values
+- `manifest: RunManifest | None` - File locations and metadata
+- `module_versions: Mapping[str, str]` - Module versions used
+- `pipeline_metadata: PipelineRunMetadata | None` - Pipeline metadata
+- `provenance: Provenance | None` - Execution provenance
+
+---
+
+## Design Philosophy
+
+### Type Safety
+
+TEAx enforces **compile-time and runtime type safety**:
+
+- Pydantic models validate data at module boundaries
+- Pipeline validator checks type compatibility before execution
+- Type introspection enables automatic registry building
+
+### Functional Composition
+
+Modules are **pure functions** with no side effects:
+
+- Inputs → Outputs (no hidden state)
+- I/O isolated to EntryPoint/ExitPoint boundaries
+- Enables testing, caching, and parallel execution (future)
+
+### Provenance and Reproducibility
+
+Every execution tracks:
+
+- Module versions used
+- Config hash (deterministic YAML fingerprint)
+- Input file locations
+- Output file locations
+- Execution timestamp
+
+**Key Files:**
+- `simkit/config/schema.py` - `Provenance`, `RunManifest` models
+- `simkit/core/pipeline.py:41-62` - Provenance building logic
+
+### Progressive Enhancement
+
+The system supports **multiple usage modes**:
+
+1. **Built-in modules only** - Zero configuration, use TEAx battery modules
+2. **Custom modules with auto-registration** - `create_registry([YourModule])`
+3. **Mixed built-ins + custom** - `create_registry([...], include_builtins=True)`
+4. **Manual registration** - Direct `ModuleDescriptor` creation (advanced)
+
+---
+
+## Additional Resources
+
+- **Design Docs:** `thoughts/designs/generalized_teax_type_system_design.md`
+- **Custom Module Registration:** `thoughts/specs/custom-module-package-registration/plan.md`
+- **Project Instructions:** `CLAUDE.md` (developer-focused)
+- **Example Pipeline:** `simkit/tests/fixtures/pipeline_configs/demo_linear_alt.yaml`
+- **Module Examples:** `simkit/core/rate_data/module.py`, `simkit/core/cost_calc/module.py`
+
+---
+
+## Support
+
+For issues or questions:
+- GitHub Issues: https://github.com/anthropics/claude-code/issues
+- Source Code: `/home/reid/teax/simkit/`
+
+---
+
+**Last Updated:** 2025-11-10
+**TEAx Version:** 0.1
+**Python Requirement:** 3.10+
