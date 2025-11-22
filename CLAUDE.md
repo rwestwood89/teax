@@ -290,3 +290,154 @@ When adding new modules:
 5. Register in `PipelineModuleRegistry.from_static_modules()` or use `create_registry([YourModule])`
 
 External packages (e.g., `fusion_simkit`) should provide a `create_<package>_registry()` function that calls `create_registry([...module_classes])`.
+
+## Custom Schema Development Pattern
+
+TEAx supports custom Pydantic schema types for EntryPoint loading, field reference validation, and ExitPoint output. This enables external packages to define domain-specific data models while integrating seamlessly with the pipeline system.
+
+### Quick Start: Using Custom Schemas
+
+```python
+from pydantic import BaseModel
+from simkit.config.schema import StrictBaseModel
+from simkit.core.pipeline import execute_pipeline
+
+# Define your custom schema (use StrictBaseModel for immutability)
+class FusionParams(StrictBaseModel):
+    plasma_temperature: float  # keV
+    confinement_time: float    # seconds
+    beta_n: float              # normalized beta
+
+# Use in pipeline - auto-registers JSON loader and OutputRouter handler
+result = execute_pipeline(
+    "fusion_pipeline.yaml",
+    "outputs/",
+    custom_schema_types=[FusionParams],
+)
+```
+
+### Pipeline YAML with Custom Schemas
+
+```yaml
+modules:
+  entry:
+    module_type: EntryPoint
+    inputs:
+      params: FusionParams fusion_params.json  # Loads custom type
+    outputs:
+      params: FusionParams params
+
+  analyzer:
+    module_type: PlasmaAnalyzer
+    inputs:
+      temperature: RootModel[float] params.plasma_temperature  # Field extraction
+    outputs:
+      analysis: AnalysisResult result
+
+  exit:
+    module_type: ExitPoint
+    outputs:
+      analysis: AnalysisResult result.json  # Writes custom type
+```
+
+### Custom Schema Requirements
+
+**All custom schema types must:**
+1. Be Pydantic `BaseModel` subclasses (preferably `StrictBaseModel`)
+2. Have unique `__name__` (no conflicts with built-in TEAx types or other custom types)
+3. Be JSON-serializable (default Pydantic behavior)
+
+**Automatic features provided:**
+- **EntryPoint loading**: JSON deserialization via `readers.read_json_model()`
+- **Field reference validation**: Type resolution in `PipelineValidator`
+- **ExitPoint writing**: JSON serialization via auto-created `OutputRouter`
+
+### Advanced: Custom Loaders (Future Enhancement)
+
+For schemas requiring non-JSON formats (Parquet, HDF5, custom binary), future versions will support:
+
+```python
+# Future API (not yet implemented)
+custom_loaders = {
+    FusionProfile: lambda path: load_hdf5_fusion_profile(path),
+    PlasmaState: lambda path: load_parquet_plasma_state(path),
+}
+
+result = execute_pipeline(
+    "pipeline.yaml",
+    custom_schema_types=[FusionProfile, PlasmaState],
+    custom_entry_loaders=custom_loaders,  # Future parameter
+)
+```
+
+Currently, all custom schemas default to JSON. For specialized formats, preprocess data to JSON or use custom OutputRouter.
+
+### Testing Custom Schemas
+
+```python
+from simkit.core.pipeline_executor import _build_schema_type_registry, _build_entry_loaders
+
+# Unit test schema registration
+def test_fusion_schema_registration():
+    registry = _build_schema_type_registry([FusionParams])
+    assert "FusionParams" in registry
+    assert registry["FusionParams"] is FusionParams
+
+# Unit test entry loader
+def test_fusion_entry_loader(tmp_path):
+    loaders = _build_entry_loaders([FusionParams])
+
+    # Create test file
+    test_file = tmp_path / "params.json"
+    test_file.write_text(json.dumps({
+        "plasma_temperature": 10.0,
+        "confinement_time": 0.5,
+        "beta_n": 2.5
+    }))
+
+    # Load using generated loader
+    obj = loaders[FusionParams](test_file)
+    assert isinstance(obj, FusionParams)
+    assert obj.plasma_temperature == 10.0
+```
+
+### Error Handling
+
+**Common errors and solutions:**
+
+1. **`TypeError: Custom schema type must be a Pydantic BaseModel subclass`**
+   - Solution: Ensure type inherits from `BaseModel` or `StrictBaseModel`
+
+2. **`ValueError: Duplicate schema type name 'Geography'`**
+   - Solution: Rename custom type to avoid conflict with built-in
+
+3. **`ValueError: Unknown schema type 'FusionParams'`**
+   - Solution: Add type to `custom_schema_types` parameter
+
+4. **`PipelineValidationError: ExitPoint output type has no registered write handler`**
+   - Solution: Include type in `custom_schema_types` (auto-creates handler) or provide explicit `output_router`
+
+### Package Integration Example
+
+External packages should expose a registry function:
+
+```python
+# In fusion_simkit/registry.py
+from simkit.core.registry_builder import create_registry
+from .schemas import FusionParams, PlasmaProfile, AnalysisResult
+from .modules import PlasmaAnalyzer, FusionOptimizer
+
+def create_fusion_registry():
+    """Create TEAx registry with Fusion modules."""
+    return create_registry([PlasmaAnalyzer, FusionOptimizer])
+
+# Usage
+from fusion_simkit import create_fusion_registry
+from fusion_simkit.schemas import FusionParams, PlasmaProfile
+
+result = execute_pipeline(
+    "fusion_pipeline.yaml",
+    registry=create_fusion_registry(),
+    custom_schema_types=[FusionParams, PlasmaProfile],
+)
+```

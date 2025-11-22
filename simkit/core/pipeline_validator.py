@@ -137,7 +137,14 @@ class PipelineValidator:
                 continue
 
             # Regular module: get types from registry descriptor
-            descriptor = self._registry.get(module_spec.module_type)
+            try:
+                descriptor = self._registry.get(module_spec.module_type)
+            except KeyError:
+                raise PipelineValidationError(
+                    f"Module type '{module_spec.module_type}' is not registered",
+                    module=module_key,
+                    details={"module_type": module_spec.module_type},
+                )
 
             for field, binding in module_spec.outputs.items():
                 # Get expected type from descriptor
