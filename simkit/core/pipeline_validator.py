@@ -46,6 +46,10 @@ class PipelineValidator:
 
     def validate(self, spec: PipelineSpecification) -> PipelineGraph:
         self._assert_entry_exit(spec)
+
+        # NEW: Build channel type map for field reference validation
+        channel_types = self._build_channel_type_map(spec)
+
         for module in spec.modules.values():
             if module.is_entry:
                 continue
@@ -54,7 +58,7 @@ class PipelineValidator:
                 continue
             descriptor = self._resolve_descriptor(module)
             self._validate_outputs(module, descriptor)  # Make sure 1:1 mapping for output fields and types between registry and yaml
-            self._validate_inputs(module, descriptor) # Similar validation, but allowing for optional inputs
+            self._validate_inputs(module, descriptor, channel_types)  # NEW: pass channel_types
         try:
             graph = self._builder.build(spec)
         except PipelineGraphError as exc:
@@ -73,6 +77,171 @@ class PipelineValidator:
             raise PipelineValidationError(
                 f"Expected exactly one ExitPoint module, found {len(exits)}",
                 details={"exits": [m.key for m in exits]},
+            )
+
+    def _build_channel_type_map(
+        self,
+        spec: PipelineSpecification,
+    ) -> Dict[str, type]:
+        """
+        Build a mapping of channel names to their type objects.
+
+        Used for field reference validation to determine parent channel types.
+        Iterates through all non-exit modules and records their output channel types.
+
+        Args:
+            spec: The pipeline specification
+
+        Returns:
+            Dict mapping channel_name -> type object
+        """
+        channel_types: Dict[str, type] = {}
+
+        for module_key, module_spec in spec.modules.items():
+            if module_spec.is_exit:
+                continue
+
+            if module_spec.is_entry:
+                # Entry module: types come from artifact bindings (resolve from schema)
+                for binding in module_spec.outputs.values():
+                    if binding.type_name is not None:
+                        try:
+                            type_obj = getattr(schema, binding.type_name)
+                            channel_types[binding.channel_name] = type_obj
+                        except AttributeError:
+                            # Type not in schema module - skip for now
+                            # (will be caught later if used in field reference)
+                            pass
+                continue
+
+            # Regular module: get types from registry descriptor
+            descriptor = self._registry.get(module_spec.module_type)
+
+            for field, binding in module_spec.outputs.items():
+                # Get expected type from descriptor
+                expected_type = descriptor.outputs.get(field)
+                if expected_type is not None:
+                    channel_types[binding.channel_name] = expected_type
+
+        return channel_types
+
+    def _unwrap_optional(self, type_annotation) -> type:
+        """
+        Unwrap Optional[T] to T. Returns original type if not Optional.
+
+        Handles Python 3.10+ union syntax and typing.Optional:
+        - Optional[BlanketConfig] → BlanketConfig
+        - BlanketConfig | None → BlanketConfig
+        - BlanketConfig → BlanketConfig (unchanged)
+
+        Args:
+            type_annotation: Type annotation to unwrap
+
+        Returns:
+            The unwrapped type (T) or original if not Optional
+        """
+        import typing
+        import types
+
+        # Handle both typing.Union and types.UnionType (Python 3.10+)
+        is_union = False
+        if hasattr(type_annotation, "__origin__") and type_annotation.__origin__ is typing.Union:
+            is_union = True
+        elif isinstance(type_annotation, types.UnionType):
+            is_union = True
+
+        if is_union:
+            args = type_annotation.__args__
+            # Remove None from union args
+            non_none_args = [arg for arg in args if arg is not type(None)]
+            if len(non_none_args) == 1:
+                return non_none_args[0]
+
+        return type_annotation
+
+    def _validate_field_reference(
+        self,
+        binding: PipelineChannelBinding,
+        parent_channel_type: type,
+        expected_type: type,
+        module_key: str,
+        field_name: str,
+    ) -> None:
+        """
+        Validate that a field reference binding is well-formed.
+
+        Performs comprehensive validation:
+        1. Field exists in parent type
+        2. Field is not private (no leading underscore)
+        3. Field is not computed (Phase 1 restriction)
+        4. Field type matches expected binding type (exact match)
+
+        Args:
+            binding: The binding with field_path set
+            parent_channel_type: The type object of the parent channel
+            expected_type: The expected type for the field
+            module_key: Module key for error messages
+            field_name: Input field name for error messages
+
+        Raises:
+            PipelineValidationError: If any validation check fails
+        """
+        parent_type_name = parent_channel_type.__name__
+
+        # 1. Check field is not private (before checking existence)
+        if binding.field_path.startswith("_"):
+            raise PipelineValidationError(
+                f"Module '{module_key}' input '{field_name}': "
+                f"Cannot extract private field '{binding.field_path}' from channel '{binding.channel_name}'",
+                module=module_key,
+            )
+
+        # 2. Phase 1: Check if field is computed (before checking model_fields)
+        if binding.field_path in parent_channel_type.model_computed_fields:
+            raise PipelineValidationError(
+                f"Module '{module_key}' input '{field_name}': "
+                f"Cannot extract computed field '{binding.field_path}' (not supported in Phase 1)",
+                module=module_key,
+            )
+
+        # 3. Check field exists in parent type
+        if binding.field_path not in parent_channel_type.model_fields:
+            available_fields = ", ".join(sorted(parent_channel_type.model_fields.keys()))
+            raise PipelineValidationError(
+                f"Module '{module_key}' input '{field_name}': "
+                f"Type '{parent_type_name}' has no field '{binding.field_path}'. "
+                f"Available fields: {available_fields}",
+                module=module_key,
+                details={
+                    "channel": binding.channel_name,
+                    "parent_type": parent_type_name,
+                    "field_path": binding.field_path,
+                    "available_fields": list(parent_channel_type.model_fields.keys()),
+                },
+            )
+
+        # 4. Get actual field type
+        field_info = parent_channel_type.model_fields[binding.field_path]
+        actual_type_annotation = field_info.annotation
+
+        # Unwrap Optional if present
+        actual_type = self._unwrap_optional(actual_type_annotation)
+        is_optional = actual_type != actual_type_annotation
+
+        # 5. Check type compatibility (exact match in Phase 1)
+        if actual_type != expected_type:
+            # Get type name for error message
+            actual_type_name = getattr(actual_type, "__name__", str(actual_type))
+            raise PipelineValidationError(
+                f"Module '{module_key}' input '{field_name}': "
+                f"Type mismatch for field '{binding.channel_name}.{binding.field_path}'. "
+                f"Expected type '{expected_type.__name__}', but field has type '{actual_type_name}'",
+                module=module_key,
+                details={
+                    "expected_type": expected_type.__name__,
+                    "actual_type": actual_type_name,
+                    "is_optional": is_optional,
+                },
             )
 
     def _resolve_descriptor(self, module: PipelineModuleSpec) -> ModuleDescriptor:
@@ -142,7 +311,13 @@ class PipelineValidator:
             expected_type = descriptor.outputs[field]
             self._assert_type(binding, expected_type, module.key, field, "output")
 
-    def _validate_inputs(self, module: PipelineModuleSpec, descriptor: ModuleDescriptor) -> None:
+    def _validate_inputs(
+        self,
+        module: PipelineModuleSpec,
+        descriptor: ModuleDescriptor,
+        channel_types: Dict[str, type],  # NEW parameter
+    ) -> None:
+        """Validate module inputs against descriptor metadata."""
         expected_inputs = set(descriptor.required_inputs) | set(descriptor.optional_inputs)
         actual_inputs = set(module.inputs.keys())
         missing_required = set(descriptor.required_inputs) - actual_inputs
@@ -183,6 +358,25 @@ class PipelineValidator:
                         details={"input": field},
                     )
             else:
+                # NEW: Validate field references
+                if binding.is_field_reference:
+                    parent_type = channel_types.get(binding.channel_name)
+                    if parent_type is None:
+                        raise PipelineValidationError(
+                            f"Module '{module.key}' input '{field}': "
+                            f"Cannot resolve type for channel '{binding.channel_name}' "
+                            f"(required for field reference validation)",
+                            module=module.key,
+                        )
+                    self._validate_field_reference(
+                        binding=binding,
+                        parent_channel_type=parent_type,
+                        expected_type=expected_type,
+                        module_key=module.key,
+                        field_name=field,
+                    )
+
+                # Standard type check (existing logic - UNCHANGED)
                 self._assert_type(binding, expected_type, module.key, field, "input")
 
     def _assert_type(

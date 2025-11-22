@@ -312,12 +312,12 @@ def test_validate_field_exists(sample_registry, sample_output_router):
 **Location:** Add new method to `PipelineValidator` class
 
 **Changes:**
-- [ ] Create `_build_channel_type_map()` method in `PipelineValidator`
-- [ ] Iterate through all modules in spec (skip exit modules)
-- [ ] For entry modules: extract type from artifact bindings
-- [ ] For regular modules: extract type from registry descriptor outputs
-- [ ] Return `Dict[str, str]` mapping channel names to type names
-- [ ] Handle MultiOutput by using descriptor output types (not channel dict)
+- [x] Create `_build_channel_type_map()` method in `PipelineValidator`
+- [x] Iterate through all modules in spec (skip exit modules)
+- [x] For entry modules: extract type from artifact bindings
+- [x] For regular modules: extract type from registry descriptor outputs
+- [x] Return `Dict[str, type]` mapping channel names to type objects (changed from type names for better testability)
+- [x] Handle MultiOutput by using descriptor output types (not channel dict)
 
 **Code to add:**
 ```python
@@ -367,9 +367,9 @@ def _build_channel_type_map(
 **Location:** Lines 47-62 (`validate` method)
 
 **Changes:**
-- [ ] Call `_build_channel_type_map(spec)` at start of `validate()` method
-- [ ] Pass `channel_types` dict to `_validate_inputs()` calls
-- [ ] Update `_validate_inputs()` signature to accept `channel_types` parameter
+- [x] Call `_build_channel_type_map(spec)` at start of `validate()` method
+- [x] Pass `channel_types` dict to `_validate_inputs()` calls
+- [x] Update `_validate_inputs()` signature to accept `channel_types` parameter
 
 **Code modification:**
 ```python
@@ -401,11 +401,12 @@ def validate(self, spec: PipelineSpecification) -> PipelineGraph:
 **Location:** Add new method to `PipelineValidator` class
 
 **Changes:**
-- [ ] Create `_unwrap_optional()` method in `PipelineValidator`
-- [ ] Check if type annotation has `__origin__` attribute and is `typing.Union`
-- [ ] Extract union args and filter out `None` type
-- [ ] Return single non-None arg if union is `Optional[T]` pattern
-- [ ] Return original annotation if not Optional
+- [x] Create `_unwrap_optional()` method in `PipelineValidator`
+- [x] Check if type annotation has `__origin__` attribute and is `typing.Union`
+- [x] Handle Python 3.10+ `types.UnionType` (from `|` syntax)
+- [x] Extract union args and filter out `None` type
+- [x] Return single non-None arg if union is `Optional[T]` pattern
+- [x] Return original annotation if not Optional
 
 **Code to add:**
 ```python
@@ -442,15 +443,14 @@ def _unwrap_optional(self, type_annotation) -> type:
 **Location:** Add new method to `PipelineValidator` class
 
 **Changes:**
-- [ ] Create `_validate_field_reference()` method in `PipelineValidator`
-- [ ] Resolve parent type using `getattr(schema, parent_channel_type_name)`
-- [ ] Check field exists in `parent_type.model_fields`
-- [ ] Check field is not private (doesn't start with `_`)
-- [ ] Extract field type annotation and unwrap Optional if present
-- [ ] Resolve expected type using `getattr(schema, binding.type_name)`
-- [ ] Check exact type match between actual and expected
-- [ ] Check field is not in `parent_type.model_computed_fields` (Phase 1)
-- [ ] Raise `PipelineValidationError` with helpful details for all failure cases
+- [x] Create `_validate_field_reference()` method in `PipelineValidator`
+- [x] Accept parent type object directly (not type name for better testability)
+- [x] Check field is not private first (before checking existence)
+- [x] Check field is not in `parent_type.model_computed_fields` before checking model_fields
+- [x] Check field exists in `parent_type.model_fields`
+- [x] Extract field type annotation and unwrap Optional if present
+- [x] Check exact type match between actual and expected
+- [x] Raise `PipelineValidationError` with helpful details for all failure cases
 
 **Code to add:**
 ```python
@@ -562,12 +562,12 @@ def _validate_field_reference(
 **Location:** Lines 145-186 (`_validate_inputs` method)
 
 **Changes:**
-- [ ] Update `_validate_inputs()` signature to accept `channel_types: Dict[str, str]` parameter
-- [ ] After existing validation checks, add field reference validation block
-- [ ] Check if binding `is_field_reference` is True
-- [ ] Lookup parent channel type from `channel_types` dict
-- [ ] Call `_validate_field_reference()` with binding and parent type
-- [ ] Preserve all existing validation logic (no changes to standard binding validation)
+- [x] Update `_validate_inputs()` signature to accept `channel_types: Dict[str, type]` parameter
+- [x] After existing validation checks, add field reference validation block
+- [x] Check if binding `is_field_reference` is True
+- [x] Lookup parent channel type from `channel_types` dict
+- [x] Call `_validate_field_reference()` with binding and parent type object
+- [x] Preserve all existing validation logic (no changes to standard binding validation)
 
 **Code modification:**
 ```python
@@ -643,15 +643,15 @@ def _validate_inputs(
 **File:** `simkit/tests/core/test_pipeline_validator_field_reference.py` (NEW)
 
 **Changes:**
-- [ ] Create new test file for field reference validation
-- [ ] Create test schema models (TestBlanketConfig, TestFusionParams with various field types)
-- [ ] Test: Validation passes when field exists
-- [ ] Test: Validation fails when field doesn't exist (check error lists available fields)
-- [ ] Test: Validation fails on type mismatch
-- [ ] Test: Validation passes for Optional fields
-- [ ] Test: Validation fails for private fields
-- [ ] Test: Validation fails for computed fields (Phase 1)
-- [ ] Test: Channel type map correctly tracks entry and module outputs
+- [x] Create new test file for field reference validation
+- [x] Create test schema models (TestBlanketConfig, TestFusionParams with various field types)
+- [x] Test: Validation passes when field exists
+- [x] Test: Validation fails when field doesn't exist (check error lists available fields)
+- [x] Test: Validation fails on type mismatch
+- [x] Test: Validation passes for Optional fields
+- [x] Test: Validation fails for private fields
+- [x] Test: Validation fails for computed fields (Phase 1)
+- [x] Test: Channel type map correctly tracks entry and module outputs
 
 **Tests to implement:**
 ```python
@@ -783,20 +783,54 @@ def test_build_channel_type_map(sample_spec, sample_registry):
 ### Success Criteria
 
 #### Automated Verification:
-- [ ] All Phase 2 unit tests pass: `pytest simkit/tests/core/test_pipeline_validator_field_reference.py`
-- [ ] Existing validator tests still pass: `pytest simkit/tests/core/test_pipeline_validator.py`
-- [ ] Phase 1 tests still pass: `pytest simkit/tests/core/test_pipeline_schema_field_reference.py`
-- [ ] Type checking passes: `mypy simkit/core/pipeline_validator.py`
-- [ ] Linting passes: `ruff check simkit/core/pipeline_validator.py`
+- [x] All Phase 2 unit tests pass: `pytest simkit/tests/core/test_pipeline_validator_field_reference.py`
+- [x] Existing validator tests still pass (47 core tests pass)
+- [x] Phase 1 tests still pass: `pytest simkit/tests/core/test_pipeline_schema_field_reference.py`
+- [x] Type checking passes: `mypy simkit/core/pipeline_validator.py`
+- [x] Linting passes: `ruff check simkit/core/pipeline_validator.py`
 
 #### Manual Verification:
-- [ ] Channel type map correctly identifies entry point channel types
-- [ ] Channel type map correctly identifies module output channel types
-- [ ] Field reference validation catches typos in field names
-- [ ] Field reference validation provides helpful error with available fields
-- [ ] Type mismatch errors show both expected and actual types
-- [ ] Optional field validation passes (runtime will check None)
-- [ ] Private and computed fields are rejected with clear errors
+- [x] Channel type map correctly identifies entry point channel types
+- [x] Channel type map correctly identifies module output channel types
+- [x] Field reference validation catches typos in field names
+- [x] Field reference validation provides helpful error with available fields
+- [x] Type mismatch errors show both expected and actual types
+- [x] Optional field validation passes (runtime will check None)
+- [x] Private and computed fields are rejected with clear errors
+
+### Implementation Notes - Phase 2
+**Completed:** 2025-11-22
+**Changes Made:**
+- Added `_build_channel_type_map()` method (simkit/core/pipeline_validator.py:82-126)
+  - Returns Dict[str, type] (type objects instead of type names for better testability)
+  - Handles entry modules by resolving types from schema module
+  - Handles regular modules by extracting types from registry descriptors
+- Added `_unwrap_optional()` method (simkit/core/pipeline_validator.py:128-160)
+  - Handles both `typing.Union` and Python 3.10+ `types.UnionType`
+  - Unwraps Optional[T] → T for validation
+- Added `_validate_field_reference()` method (simkit/core/pipeline_validator.py:162-238)
+  - Checks performed in order: private fields, computed fields, field existence, type matching
+  - Accepts type objects directly (not type names) for flexibility
+  - Provides detailed error messages with available fields listed
+- Updated `validate()` method to build channel type map (simkit/core/pipeline_validator.py:47-66)
+- Updated `_validate_inputs()` signature and added field reference validation (simkit/core/pipeline_validator.py:305-371)
+- Created comprehensive test suite (simkit/tests/core/test_pipeline_validator_field_reference.py)
+  - 7 tests covering all validation scenarios
+  - Test fixtures for custom schemas and output router
+
+**Test Results:**
+- Phase 2 tests: 7/7 passed
+- All core tests: 47/47 passed (backward compatibility confirmed)
+
+**Issues Encountered:**
+- Initial implementation used type names (strings) but switched to type objects for better test isolation
+- Python 3.10+ union syntax (`|`) required special handling in `_unwrap_optional()`
+- Computed fields not in `model_fields`, required checking `model_computed_fields` first
+
+**Deviations from Plan:**
+- Changed `_build_channel_type_map()` return type from `Dict[str, str]` to `Dict[str, type]` for better testability
+- Changed `_validate_field_reference()` to accept type object instead of type name for cleaner interface
+- Reordered validation checks (private/computed before existence) for better error messages
 
 ---
 
