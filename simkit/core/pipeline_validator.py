@@ -39,9 +39,21 @@ class PipelineValidator:
         self,
         registry: PipelineModuleRegistry,
         output_router: OutputRouter,
+        schema_type_registry: dict[str, type] | None = None,
     ) -> None:
+        """Initialize validator with module registry and optional schema type registry.
+
+        Args:
+            registry: Module registry for validation
+            output_router: Output router for exit point validation
+            schema_type_registry: Optional mapping of schema type names to type objects.
+                                Used for resolving EntryPoint output types during field
+                                reference validation. If None, uses built-in simkit.config.schema
+                                types only.
+        """
         self._registry = registry
         self._output_router = output_router
+        self._schema_type_registry = schema_type_registry
         self._builder = PipelineDagBuilder()
 
     def validate(self, spec: PipelineSpecification) -> PipelineGraph:
@@ -102,16 +114,26 @@ class PipelineValidator:
                 continue
 
             if module_spec.is_entry:
-                # Entry module: types come from artifact bindings (resolve from schema)
+                # Entry module: types come from artifact bindings (resolve from registry)
                 for binding in module_spec.outputs.values():
                     if binding.type_name is not None:
-                        try:
-                            type_obj = getattr(schema, binding.type_name)
-                            channel_types[binding.channel_name] = type_obj
-                        except AttributeError:
-                            # Type not in schema module - skip for now
-                            # (will be caught later if used in field reference)
-                            pass
+                        type_obj = None
+
+                        if self._schema_type_registry is not None:
+                            # Use custom schema registry
+                            type_obj = self._schema_type_registry.get(binding.type_name)
+                            if type_obj is None:
+                                # Not in registry - will error later if used in field reference
+                                continue
+                        else:
+                            # Backward compatibility: fall back to built-in schema module
+                            try:
+                                type_obj = getattr(schema, binding.type_name)
+                            except AttributeError:
+                                # Type not in schema module - skip (will error later if needed)
+                                continue
+
+                        channel_types[binding.channel_name] = type_obj
                 continue
 
             # Regular module: get types from registry descriptor

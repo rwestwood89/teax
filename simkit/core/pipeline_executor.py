@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Mapping
+from typing import Any, Callable, Dict, Mapping
 
 from pydantic import BaseModel
 
@@ -73,10 +73,30 @@ class SerialPipelineExecutor:
         registry: PipelineModuleRegistry | None = None,
         *,
         output_router: OutputRouter | None = None,
+        schema_type_registry: dict[str, type] | None = None,
+        entry_loaders: dict[type, Callable] | None = None,
     ) -> None:
+        """Initialize pipeline executor with optional custom registries.
+
+        Args:
+            registry: Optional custom module registry. If None, uses built-in TEAx modules.
+            output_router: Optional custom output router. If None, uses default router.
+            schema_type_registry: Optional schema type name-to-type mapping for custom
+                                 schemas. If None, only built-in TEAx schemas are available
+                                 for EntryPoint loading and field reference validation.
+            entry_loaders: Optional type-to-loader mapping for entry artifact loading.
+                          If None, uses built-in loaders only. Custom types will need
+                          loaders registered to be loadable.
+        """
         self._registry = registry or PipelineModuleRegistry.from_static_modules()
         self._output_router = output_router or create_default_router()
-        self._validator = PipelineValidator(self._registry, self._output_router)
+        self._schema_type_registry = schema_type_registry
+        self._entry_loaders = entry_loaders or dict(_BUILTIN_ENTRY_LOADERS)
+        self._validator = PipelineValidator(
+            self._registry,
+            self._output_router,
+            schema_type_registry=schema_type_registry,
+        )
 
     def build_graph(self, spec: PipelineSpecification) -> PipelineGraph:
         return self._validator.validate(spec)
@@ -272,10 +292,18 @@ class SerialPipelineExecutor:
                         "attempted_paths": [str(path) for path in attempted_paths],
                     },
                 )
-        type_cls = _resolve_schema_type(binding.type_name)
-        loader = _BUILTIN_ENTRY_LOADERS.get(type_cls)
+
+        # Use instance registry for type resolution
+        type_cls = _resolve_schema_type(binding.type_name, self._schema_type_registry)
+
+        # Use instance loaders
+        loader = self._entry_loaders.get(type_cls)
         if loader is None:
-            raise ValueError(f"No loader registered for entry binding type '{binding.type_name}'")
+            raise ValueError(
+                f"No loader registered for entry binding type '{binding.type_name}'. "
+                f"Built-in types should have loaders automatically. For custom types, "
+                f"ensure the type is included in custom_schema_types parameter."
+            )
         return loader(resolved_path), resolved_path
 
 
@@ -283,13 +311,42 @@ class SerialPipelineExecutor:
 # Helper functions
 
 
-def _resolve_schema_type(type_name: str | None) -> type[schema.StrictBaseModel]:
+def _resolve_schema_type(
+    type_name: str | None,
+    type_registry: dict[str, type] | None = None,
+) -> type[schema.StrictBaseModel]:
+    """Resolve type name string to type object using registry.
+
+    Args:
+        type_name: String name of schema type (e.g., "Geography", "CustomParams")
+        type_registry: Optional mapping of type names to type objects. If None,
+                      falls back to built-in schema module for backward compatibility.
+
+    Returns:
+        Resolved type class object
+
+    Raises:
+        ValueError: If type_name is None or not found in registry/schema module
+    """
     if type_name is None:
         raise ValueError("Channel binding is missing a type name")
-    try:
-        return getattr(schema, type_name)
-    except AttributeError as exc:  # pragma: no cover - defensive guard
-        raise ValueError(f"Unknown schema type '{type_name}'") from exc
+
+    if type_registry is not None:
+        # Use custom schema registry
+        type_obj = type_registry.get(type_name)
+        if type_obj is None:
+            raise ValueError(
+                f"Unknown schema type '{type_name}'. "
+                f"If this is a custom type, ensure it's included in the "
+                f"custom_schema_types parameter of execute_pipeline()."
+            )
+        return type_obj
+    else:
+        # Backward compatibility: fall back to built-in schema module
+        try:
+            return getattr(schema, type_name)
+        except AttributeError as exc:  # pragma: no cover - defensive guard
+            raise ValueError(f"Unknown schema type '{type_name}'") from exc
 
 
 def _resolve_input(binding: PipelineChannelBinding, context: PipelineExecutionContext) -> Any:
