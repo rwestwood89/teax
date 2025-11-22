@@ -11,8 +11,14 @@ from dataclasses import replace
 from ..config import schema
 from ..config.pipeline_schema import PipelineSpecification
 from ..io import readers
-from ..io.output_router import create_default_router
-from .pipeline_executor import PipelineExecutionContext, RunResult, SerialPipelineExecutor
+from ..io.output_router import create_default_router, create_output_router_with_json_schemas
+from .pipeline_executor import (
+    PipelineExecutionContext,
+    RunResult,
+    SerialPipelineExecutor,
+    _build_schema_type_registry,
+    _build_entry_loaders,
+)
 from .pipeline_registry import PipelineModuleRegistry
 from .pipeline_validator import PipelineValidationError
 
@@ -67,18 +73,48 @@ def execute_pipeline(
     output_dir: str | Path | None = None,
     registry: PipelineModuleRegistry | None = None,
     output_router: OutputRouter | None = None,
+    custom_schema_types: list[type] | None = None,
 ) -> RunResult:
-    """Execute pipeline with optional custom module registry and output router.
+    """Execute pipeline with optional custom module registry and schema types.
 
     Args:
         spec_path: Path to pipeline YAML specification
         output_dir: Optional output directory (defaults to temp dir)
         registry: Optional custom module registry. If None, uses built-in TEAx modules.
-        output_router: Optional custom output router. If None, uses default router with
-                      built-in schema handlers.
+        output_router: Optional custom output router. If None and custom_schema_types
+                      provided, auto-creates router with custom types registered for
+                      JSON serialization. If both None, uses default router with
+                      built-in schemas only. If output_router provided explicitly,
+                      custom_schema_types only affects EntryPoint loading and
+                      validation (not ExitPoint writing).
+        custom_schema_types: Optional list of custom Pydantic schema type classes.
+                           Enables three features for custom schemas:
+                           1. EntryPoint artifact loading (auto-registers JSON loaders)
+                           2. Field reference validation (resolves types in validator)
+                           3. ExitPoint output writing (auto-creates OutputRouter unless
+                              explicit router provided)
+
+                           All custom types default to JSON serialization. For schemas
+                           requiring special loaders (Parquet, custom parsing), future
+                           enhancement will add custom_entry_loaders parameter.
+
+                           Example:
+                               from custom_pkg.schemas import FusionParams, PlasmaParams
+
+                               result = execute_pipeline(
+                                   "pipeline.yaml",
+                                   "outputs/",
+                                   custom_schema_types=[FusionParams, PlasmaParams],
+                               )
 
     Returns:
         RunResult with execution outputs, metadata, and provenance
+
+    Raises:
+        TypeError: If custom_schema_types contains non-BaseModel types
+        ValueError: If duplicate type names in custom_schema_types
+        PipelineValidationError: If pipeline spec invalid
+        RuntimeError: If execution fails
 
     Example:
         >>> # Execute with built-in modules and schemas (backward compatible)
@@ -86,26 +122,57 @@ def execute_pipeline(
 
         >>> # Execute with custom modules and schemas
         >>> from simkit.core.registry_builder import create_registry
-        >>> from simkit.io.output_router import create_output_router_with_json_schemas
+        >>> from custom_pkg import CustomModule
+        >>> from custom_pkg.schemas import CustomSchema
         >>>
-        >>> registry = create_registry([MyCustomModule])
-        >>> router = create_output_router_with_json_schemas(["MyCustomSchema"])
+        >>> registry = create_registry([CustomModule])
         >>> result = execute_pipeline(
         ...     "custom_pipeline.yaml",
         ...     "outputs/",
         ...     registry=registry,
-        ...     output_router=router,
+        ...     custom_schema_types=[CustomSchema],
         ... )
     """
     specification = entry_point_validate(spec_path)
+
+    # Build schema registries from custom types (if provided)
+    schema_type_registry = None
+    entry_loaders = None
+
+    if custom_schema_types is not None:
+        # Validate and build registries
+        # Note: _build_schema_type_registry performs type validation,
+        # so this will raise TypeError early if invalid types provided
+        schema_type_registry = _build_schema_type_registry(custom_schema_types)
+        entry_loaders = _build_entry_loaders(custom_schema_types)
 
     # Use custom registry if provided, otherwise default to builtins
     if registry is None:
         registry = PipelineModuleRegistry.from_static_modules()
 
-    # Use custom router if provided, otherwise default to builtins
-    router = output_router or create_default_router()
-    executor = SerialPipelineExecutor(registry, output_router=router)
+    # Use custom router if provided, otherwise auto-create from custom_schema_types
+    if output_router is None:
+        if custom_schema_types is not None:
+            # Auto-create router with custom types + built-ins
+            type_name_strings = [t.__name__ for t in custom_schema_types]
+            router = create_output_router_with_json_schemas(
+                type_name_strings,
+                include_builtins=True,
+            )
+        else:
+            # No custom types, use default built-in router
+            router = create_default_router()
+    else:
+        # User provided explicit router, use as-is
+        # Note: custom_schema_types will still affect EntryPoint/validation
+        router = output_router
+
+    executor = SerialPipelineExecutor(
+        registry,
+        output_router=router,
+        schema_type_registry=schema_type_registry,
+        entry_loaders=entry_loaders,
+    )
     context = PipelineExecutionContext(registry)
 
     graph = executor.build_graph(specification)
