@@ -1,4 +1,32 @@
-"""Pydantic data models for the asynchronous simulation demo."""
+"""Pydantic data models for the asynchronous simulation demo.
+
+IMPORTANT FOR MAINTAINERS:
+
+When adding a new user-facing schema to this file (i.e., a schema that will be
+used in EntryPoint artifact loading, module I/O, or ExitPoint writing), you MUST
+also register it in the following locations:
+
+1. simkit/core/pipeline_executor.py:_build_schema_type_registry()
+   - Add schema to the manual enumeration dict (lines 438-457)
+   - Update the test in simkit/tests/core/test_custom_schema_registration.py
+   - Test: test_all_user_facing_schemas_registered()
+
+2. simkit/io/output_router.py:create_default_router()
+   - Add schema to the manual enumeration for JSON write handlers
+   - Only if schema should be writable at ExitPoint
+
+3. simkit/core/pipeline_executor.py:_BUILTIN_ENTRY_LOADERS
+   - Add entry loader function if schema requires special loading
+   - Most schemas use default JSON loader (no action needed)
+
+Schemas that do NOT need registration:
+- Abstract base classes (e.g., MultiOutput)
+- Pipeline metadata types (e.g., Provenance, RunManifest)
+- Nested field types not used as standalone artifacts (e.g., CostLineItem)
+- Internal implementation types (e.g., TimeSpan, SyncOuterStep)
+
+See test_all_user_facing_schemas_registered() for complete list of registered schemas.
+"""
 from __future__ import annotations
 
 import math

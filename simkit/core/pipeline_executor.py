@@ -403,6 +403,17 @@ def _build_schema_type_registry(
 ) -> dict[str, type]:
     """Build unified schema type lookup from built-ins and custom types.
 
+    MAINTAINER NOTE: This function manually enumerates all user-facing built-in
+    schemas. When adding a new schema to simkit/config/schema.py that should be
+    usable in EntryPoint/ExitPoint or field references:
+
+    1. Add the schema to the registry dict below (lines ~438-457)
+    2. Update test_all_user_facing_schemas_registered() to expect the new schema
+    3. Consider if schema needs custom entry loader in _BUILTIN_ENTRY_LOADERS
+    4. Consider if schema needs write handler in create_default_router()
+
+    See comment block at top of simkit/config/schema.py for full guidance.
+
     Creates a dictionary mapping schema type name strings to type class objects.
     Used by PipelineValidator for field reference validation and by executor
     for entry artifact loading.
