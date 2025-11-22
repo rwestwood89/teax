@@ -25,6 +25,11 @@ from .pipeline_registry import ModuleDescriptor, PipelineModuleRegistry
 from .pipeline_validator import PipelineValidationError, PipelineValidator
 
 
+class PipelineExecutionError(Exception):
+    """Raised when pipeline execution fails at runtime."""
+    pass
+
+
 class PipelineExecutionContext:
     """Execution state for a pipeline run."""
 
@@ -288,9 +293,52 @@ def _resolve_schema_type(type_name: str | None) -> type[schema.StrictBaseModel]:
 
 
 def _resolve_input(binding: PipelineChannelBinding, context: PipelineExecutionContext) -> Any:
+    """
+    Resolve an input binding to its actual value.
+
+    Handles three binding types:
+    1. Default bindings (return None for module to fill)
+    2. Standard channel bindings (return full channel value)
+    3. Field reference bindings (extract field from channel value)
+
+    Args:
+        binding: The channel binding to resolve
+        context: Execution context with channel storage
+
+    Returns:
+        The resolved value (channel value, extracted field, or None)
+
+    Raises:
+        PipelineExecutionError: If field extraction fails at runtime
+        KeyError: If channel doesn't exist (shouldn't happen with proper validation)
+    """
     if binding.source is ChannelSource.DEFAULT:
         return None
-    return context.get_channel(binding.channel_name)
+
+    # Fetch channel value
+    value = context.get_channel(binding.channel_name)
+
+    # Extract field if this is a field reference
+    if binding.field_path:
+        try:
+            extracted = getattr(value, binding.field_path)
+        except AttributeError:
+            # Defensive check (should be caught by validator)
+            raise PipelineExecutionError(
+                f"Channel '{binding.channel_name}' has no field '{binding.field_path}' "
+                f"(type: {type(value).__name__})"
+            )
+
+        # Check for None on Optional fields
+        if extracted is None:
+            raise PipelineExecutionError(
+                f"Field '{binding.field_path}' on channel '{binding.channel_name}' is None "
+                f"(expected {binding.type_name}). Optional fields must have non-None values at runtime."
+            )
+
+        return extracted
+
+    return value
 
 
 def _load_geography(path: Path) -> schema.Geography:

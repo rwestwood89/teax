@@ -10,6 +10,7 @@
 1. [Overview](#overview)
 2. [Quick Start](#quick-start)
 3. [Pipeline Specification (YAML)](#pipeline-specification-yaml)
+   - [Field Referencing](#field-referencing)
 4. [Channel-Based DAG System](#channel-based-dag-system)
 5. [Module Development](#module-development)
 6. [I/O System](#io-system)
@@ -108,6 +109,7 @@ modules:                      # Required: module declarations
 | Pattern | Meaning | Example |
 |---------|---------|---------|
 | `Type channel_name` | Read from channel | `Geography geo` |
+| `Type channel.field` | Extract field from channel | `BlanketConfig fusion_params.blanket_config` |
 | `Type path/to/file.json` | Load from file (EntryPoint only) | `Geography ../geo.json` |
 | `None -> default_name` | Use module's default value | `None -> design_pref_default` |
 
@@ -148,6 +150,145 @@ exit_point:
 ```
 
 Outputs are written to: `<output_dir>/<run_name>/<timestamp>/<filename>`
+
+### Field Referencing
+
+**Field Referencing** allows modules to bind inputs to **specific fields** of upstream channel values, rather than consuming entire models. This enables fine-grained data routing without requiring intermediate "unpacker" modules.
+
+#### Motivation
+
+Consider a large configuration model with many fields:
+
+```python
+class FusionParams(StrictBaseModel):
+    p_thermal_electric: float
+    p_fusion: float
+    blanket_config: BlanketConfig
+    coolant_config: CoolantConfig
+    plasma_config: PlasmaConfig
+    # ... 45 more fields
+```
+
+**Without field referencing:** Each module must accept the entire `FusionParams` object, even if it only needs one field:
+
+```yaml
+blanket_thermal:
+  inputs:
+    fusion_params: FusionParams fusion_params  # Receives entire object
+    # Module must extract blanket_config internally
+```
+
+**With field referencing:** Modules receive only the fields they need:
+
+```yaml
+blanket_thermal:
+  inputs:
+    blanket: BlanketConfig fusion_params.blanket_config  # Receives only blanket_config field
+```
+
+#### Syntax
+
+```
+<Type> <channel_name>.<field_path>
+```
+
+- **Type**: Expected type of the field
+- **channel_name**: Name of the upstream channel
+- **field_path**: Field name to extract (single-level only in current version)
+
+#### Example Pipeline
+
+```yaml
+modules:
+  entry_point:
+    module_type: EntryPoint
+    inputs:
+      fusion_params: FusionParams ../fusion_params.json
+
+  blanket_thermal:
+    module_type: BlanketThermalModule
+    inputs:
+      blanket: BlanketConfig fusion_params.blanket_config  # Extract blanket_config field
+    outputs:
+      thermal_result: ThermalOutput thermal_output
+
+  coolant_flow:
+    module_type: CoolantFlowModule
+    inputs:
+      coolant: CoolantConfig fusion_params.coolant_config  # Extract coolant_config field
+    outputs:
+      flow_result: FlowOutput flow_output
+
+  exit_point:
+    module_type: ExitPoint
+    outputs:
+      thermal_output: ThermalOutput thermal_result.json
+      flow_output: FlowOutput flow_result.json
+```
+
+In this example, both `blanket_thermal` and `coolant_flow` modules extract different fields from the same `fusion_params` channel, allowing specialized modules to receive only the data they need.
+
+#### Validation
+
+Field references are validated at pipeline load time:
+
+1. **Field existence**: Field must exist in the parent type
+2. **Type compatibility**: Field type must match declared binding type exactly
+3. **Non-private fields**: Cannot extract fields starting with `_`
+4. **Non-computed fields**: Cannot extract `@computed_field` properties (current version)
+
+**Validation errors provide helpful context:**
+
+```
+PipelineValidationError: Module 'blanket_thermal' input 'blanket':
+Type 'FusionParams' has no field 'blanket_cfg'.
+Available fields: p_thermal_electric, p_fusion, blanket_config, coolant_config, plasma_config
+```
+
+#### Runtime Behavior
+
+At runtime, the executor:
+
+1. Fetches the parent channel value
+2. Extracts the specified field using `getattr()`
+3. Validates the field value is not `None` (for Optional fields)
+4. Passes only the extracted field to the module
+
+**Optional field handling:**
+
+If a field is typed as `Optional[T]`, validation passes, but runtime raises an error if the value is `None`:
+
+```python
+class FusionParams(StrictBaseModel):
+    blanket_config: BlanketConfig
+    optional_blanket: BlanketConfig | None = None  # Optional field
+```
+
+```yaml
+# This validates successfully
+blanket_thermal:
+  inputs:
+    blanket: BlanketConfig fusion_params.optional_blanket
+```
+
+But if `optional_blanket` is `None` at runtime:
+
+```
+PipelineExecutionError: Field 'optional_blanket' on channel 'fusion_params' is None
+(expected BlanketConfig). Optional fields must have non-None values at runtime.
+```
+
+#### Current Limitations
+
+- **Single-level only**: Nested paths like `channel.field.subfield` are not supported
+- **Exact type matching**: No subclass polymorphism
+- **No computed fields**: Cannot extract `@computed_field` properties
+
+#### Key Files
+
+- **Parsing:** `simkit/config/pipeline_schema.py:240-303` - YAML parsing for `channel.field` syntax
+- **Validation:** `simkit/core/pipeline_validator.py:162-238` - Field reference validation logic
+- **Execution:** `simkit/core/pipeline_executor.py:295-341` - Runtime field extraction
 
 ---
 
@@ -539,6 +680,29 @@ Auto-registration **will fail** if:
 3. Check `$PYRONDO_INPUT_DIR` environment variable
 4. Try absolute paths for testing
 
+#### 6. Field Reference Validation Error
+
+**Error:** `PipelineValidationError: Type 'ParentType' has no field 'field_name'`
+
+**Cause:** Field reference points to non-existent field.
+
+**Debug:**
+1. Check `simkit/core/pipeline_validator.py:162-238` - Field reference validation logic
+2. Verify field name spelling matches parent model exactly
+3. Check error message for list of available fields
+4. Ensure field is not private (starts with `_`) or computed (`@computed_field`)
+
+#### 7. Field Reference Runtime Error
+
+**Error:** `PipelineExecutionError: Field 'xyz' on channel 'abc' is None`
+
+**Cause:** Optional field has None value at runtime.
+
+**Debug:**
+1. Check `simkit/core/pipeline_executor.py:295-341` - Runtime extraction logic
+2. Verify field is populated in parent object before extraction
+3. Consider using standard binding if field can be None
+
 ### Execution Flow (For Debugging)
 
 Understanding the execution flow helps trace issues:
@@ -575,9 +739,12 @@ Understanding the execution flow helps trace issues:
 | Issue | File | Line |
 |-------|------|------|
 | YAML parsing | `simkit/io/readers.py` | 84 |
+| Field reference parsing | `simkit/config/pipeline_schema.py` | 240-303 |
 | Pipeline validation | `simkit/core/pipeline_validator.py` | entire file |
+| Field reference validation | `simkit/core/pipeline_validator.py` | 162-238 |
 | DAG building | `simkit/core/pipeline_graph.py` | entire file |
 | Module execution | `simkit/core/pipeline_executor.py` | 153-203 |
+| Field extraction | `simkit/core/pipeline_executor.py` | 295-341 |
 | Multi-output routing | `simkit/core/pipeline_executor.py` | 172-183 |
 | EntryPoint loading | `simkit/core/pipeline_executor.py` | 139-151 |
 | Output serialization | `simkit/io/output_router.py` | entire file |
@@ -735,6 +902,7 @@ The system supports **multiple usage modes**:
 ## Additional Resources
 
 - **Design Docs:** `thoughts/designs/generalized_teax_type_system_design.md`
+- **Field Referencing:** `thoughts/specs/field_referencing_spec.md`, `thoughts/specs/field_referencing/2025-11-22-design.md`
 - **Custom Module Registration:** `thoughts/specs/custom-module-package-registration/plan.md`
 - **Project Instructions:** `CLAUDE.md` (developer-focused)
 - **Example Pipeline:** `simkit/tests/fixtures/pipeline_configs/demo_linear_alt.yaml`
@@ -750,6 +918,6 @@ For issues or questions:
 
 ---
 
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-22
 **TEAx Version:** 0.1
 **Python Requirement:** 3.10+
