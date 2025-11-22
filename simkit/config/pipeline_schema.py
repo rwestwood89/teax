@@ -24,6 +24,7 @@ class PipelineChannelBinding(StrictBaseModel):
 
     type_name: str | None
     channel_name: str
+    field_path: str | None = None  # e.g., "blanket_config" for single-level extraction
     source: ChannelSource
     artifact_path: Path | None = None  # Note: reserved for EntryPoint module only
     destination_filename: str | None = None  # Note: reserved for ExitPoint module only
@@ -31,6 +32,11 @@ class PipelineChannelBinding(StrictBaseModel):
     @property
     def is_default(self) -> bool:
         return self.source is ChannelSource.DEFAULT
+
+    @property
+    def is_field_reference(self) -> bool:
+        """True if this binding extracts a field from a channel."""
+        return self.field_path is not None
 
 
 class PipelineModuleSpec(StrictBaseModel):
@@ -232,6 +238,7 @@ def _parse_entry_module(
 
 
 def _parse_inputs(raw_inputs: Dict[str, Any]) -> Dict[str, PipelineChannelBinding]:
+    """Parse input bindings from YAML, supporting field references like 'Type channel.field'."""
     bindings: Dict[str, PipelineChannelBinding] = {}
     for field, raw_value in raw_inputs.items():
         if not isinstance(raw_value, str):
@@ -239,6 +246,8 @@ def _parse_inputs(raw_inputs: Dict[str, Any]) -> Dict[str, PipelineChannelBindin
                 f"Input '{field}' must be a string formatted as '<Type> <channel>' or 'None -> <channel>'"
             )
         value = raw_value.strip()
+
+        # Handle default bindings (UNCHANGED)
         if value.lower().startswith("none"):
             channel_name = _parse_default_channel(value, field)
             binding = PipelineChannelBinding(
@@ -247,17 +256,49 @@ def _parse_inputs(raw_inputs: Dict[str, Any]) -> Dict[str, PipelineChannelBindin
                 source=ChannelSource.DEFAULT,
             )
         else:
+            # Split on whitespace: "<Type> <channel_ref>"
             parts = value.split(None, 1)
             if len(parts) != 2:
                 raise ValueError(
-                    f"Input '{field}' must be formatted as '<Type> <channel>'"
+                    f"Input '{field}' must be formatted as '<Type> <channel>' or '<Type> <channel.field>'"
                 )
-            type_name, channel_name = parts
-            binding = PipelineChannelBinding(
-                type_name=type_name.strip(),
-                channel_name=channel_name.strip(),
-                source=ChannelSource.MODULE,
-            )
+
+            type_name, channel_ref = parts
+
+            # NEW: Check for field reference (contains dot)
+            if "." in channel_ref:
+                # Split on first dot only
+                dot_index = channel_ref.index(".")
+                channel_name = channel_ref[:dot_index].strip()
+                field_path = channel_ref[dot_index + 1:].strip()
+
+                # Phase 1: Reject nested field paths
+                if "." in field_path:
+                    raise ValueError(
+                        f"Input '{field}': Nested field paths not supported in Phase 1 "
+                        f"(got '{channel_ref}'). Use single-level fields only (e.g., 'channel.field')."
+                    )
+
+                # Validate field_path is not empty
+                if not field_path:
+                    raise ValueError(
+                        f"Input '{field}': Field path cannot be empty (got '{channel_ref}')"
+                    )
+
+                binding = PipelineChannelBinding(
+                    type_name=type_name.strip(),
+                    channel_name=channel_name,
+                    field_path=field_path,
+                    source=ChannelSource.MODULE,
+                )
+            else:
+                # Standard channel binding (no field reference) - UNCHANGED
+                binding = PipelineChannelBinding(
+                    type_name=type_name.strip(),
+                    channel_name=channel_ref.strip(),
+                    source=ChannelSource.MODULE,
+                )
+
         bindings[field] = binding
     return bindings
 
