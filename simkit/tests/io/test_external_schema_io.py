@@ -6,7 +6,7 @@ import pytest
 from pydantic import BaseModel, Field
 
 from simkit.io import readers
-from simkit.core.pipeline_executor import _ENTRY_LOADERS
+from simkit.core.pipeline_executor import _BUILTIN_ENTRY_LOADERS
 
 
 class ExternalSchema(BaseModel):
@@ -45,15 +45,15 @@ def test_entry_loaders_accepts_external_basemodel(tmp_path):
     json_file.write_text(json.dumps(test_data))
 
     # Should be able to register loader for external BaseModel
-    _ENTRY_LOADERS[ExternalSchema] = lambda path: readers.read_json_model(
+    _BUILTIN_ENTRY_LOADERS[ExternalSchema] = lambda path: readers.read_json_model(
         path, ExternalSchema
     )
 
     # Verify registration worked
-    assert ExternalSchema in _ENTRY_LOADERS
+    assert ExternalSchema in _BUILTIN_ENTRY_LOADERS
 
     # Verify loader works
-    loader = _ENTRY_LOADERS[ExternalSchema]
+    loader = _BUILTIN_ENTRY_LOADERS[ExternalSchema]
     result = loader(json_file)
 
     assert isinstance(result, ExternalSchema)
@@ -61,7 +61,7 @@ def test_entry_loaders_accepts_external_basemodel(tmp_path):
     assert result.value == 123.4
 
     # Cleanup
-    del _ENTRY_LOADERS[ExternalSchema]
+    del _BUILTIN_ENTRY_LOADERS[ExternalSchema]
 
 
 def test_external_schema_roundtrip(tmp_path):

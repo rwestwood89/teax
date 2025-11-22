@@ -273,7 +273,7 @@ class SerialPipelineExecutor:
                     },
                 )
         type_cls = _resolve_schema_type(binding.type_name)
-        loader = _ENTRY_LOADERS.get(type_cls)
+        loader = _BUILTIN_ENTRY_LOADERS.get(type_cls)
         if loader is None:
             raise ValueError(f"No loader registered for entry binding type '{binding.type_name}'")
         return loader(resolved_path), resolved_path
@@ -341,6 +341,154 @@ def _resolve_input(binding: PipelineChannelBinding, context: PipelineExecutionCo
     return value
 
 
+def _build_schema_type_registry(
+    custom_types: list[type] | None = None
+) -> dict[str, type]:
+    """Build unified schema type lookup from built-ins and custom types.
+
+    Creates a dictionary mapping schema type name strings to type class objects.
+    Used by PipelineValidator for field reference validation and by executor
+    for entry artifact loading.
+
+    Args:
+        custom_types: Optional list of custom Pydantic schema type classes.
+                     Each type must be a BaseModel subclass.
+
+    Returns:
+        Dict mapping type name strings (e.g., "Geography") to type objects
+        (e.g., simkit.config.schema.Geography class).
+
+    Raises:
+        TypeError: If any custom type is not a BaseModel subclass
+        ValueError: If duplicate type names detected (custom conflicts with
+                   built-in or with another custom type)
+
+    Example:
+        >>> from pydantic import BaseModel
+        >>> class CustomParams(BaseModel):
+        ...     value: float
+        >>>
+        >>> registry = _build_schema_type_registry([CustomParams])
+        >>> registry["CustomParams"]
+        <class 'CustomParams'>
+        >>> registry["Geography"]  # Built-in
+        <class 'simkit.config.schema.Geography'>
+    """
+    from pydantic import BaseModel
+
+    # Build registry starting with built-in schemas
+    # Manual enumeration follows existing pattern in create_default_router()
+    registry: dict[str, type] = {
+        schema.Geography.__name__: schema.Geography,
+        schema.FinancialParams.__name__: schema.FinancialParams,
+        schema.LoadProfile8760.__name__: schema.LoadProfile8760,
+        schema.PVProfile8760.__name__: schema.PVProfile8760,
+        schema.RateInfo.__name__: schema.RateInfo,
+        schema.BatteryConfig.__name__: schema.BatteryConfig,
+        schema.BatteryTelemetry8760.__name__: schema.BatteryTelemetry8760,
+        schema.CostBreakdown.__name__: schema.CostBreakdown,
+        schema.FinancialResults.__name__: schema.FinancialResults,
+        schema.SyncTimeGrid.__name__: schema.SyncTimeGrid,
+        schema.BatteryState.__name__: schema.BatteryState,
+        schema.PriceTrajectory.__name__: schema.PriceTrajectory,
+        schema.MockForecastConfig.__name__: schema.MockForecastConfig,
+        schema.GuidanceConfig.__name__: schema.GuidanceConfig,
+        schema.DynamicSimConfig.__name__: schema.DynamicSimConfig,
+        schema.MockForecastSeries.__name__: schema.MockForecastSeries,
+        schema.SyncGuidanceSeries.__name__: schema.SyncGuidanceSeries,
+        schema.SyncTelemetrySeries.__name__: schema.SyncTelemetrySeries,
+    }
+
+    # Track seen names (includes built-ins)
+    seen_names = set(registry.keys())
+
+    if custom_types is None:
+        return registry
+
+    # Process custom types
+    for schema_type in custom_types:
+        # Validate it's a proper type class
+        if not (isinstance(schema_type, type) and issubclass(schema_type, BaseModel)):
+            raise TypeError(
+                f"Custom schema type must be a Pydantic BaseModel subclass. "
+                f"Got: {schema_type} (type: {type(schema_type).__name__})"
+            )
+
+        # Extract type name
+        type_name = schema_type.__name__
+
+        # Check for duplicates
+        if type_name in seen_names:
+            # Determine if collision is with built-in or custom
+            if type_name in registry and registry[type_name] is not schema_type:
+                conflicting_type = registry[type_name]
+                conflict_module = getattr(conflicting_type, "__module__", "unknown")
+                raise ValueError(
+                    f"Duplicate schema type name '{type_name}' detected. "
+                    f"Custom type {schema_type.__module__}.{type_name} conflicts with "
+                    f"existing type {conflict_module}.{type_name}. "
+                    f"Rename your custom schema or use a different type."
+                )
+            else:
+                raise ValueError(
+                    f"Duplicate schema type name '{type_name}' in custom_types list. "
+                    f"Each type name must be unique."
+                )
+
+        seen_names.add(type_name)
+        registry[type_name] = schema_type
+
+    return registry
+
+
+def _build_entry_loaders(
+    custom_types: list[type] | None = None
+) -> dict[type, Any]:
+    """Build entry loader registry from built-ins and custom types.
+
+    Creates a dictionary mapping schema type classes to loader functions.
+    All custom types are auto-registered with the generic JSON loader
+    (readers.read_json_model) which handles standard Pydantic model
+    deserialization.
+
+    For schemas requiring special loaders (e.g., Parquet files, custom JSON
+    parsing), users will need to provide custom_entry_loaders in a future
+    enhancement. Current implementation covers 90% use case (JSON schemas).
+
+    Args:
+        custom_types: Optional list of custom Pydantic schema type classes.
+                     Each will be registered with read_json_model() loader.
+
+    Returns:
+        Dict mapping type objects to loader functions.
+        Signature of loaders: Callable[[Path], BaseModel]
+
+    Example:
+        >>> from pydantic import BaseModel
+        >>> class CustomParams(BaseModel):
+        ...     value: float
+        >>>
+        >>> loaders = _build_entry_loaders([CustomParams])
+        >>> loader_fn = loaders[CustomParams]
+        >>> obj = loader_fn(Path("data.json"))
+        >>> isinstance(obj, CustomParams)
+        True
+    """
+    # Start with copy of built-in loaders
+    loaders = dict(_BUILTIN_ENTRY_LOADERS)
+
+    if custom_types is None:
+        return loaders
+
+    # Auto-register custom types with generic JSON loader
+    for type_cls in custom_types:
+        # Use default argument closure to capture type_cls correctly in loop
+        # Pattern: lambda path, cls=type_cls ensures cls binds at definition time
+        loaders[type_cls] = lambda path, cls=type_cls: readers.read_json_model(path, cls)
+
+    return loaders
+
+
 def _load_geography(path: Path) -> schema.Geography:
     return readers.read_json_model(path, schema.Geography)
 
@@ -353,7 +501,13 @@ def _load_load_profile(path: Path) -> schema.LoadProfile8760:
     return readers.read_parquet_load_profile(path, source="pipeline_entry")
 
 
-_ENTRY_LOADERS: Dict[type[BaseModel], Any] = {
+# Built-in entry loaders for TEAx schema types.
+#
+# Maps Pydantic schema type classes to loader functions that deserialize
+# artifacts from disk. All loaders follow signature: Callable[[Path], BaseModel].
+#
+# For custom schema types, use _build_entry_loaders() instead of modifying this dict.
+_BUILTIN_ENTRY_LOADERS: Dict[type[BaseModel], Any] = {
     schema.Geography: _load_geography,
     schema.FinancialParams: _load_financial_params,
     schema.LoadProfile8760: _load_load_profile,
@@ -390,4 +544,4 @@ def _load_price_trajectory(path: Path) -> schema.PriceTrajectory:
     return readers.read_json_model(path, schema.PriceTrajectory)
 
 
-_ENTRY_LOADERS[schema.PriceTrajectory] = _load_price_trajectory
+_BUILTIN_ENTRY_LOADERS[schema.PriceTrajectory] = _load_price_trajectory

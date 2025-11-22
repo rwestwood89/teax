@@ -475,12 +475,25 @@ The `EntryPoint` module loads data files using type-specific readers.
 
 **Adding custom loaders:**
 
+**Note:** Direct modification of `_BUILTIN_ENTRY_LOADERS` is discouraged. Use the `custom_schema_types` parameter in `execute_pipeline()` instead:
+
 ```python
-from simkit.core.pipeline_executor import _ENTRY_LOADERS
+from simkit.core.pipeline import execute_pipeline
+
+result = execute_pipeline(
+    "pipeline.yaml",
+    "outputs/",
+    custom_schema_types=[MyCustomType],  # Recommended approach
+)
+```
+
+For advanced use cases requiring custom loaders:
+```python
+from simkit.core.pipeline_executor import _BUILTIN_ENTRY_LOADERS
 from simkit.io.readers import read_json_model
 
-# Register custom type
-_ENTRY_LOADERS["MyCustomType"] = lambda path: read_json_model(path, MyCustomType)
+# Legacy approach (not recommended)
+_BUILTIN_ENTRY_LOADERS[MyCustomType] = lambda path: read_json_model(path, MyCustomType)
 ```
 
 ### Saving Output Data
