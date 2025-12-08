@@ -305,3 +305,50 @@ def test_create_registry_introspects_multi_output_modules():
     assert isinstance(result.data, AlphaNeutronOutput)
     assert result.data.p_alpha.value == 20.0
     assert result.data.p_neutron.value == 80.0
+
+
+def test_create_registry_rootmodel_primitives():
+    """Test that RootModel[primitive] modules register with unwrapped field types.
+
+    When using RootModel[float] for inputs/outputs, auto-introspection should
+    register the unwrapped type (float) not the wrapper (RootModel[float]).
+
+    This is critical for field extraction to work: when a field reference like
+    'params.power' extracts a float from a schema, the descriptor must expect
+    float, not RootModel[float].
+
+    Manual registration must match this pattern: use float, not RootModel[float].
+    """
+    from pydantic import RootModel
+
+    # Define primitive I/O module
+    class PowerDoubler(ModuleBase[RootModel[float], RootModel[float]]):
+        name = "power_doubler"
+        version = "v1.0"
+
+        def validate_and_fill_default(self, root: float):
+            return RootModel[float](root)
+
+        def run(self, root: float) -> ModuleResult[RootModel[float]]:
+            return ModuleResult(data=RootModel[float](root * 2))
+
+    # Auto-register the module
+    registry = create_registry([PowerDoubler])
+
+    # Verify registration
+    assert registry.has("PowerDoubler")
+    descriptor = registry.get("PowerDoubler")
+
+    # CRITICAL: Verify that inputs register as float, not RootModel[float]
+    assert "root" in descriptor.required_inputs
+    assert descriptor.required_inputs["root"] == float  # NOT RootModel[float]!
+
+    # CRITICAL: Verify that outputs register as float, not RootModel[float]
+    assert "root" in descriptor.outputs
+    assert descriptor.outputs["root"] == float  # NOT RootModel[float]!
+
+    # Verify module executes
+    module = descriptor.factory()
+    result = module.run(root=21.0)
+    assert isinstance(result.data, RootModel)
+    assert result.data.root == 42.0
