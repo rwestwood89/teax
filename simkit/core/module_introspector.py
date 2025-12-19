@@ -1,7 +1,7 @@
 """Module introspection utilities for automatic registry building."""
 from typing import Any, Dict, Type, get_args, get_origin
 
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 
 from .base import ModuleBase
 
@@ -10,6 +10,31 @@ class ModuleIntrospectionError(Exception):
     """Raised when module introspection fails validation."""
 
     pass
+
+
+def is_rootmodel(model_cls: Type[BaseModel]) -> bool:
+    """Check if a Pydantic model is a RootModel.
+
+    Args:
+        model_cls: Pydantic model class to check
+
+    Returns:
+        True if model_cls is a RootModel subclass, False otherwise
+
+    Example:
+        >>> from pydantic import RootModel
+        >>> is_rootmodel(RootModel[float])
+        True
+        >>> is_rootmodel(BaseModel)
+        False
+    """
+    try:
+        # Check if it's a subclass of RootModel
+        # RootModel[float] creates a class that inherits from RootModel
+        return issubclass(model_cls, RootModel)
+    except TypeError:
+        # issubclass raises TypeError if model_cls is not a class
+        return False
 
 
 def extract_io_models(module_cls: Type[ModuleBase]) -> tuple[Type[BaseModel], Type[BaseModel]]:
@@ -127,7 +152,23 @@ def introspect_module(module_cls: Type[ModuleBase]) -> Dict[str, Any]:
     required_inputs, optional_inputs = extract_field_types(input_model)
 
     # Extract field types from output model (all outputs are "required")
-    outputs, _ = extract_field_types(output_model)
+    outputs_raw, _ = extract_field_types(output_model)
+
+    # SPECIAL CASE: RootModel single-output modules
+    # For single-output modules, the executor stores the WHOLE OutputModel object
+    # in the channel (see pipeline_executor.py:217-220), not extracted fields.
+    # So the descriptor must declare the OutputModel type, not the field type.
+    # This enables field extraction validation to work correctly (e.g., channel.root).
+    if is_rootmodel(output_model) and len(outputs_raw) == 1:
+        # Replace field type with OutputModel type
+        # For RootModel[float], field is 'root' with type float
+        # We need to register 'root' with type RootModel[float] instead
+        field_name = next(iter(outputs_raw.keys()))  # Should be 'root'
+        outputs = {field_name: output_model}  # Use RootModel[T], not T
+    else:
+        # Normal case: use extracted field types
+        # This handles multi-output and non-RootModel modules
+        outputs = outputs_raw
 
     # Build metadata dictionary
     metadata = {

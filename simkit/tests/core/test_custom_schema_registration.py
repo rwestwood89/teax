@@ -411,7 +411,7 @@ modules:
     inputs:
       root: float params.value_a
     outputs:
-      root: float doubled
+      root: RootModel[float] doubled
 
   exit:
     module_type: ExitPoint

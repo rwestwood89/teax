@@ -37,18 +37,22 @@ class PowerDoubler(ModuleBase[RootModel[float], RootModel[float]]):
     def run(self, root: float) -> ModuleResult[RootModel[float]]:
         return ModuleResult(data=RootModel[float](root * 2))
 
-# 2. Register manually
+# 2. Register manually (single-output RootModel)
 registry = PipelineModuleRegistry()
 registry.register("PowerDoubler", ModuleDescriptor(
     module_type="PowerDoubler",
     factory=lambda: PowerDoubler(),
-    required_inputs={"root": float},     # Use float, not RootModel[float]
-    outputs={"root": float},             # Use float, not RootModel[float]
+    required_inputs={"root": float},           # Unwrapped: from field extraction
+    outputs={"root": RootModel[float]},        # Wrapped: channel stores whole object
     version="v1.0"
 ))
 ```
 
-**Key rule**: Register the **unwrapped field type** (`float`), not the wrapper (`RootModel[float]`), for both inputs and outputs. This matches what auto-introspection extracts.
+**Key rule for single-output RootModel modules**:
+- **Inputs**: Use unwrapped type (`float`) - matches field extraction behavior
+- **Outputs**: Use wrapped type (`RootModel[float]`) - matches what's stored in channels
+
+Auto-introspection handles this automatically. Manual registration must match this pattern.
 
 ## Type Declaration Reference
 
@@ -57,8 +61,9 @@ registry.register("PowerDoubler", ModuleDescriptor(
 | Module's InputModel/OutputModel | `RootModel[float]` |
 | Module's `run()` parameter | `float` |
 | Module's `run()` return | `RootModel[float]` |
-| **Registry `required_inputs`** | **`float`** |
-| **Registry `outputs`** | **`float`** |
+| **Registry `required_inputs`** | **`float`** (unwrapped) |
+| **Registry `outputs` (single-output)** | **`RootModel[float]`** (wrapped) |
+| **Registry `outputs` (multi-output)** | **`float`** (unwrapped) |
 
 ## Complete Examples
 
@@ -84,9 +89,9 @@ class TemperatureConverter(ModuleBase[RootModel[float], RootModel[float]]):
 converter:
   module_type: TemperatureConverter
   inputs:
-    root: float temp_f.root          # Extract from RootModel channel
+    root: float temp_f.root                # Extract from RootModel channel
   outputs:
-    root: float temp_c                # Store as RootModel in channel
+    root: RootModel[float] temp_c          # Stores RootModel[float] in channel
 ```
 
 ### Example 2: Complex Input, Primitive Output
@@ -112,10 +117,10 @@ class PowerCalculator(ModuleBase[PowerConfig, RootModel[float]]):
 calculator:
   module_type: PowerCalculator
   inputs:
-    voltage: float config.voltage    # Extract fields from BaseModel
+    voltage: float config.voltage       # Extract fields from BaseModel
     current: float config.current
   outputs:
-    root: float total_power          # Store as RootModel
+    root: RootModel[float] total_power  # Stores RootModel[float] in channel
 ```
 
 ### Example 3: Multiple Modules with Primitives
@@ -148,12 +153,12 @@ modules:
     inputs:
       p_fusion: float params.p_fusion
     outputs:
-      root: float alpha_power          # RootModel[float] stored here
+      root: RootModel[float] alpha_power    # Channel stores RootModel[float]
 
   analyzer:
     module_type: PowerAnalyzer
     inputs:
-      root: float alpha_power.root     # Extract .root field
+      root: float alpha_power.root          # Extract .root field → gets float
     outputs:
       result: AnalysisResult analysis
 ```
@@ -180,70 +185,89 @@ print(Float.model_fields)  # {'root': FieldInfo(annotation=float, ...)}
 ### Data Flow in Pipeline
 
 ```yaml
-# Channel stores RootModel[float](500.0)
+# Single-output: Channel stores WHOLE RootModel[float] object
 module_a:
   outputs:
-    root: float power_channel
+    root: RootModel[float] power_channel
 
-# Field extraction gets float
+# Field extraction gets unwrapped float
 module_b:
   inputs:
-    root: float power_channel.root  # .root extracts the 500.0 float
+    root: float power_channel.root  # .root extracts 500.0 from RootModel
 ```
 
 **Flow:**
-1. Module A returns `RootModel[float](500.0)`
-2. Channel `power_channel` stores `RootModel[float](500.0)`
-3. Field extraction `.root` returns `500.0` as `float`
-4. Module B receives `float` parameter `root=500.0`
+1. Module A returns `RootModel[float](500.0)` object
+2. Executor stores **WHOLE object** in channel (single-output mode)
+3. Channel `power_channel` contains `RootModel[float](500.0)`
+4. Field extraction `.root` calls `getattr(rootmodel, 'root')` → returns `500.0`
+5. Module B receives unwrapped `float` parameter `root=500.0`
 
-### Why Registry Uses `float` Not `RootModel[float]`
+### Why Inputs Use `float` But Outputs Use `RootModel[float]`
 
-The registry declares **what modules receive/produce at the field level**:
+This asymmetry exists because of how TEAx handles single-output modules:
 
-- **Inputs**: After field extraction, modules receive unwrapped `float`
-- **Outputs**: The OutputModel has a field `root` of type `float`
-
-Auto-introspection does this automatically:
+**Inputs** come from field extraction:
 ```python
-# TEAx introspects RootModel[float]
-RootModel[float].model_fields  # {'root': float}
-
-# Extracts field types
-required_inputs = {"root": float}  # Not RootModel[float]!
-outputs = {"root": float}
+# When YAML says: root: float channel.some_field
+# Runtime: getattr(channel_value, 'some_field') → returns unwrapped value
+# Descriptor must declare: float (what module receives)
 ```
 
-Manual registration must match this: use `float`, not `RootModel[float]`.
+**Outputs** for single-output go directly to channels:
+```python
+# Module returns: RootModel[float](42.0)
+# Executor stores WHOLE object in channel (pipeline_executor.py:217-220)
+# Descriptor must declare: RootModel[float] (what channel contains)
+```
 
-## Common Mistake: Wrong Registry Types
+Auto-introspection detects this automatically (as of v0.1.0+):
+```python
+# TEAx introspects RootModel[float] with single output
+if is_rootmodel(output_model) and len(outputs) == 1:
+    outputs = {"root": RootModel[float]}  # Use wrapper type
+else:
+    outputs = {"root": float}             # Use field type
+```
+
+Manual registration must match this pattern.
+
+## Common Mistake: Wrong Output Type for Single-Output RootModel
 
 ```python
-# ❌ WRONG - Using RootModel[float] in registry
+# ❌ WRONG - Using float for single-output RootModel outputs
 Float = RootModel[float]
 registry.register("MyModule", ModuleDescriptor(
-    required_inputs={"value": Float},  # WRONG! Causes validation errors
-    outputs={"result": Float},         # WRONG! Also incorrect
+    required_inputs={"root": float},    # ✅ Correct - inputs use unwrapped
+    outputs={"root": float},            # ❌ WRONG! Should be RootModel[float]
     ...
 ))
+```
 
-# ✅ CORRECT - Use unwrapped float
+**Error you'll see when downstream modules try field extraction:**
+```
+AttributeError: type object 'float' has no attribute 'model_computed_fields'
+```
+
+**Why this happens:**
+1. Single-output modules store the **whole OutputModel** in the channel
+2. Validator thinks channel contains `float` (from wrong descriptor)
+3. Downstream module tries field extraction: `channel.root`
+4. Validator tries to check if `float` has a `root` field
+5. Fails because `float` is not a Pydantic model
+
+**Fix:**
+```python
+# ✅ CORRECT - Use RootModel[float] for single-output
 registry.register("MyModule", ModuleDescriptor(
-    required_inputs={"value": float},  # ✅ Matches what field extraction returns
-    outputs={"result": float},         # ✅ Matches what introspection extracts
+    required_inputs={"root": float},           # ✅ Unwrapped for inputs
+    outputs={"root": RootModel[float]},        # ✅ Wrapped for single-output
     ...
 ))
-```
 
-**Error you'll see:**
+# Or better yet, just use auto-introspection!
+registry = create_registry([MyModule])  # Handles this automatically
 ```
-Type mismatch for field 'params.value'.
-Expected type 'RootModel[float]', but field has type 'float'
-```
-
-**Why this happens:** Field extraction from schemas returns the raw field type (`float`), not a wrapped `RootModel[float]`. The descriptor must declare what modules actually receive, which is the unwrapped type.
-
-**Fix:** Use `float` for both inputs and outputs in manual registrations, matching auto-introspection behavior.
 
 ## Best Practices
 
@@ -257,5 +281,9 @@ Expected type 'RootModel[float]', but field has type 'float'
 
 - **Module definition**: `ModuleBase[RootModel[float], RootModel[float]]`
 - **Module `run()`**: `def run(self, root: float) -> ModuleResult[RootModel[float]]`
-- **Registry (manual)**: `required_inputs={"root": float}`, `outputs={"root": float}`
+- **Registry (manual, single-output)**:
+  - `required_inputs={"root": float}`
+  - `outputs={"root": RootModel[float]}`
 - **Registry (auto)**: Just call `create_registry([YourModule])` ✨
+  - Automatically detects single-output RootModel and uses correct types
+  - Always prefer this over manual registration!

@@ -307,48 +307,224 @@ def test_create_registry_introspects_multi_output_modules():
     assert result.data.p_neutron.value == 80.0
 
 
-def test_create_registry_rootmodel_primitives():
-    """Test that RootModel[primitive] modules register with unwrapped field types.
+def test_create_registry_rootmodel_as_input_output_model():
+    """Test that RootModel[primitive] single-output modules register correctly.
 
-    When using RootModel[float] for inputs/outputs, auto-introspection should
-    register the unwrapped type (float) not the wrapper (RootModel[float]).
+    RootModel[T] is used to wrap primitive types (float, int, str) in Pydantic models.
+    The field name inside RootModel is always 'root' (by Pydantic convention).
 
-    This is critical for field extraction to work: when a field reference like
-    'params.power' extracts a float from a schema, the descriptor must expect
-    float, not RootModel[float].
+    When using RootModel[float] as OutputModel for a single-output module,
+    auto-introspection should:
+    - Register inputs as unwrapped type (float) - from field extraction
+    - Register outputs as wrapped type (RootModel[float]) - channel stores whole object
 
-    Manual registration must match this pattern: use float, not RootModel[float].
+    This test uses a realistic example: calculating alpha particle power from fusion power.
     """
     from pydantic import RootModel
 
-    # Define primitive I/O module
-    class PowerDoubler(ModuleBase[RootModel[float], RootModel[float]]):
-        name = "power_doubler"
+    # Realistic example: AlphaPowerCalculator
+    # Takes fusion power (MW), outputs alpha power (MW) = fusion_power * 0.2
+    class AlphaPowerCalculator(ModuleBase[RootModel[float], RootModel[float]]):
+        name = "alpha_power_calc"
         version = "v1.0"
 
         def validate_and_fill_default(self, root: float):
+            # Note: parameter name must be 'root' to match RootModel[float] field name
             return RootModel[float](root)
 
         def run(self, root: float) -> ModuleResult[RootModel[float]]:
-            return ModuleResult(data=RootModel[float](root * 2))
+            # root receives the unwrapped float value (e.g., 500.0 MW fusion power)
+            alpha_power_mw = root * 0.2  # Alpha particles carry 20% of fusion energy
+            # Return wrapped in RootModel for channel storage
+            return ModuleResult(data=RootModel[float](alpha_power_mw))
 
     # Auto-register the module
-    registry = create_registry([PowerDoubler])
+    registry = create_registry([AlphaPowerCalculator])
 
     # Verify registration
-    assert registry.has("PowerDoubler")
-    descriptor = registry.get("PowerDoubler")
+    assert registry.has("AlphaPowerCalculator")
+    descriptor = registry.get("AlphaPowerCalculator")
 
-    # CRITICAL: Verify that inputs register as float, not RootModel[float]
+    # CRITICAL: Verify that inputs register as float (unwrapped)
+    # When YAML says: root: float fusion_params.p_fusion
+    # Field extraction returns unwrapped 500.0, not RootModel[float](500.0)
     assert "root" in descriptor.required_inputs
-    assert descriptor.required_inputs["root"] == float  # NOT RootModel[float]!
+    assert descriptor.required_inputs["root"] == float
 
-    # CRITICAL: Verify that outputs register as float, not RootModel[float]
+    # CRITICAL: Verify that outputs register as RootModel[float] (wrapped)
+    # For single-output, executor stores whole RootModel[float] object in channel
+    # This allows downstream modules to do field extraction: alpha_channel.root
     assert "root" in descriptor.outputs
-    assert descriptor.outputs["root"] == float  # NOT RootModel[float]!
+    assert descriptor.outputs["root"] == RootModel[float]  # NOT float!
 
-    # Verify module executes
+    # Verify module executes with realistic values
     module = descriptor.factory()
-    result = module.run(root=21.0)
+    result = module.run(root=500.0)  # 500 MW fusion power in
     assert isinstance(result.data, RootModel)
-    assert result.data.root == 42.0
+    assert result.data.root == 100.0  # 100 MW alpha power out (20%)
+
+
+def test_create_registry_custom_input_with_rootmodel_output():
+    """Test custom InputModel with multiple fields, RootModel[float] OutputModel.
+
+    This is the REAL pattern used in fusion_simkit and most real modules.
+    You get semantic parameter names (cryo_pump_count, pump_capacity, etc.),
+    not 'root' everywhere!
+
+    Key difference from test_create_registry_rootmodel_as_input_output_model:
+    - InputModel: Custom BaseModel with named fields (cryo_pump_count, etc.)
+    - OutputModel: RootModel[float] for single primitive output
+    - Parameter names: Whatever you named your fields!
+
+    This is much more practical than using RootModel[float] as InputModel.
+    """
+    from pydantic import RootModel
+
+    # Custom input model with semantic field names
+    class CryoPumpInputs(BaseModel):
+        cryo_pump_count: float      # Semantic names!
+        pump_capacity: float
+        operating_temp: float
+
+    # Single primitive output: refrigeration power
+    class CryoPumpRefrigeration(ModuleBase[CryoPumpInputs, RootModel[float]]):
+        name = "cryo_pump_refrig"
+        version = "v1.0"
+
+        def validate_and_fill_default(
+            self, cryo_pump_count: float, pump_capacity: float, operating_temp: float
+        ):
+            return CryoPumpInputs(
+                cryo_pump_count=cryo_pump_count,
+                pump_capacity=pump_capacity,
+                operating_temp=operating_temp,
+            )
+
+        def run(
+            self, cryo_pump_count: float, pump_capacity: float, operating_temp: float
+        ) -> ModuleResult[RootModel[float]]:
+            # Your parameter names match your InputModel field names!
+            # No 'root' everywhere - semantic names!
+            refrigeration_power = cryo_pump_count * pump_capacity * operating_temp * 0.001
+            return ModuleResult(data=RootModel[float](refrigeration_power))
+
+    # Auto-register
+    registry = create_registry([CryoPumpRefrigeration])
+    descriptor = registry.get("CryoPumpRefrigeration")
+
+    # Inputs: Custom field names with unwrapped types
+    assert "cryo_pump_count" in descriptor.required_inputs
+    assert descriptor.required_inputs["cryo_pump_count"] == float
+    assert "pump_capacity" in descriptor.required_inputs
+    assert descriptor.required_inputs["pump_capacity"] == float
+    assert "operating_temp" in descriptor.required_inputs
+    assert descriptor.required_inputs["operating_temp"] == float
+
+    # Output: Single RootModel[float] output (wrapped)
+    # Note: Field name is 'root' because OutputModel is RootModel[float]
+    assert "root" in descriptor.outputs
+    assert descriptor.outputs["root"] == RootModel[float]
+
+    # Verify execution
+    module = descriptor.factory()
+    result = module.run(cryo_pump_count=4.0, pump_capacity=1000.0, operating_temp=4.2)
+    assert isinstance(result.data, RootModel)
+    assert result.data.root == 16.8  # 4 * 1000 * 4.2 * 0.001
+
+
+def test_rootmodel_field_extraction_e2e(tmp_path):
+    """End-to-end test for field extraction from RootModel single-output channels.
+
+    This test verifies the fix for the RootModel introspection bug where single-output
+    modules with RootModel[T] OutputModel were registering T instead of RootModel[T],
+    causing field extraction validation to fail with:
+        AttributeError: type object 'float' has no attribute 'model_computed_fields'
+
+    Realistic example: Fusion power calculation pipeline
+    - Calculate alpha power from fusion power
+    - Calculate heating power from alpha power
+    - Both use RootModel[float] single-output modules
+    - Second module extracts field from first module's output channel
+
+    See: thoughts/specs/rootmodel-single-output-introspection-bug.md
+    """
+    from pydantic import RootModel
+    from simkit.core.pipeline import execute_pipeline
+    from simkit.config.schema import StrictBaseModel
+    import json
+
+    # Input schema: Fusion reactor parameters
+    class FusionParams(StrictBaseModel):
+        p_fusion_mw: float  # Total fusion power in MW
+
+    # Module 1: Calculate alpha particle power (20% of fusion power)
+    class AlphaPowerCalc(ModuleBase[RootModel[float], RootModel[float]]):
+        name = "alpha_power_calc"
+        version = "v1.0"
+
+        def run(self, root: float) -> ModuleResult[RootModel[float]]:
+            # Alpha particles carry 20% of fusion energy
+            alpha_power = root * 0.2
+            return ModuleResult(data=RootModel[float](alpha_power))
+
+    # Module 2: Calculate auxiliary heating power (5% of alpha power)
+    class HeatingPowerCalc(ModuleBase[RootModel[float], RootModel[float]]):
+        name = "heating_power_calc"
+        version = "v1.0"
+
+        def run(self, root: float) -> ModuleResult[RootModel[float]]:
+            # Auxiliary heating is 5% of alpha power
+            heating_power = root * 0.05
+            return ModuleResult(data=RootModel[float](heating_power))
+
+    # Create test data: 500 MW fusion power
+    data_file = tmp_path / "fusion_params.json"
+    data_file.write_text(json.dumps({"p_fusion_mw": 500.0}))
+
+    # Create pipeline with field extraction from RootModel channels
+    pipeline_file = tmp_path / "pipeline.yaml"
+    pipeline_file.write_text(f"""
+metadata:
+  run_description: Fusion power calculation with RootModel field extraction
+
+modules:
+  entry:
+    module_type: EntryPoint
+    inputs:
+      params: FusionParams {data_file}
+
+  alpha_calc:
+    module_type: AlphaPowerCalc
+    inputs:
+      root: float params.p_fusion_mw           # Extract p_fusion_mw: 500.0 MW
+    outputs:
+      root: RootModel[float] alpha_power       # Channel stores RootModel[float](100.0)
+
+  heating_calc:
+    module_type: HeatingPowerCalc
+    inputs:
+      root: float alpha_power.root             # Extract .root from RootModel: 100.0 MW
+    outputs:
+      root: RootModel[float] heating_power     # Channel stores RootModel[float](5.0)
+
+  exit:
+    module_type: ExitPoint
+    outputs:
+      params: FusionParams params.json
+""")
+
+    # Execute pipeline - this would previously fail with:
+    # AttributeError: type object 'float' has no attribute 'model_computed_fields'
+    result = execute_pipeline(
+        str(pipeline_file),
+        str(tmp_path / "outputs"),
+        registry=create_registry([AlphaPowerCalc, HeatingPowerCalc]),
+        custom_schema_types=[FusionParams],
+    )
+
+    # Verify execution succeeded
+    assert result.provenance is not None
+
+    # Verify data flow:
+    # 500 MW fusion -> 100 MW alpha (20%) -> 5 MW heating (5%)
+    # Successful execution proves field extraction validation worked!
