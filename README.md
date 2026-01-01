@@ -45,6 +45,10 @@
 ### Installation
 
 ```bash
+# Using uv (recommended - project includes uv.lock)
+uv sync
+
+# Or using pip (alternative)
 pip install -e .
 ```
 
