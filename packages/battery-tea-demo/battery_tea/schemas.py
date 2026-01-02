@@ -27,10 +27,10 @@ from simkit.config.schema import (
 
 class Geography(StrictBaseModel):
     country: str
-    region: Optional[str]
-    utility: Optional[str]
-    timezone: Optional[str]
-    currency: Optional[str]
+    region: Optional[str] = None
+    utility: Optional[str] = None
+    timezone: Optional[str] = None
+    currency: Optional[str] = None
 
 
 class LoadProfile8760(StrictBaseModel):
@@ -103,12 +103,12 @@ class RateInfo(StrictBaseModel):
 
 
 class DesignPrefs(StrictBaseModel):
-    target_peak_shaving_hours: Optional[PositiveFloat]
-    max_c_rate: Optional[PositiveFloat]
-    min_soc: Optional[float]
-    max_soc: Optional[float]
-    eta_roundtrip: Optional[float]
-    safety_margins: Optional[Dict[str, float]]
+    target_peak_shaving_hours: Optional[PositiveFloat] = None
+    max_c_rate: Optional[PositiveFloat] = None
+    min_soc: Optional[float] = None
+    max_soc: Optional[float] = None
+    eta_roundtrip: Optional[float] = None
+    safety_margins: Optional[Dict[str, float]] = None
 
     @model_validator(mode="after")
     def validate_soc(self) -> "DesignPrefs":
@@ -125,10 +125,10 @@ class BatteryConfig(StrictBaseModel):
     eta_roundtrip: float
     soc_min: float
     soc_max: float
-    lifecycle_warranty_cycles: Optional[int]
-    lifecycle_warranty_years: Optional[int]
-    notes: Optional[str]
-    rationale: Optional[str]
+    lifecycle_warranty_cycles: Optional[int] = None
+    lifecycle_warranty_years: Optional[int] = None
+    notes: Optional[str] = None
+    rationale: Optional[str] = None
     schema_version: str = "v0.1"
 
 

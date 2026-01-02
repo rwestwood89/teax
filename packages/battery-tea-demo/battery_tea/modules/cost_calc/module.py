@@ -47,7 +47,7 @@ class CostCalculatorModule(ModuleBase[CostInputs, schemas.CostBreakdown]):
             raise ValueError("Cost calculator demo supports US only")
         if geo.currency not in {None, "USD"}:
             raise ValueError("Demo cost calculator assumes USD currency")
-        return CostInputs(battery, geo)
+        return CostInputs(battery=battery, geography=geo)
 
     def _regional_multiplier(self, geography: schemas.Geography) -> float:
         key = f"{geography.country}_{geography.region}" if geography.region else geography.country

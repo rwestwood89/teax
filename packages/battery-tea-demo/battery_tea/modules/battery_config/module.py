@@ -55,7 +55,7 @@ class ConfigureBatteryModule(ModuleBase[BatteryConfigInputs, schemas.BatteryConf
         if prefs.min_soc is not None and prefs.max_soc is not None and prefs.min_soc >= prefs.max_soc:
             raise ValueError("Design prefs min_soc must be less than max_soc")
 
-        return BatteryConfigInputs(load, rate, prefs)
+        return BatteryConfigInputs(load_profile=load, rate_info=rate, design_prefs=prefs)
 
     def _sizing_heuristic(self, inputs: BatteryConfigInputs) -> schemas.BatteryConfig:
         prefs = inputs.design_prefs

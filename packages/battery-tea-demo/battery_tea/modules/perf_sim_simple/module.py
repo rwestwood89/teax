@@ -64,7 +64,7 @@ class SimplePerformanceSimModule(
             raise ValueError("Rate info must contain hourly pricing or TOU mapping")
         if not (0.0 <= battery_config.soc_min < battery_config.soc_max <= 1.0):
             raise ValueError("Battery SOC bounds must satisfy 0 <= min < max <= 1")
-        return PerformanceInputs(battery_config, load, pv, rate)
+        return PerformanceInputs(battery=battery_config, load_profile=load, pv_profile=pv, rate_info=rate)
 
     def _hourly_prices(self, inputs: PerformanceInputs) -> np.ndarray:
         rate = inputs.rate_info

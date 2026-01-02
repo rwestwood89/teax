@@ -60,7 +60,7 @@ class ProjectAnalyzerModule(ModuleBase[AnalyzerInputs, schema.FinancialResults])
 
         if rate.energy_price_usd_per_kwh is None and rate.tou_periods is None:
             raise ValueError("Rate info must include pricing data")
-        return AnalyzerInputs(rate, telem, params, cost)
+        return AnalyzerInputs(rate_info=rate, telemetry=telem, financial_params=params, cost_breakdown=cost)
 
     def _hourly_prices(self, rate_info: schemas.RateInfo) -> np.ndarray:
         if rate_info.energy_price_usd_per_kwh is not None:
