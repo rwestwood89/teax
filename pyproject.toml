@@ -1,7 +1,7 @@
 [project]
-name = "simkit-demo"
+name = "teax"
 version = "0.1.0"
-description = "Async pipeline demo for battery TEA"
+description = "TEAx Simulation Environment - Workspace Root"
 requires-python = ">=3.10"
 dependencies = [
   "pydantic>=2.5",
@@ -23,9 +23,10 @@ dev = [
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["simkit"]
-
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = ["packages/teax-simkit", "packages/battery-tea-demo"]
+testpaths = [
+  "packages/teax-simkit/simkit/tests",
+  "packages/battery-tea-demo/battery_tea/tests",
+]
 addopts = "-q"

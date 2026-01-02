@@ -1,0 +1,1 @@
+"""Battery TEA module tests."""
