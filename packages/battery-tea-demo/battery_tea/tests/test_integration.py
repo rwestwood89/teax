@@ -111,10 +111,6 @@ class TestModuleInstantiation:
 class TestPipelineExecution:
     """Tests for YAML pipeline execution."""
 
-    @pytest.mark.skip(
-        reason="Requires custom entry loaders for parquet files (future feature). "
-        "See CLAUDE.md 'Custom Loaders (Future Enhancement)'"
-    )
     def test_demo_linear_pipeline_executes(self, tmp_path):
         """demo_linear_alt.yaml executes successfully."""
         from pathlib import Path

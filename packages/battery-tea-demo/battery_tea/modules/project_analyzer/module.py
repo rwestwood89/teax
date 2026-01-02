@@ -18,7 +18,7 @@ class AnalyzerInputs(StrictBaseModel):
     rate_info: schemas.RateInfo
     telemetry: schemas.BatteryTelemetry8760
     financial_params: schema.FinancialParams
-    cost_breakdown: Optional[schemas.CostBreakdown] = None
+    cost_breakdown: schemas.CostBreakdown
 
 
 class ProjectAnalyzerModule(ModuleBase[AnalyzerInputs, RootModel[schema.FinancialResults]]):

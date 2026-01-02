@@ -7,7 +7,7 @@ modules:
     module_type: EntryPoint
     inputs:
       geo: Geography ../geography_us_ca_pge.json
-      load_profile: LoadProfile8760 ../load_profile_toy_8760.parquet
+      load_profile: LoadProfile8760 ../load_profile_toy_8760.json
       financial_params: FinancialParams ../financial_params_demo.json
   rate_data:
     module_type: RateData
@@ -54,5 +54,5 @@ modules:
       rate_info: RateInfo rate_info.root.json
       battery_config: BatteryConfig battery_config.root.json
       cost_breakdown: CostBreakdown cost_breakdown.root.json
-      telemetry: BatteryTelemetry8760 telemetry.root.parquet
+      telemetry: BatteryTelemetry8760 telemetry.root.json
       financial_results: FinancialResults financial_results.root.json

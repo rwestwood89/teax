@@ -40,8 +40,9 @@ class TestProjectAnalyzerModuleValidation:
         rate_info = sample_rate_info()
         rate_info = rate_info.model_copy(update={"energy_price_usd_per_kwh": [0.15] * 8760})
         telemetry = sample_telemetry()
+        cost = sample_cost_breakdown()
 
-        inputs = module.validate_and_fill_default(rate_info, telemetry, None, None)
+        inputs = module.validate_and_fill_default(rate_info, telemetry, None, cost)
 
         assert inputs.financial_params is not None
         assert inputs.financial_params.discount_rate > 0
@@ -62,9 +63,10 @@ class TestProjectAnalyzerModuleValidation:
             escalation_rules=None,
         )
         telemetry = sample_telemetry()
+        cost = sample_cost_breakdown()
 
         with pytest.raises(ValueError, match="pricing"):
-            module.validate_and_fill_default(bad_rate, telemetry, None, None)
+            module.validate_and_fill_default(bad_rate, telemetry, None, cost)
 
 
 class TestProjectAnalyzerModuleRun:
