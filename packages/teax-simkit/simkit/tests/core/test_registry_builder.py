@@ -54,16 +54,13 @@ def test_create_registry_multiple_modules():
     assert registry.has("Module2")
 
 
-def test_create_registry_with_builtins():
-    """Test creating registry that includes built-in modules."""
-    registry = create_registry([Module1], include_builtins=True)
+def test_create_registry_empty_starts_empty():
+    """Test creating registry with no modules starts empty."""
+    registry = create_registry([])
 
-    # Custom module
-    assert registry.has("Module1")
-
-    # Built-in modules
-    assert registry.has("RateData")
-    assert registry.has("ConfigureBattery")
+    # No modules registered
+    assert not registry.has("Module1")
+    assert not registry.has("RateData")
 
 
 def test_create_registry_module_type_override():
@@ -92,12 +89,12 @@ def test_create_registry_duplicate_names():
         create_registry([DuplicateModule, DuplicateModule])
 
 
-def test_create_registry_duplicate_with_builtins():
-    """Test error when custom module conflicts with builtin name."""
+def test_create_registry_duplicate_custom_modules():
+    """Test error when registering duplicate custom module names."""
 
-    # Create a module that would conflict with builtin 'RateData'
-    class RateData(ModuleBase[Input1, Output1]):
-        name = "rate_data_custom"
+    # Create a module twice to trigger duplicate error
+    class DuplicateName(ModuleBase[Input1, Output1]):
+        name = "dup_name"
         version = "v2.0"
 
         def validate_and_fill_default(self, inputs):
@@ -106,9 +103,9 @@ def test_create_registry_duplicate_with_builtins():
         def run(self, inputs):
             return ModuleResult(data=Output1(result=0.0))
 
-    # Should raise error because 'RateData' already exists in builtins
+    # Should raise error because 'DuplicateName' appears twice
     with pytest.raises(ValueError, match="Duplicate module_type"):
-        create_registry([RateData], include_builtins=True)
+        create_registry([DuplicateName, DuplicateName])
 
 
 def test_create_registry_invalid_module():

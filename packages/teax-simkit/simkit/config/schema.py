@@ -1,7 +1,7 @@
 """Pydantic data models for the TEAx simulation framework.
 
-This module contains generic framework types. Battery-specific types are
-in battery_schema.py and re-exported here for backward compatibility.
+This module contains generic framework types. Domain-specific types
+(e.g., battery schemas) should be defined in separate packages.
 
 IMPORTANT FOR MAINTAINERS:
 
@@ -10,9 +10,8 @@ used in EntryPoint artifact loading, module I/O, or ExitPoint writing), you MUST
 also register it in the following locations:
 
 1. simkit/core/pipeline_executor.py:_build_schema_type_registry()
-   - Add schema to the manual enumeration dict (lines 438-457)
-   - Update the test in simkit/tests/core/test_custom_schema_registration.py
-   - Test: test_all_user_facing_schemas_registered()
+   - Add schema to the manual enumeration dict
+   - Update tests to expect the new schema
 
 2. simkit/io/output_router.py:create_default_router()
    - Add schema to the manual enumeration for JSON write handlers
@@ -25,10 +24,8 @@ also register it in the following locations:
 Schemas that do NOT need registration:
 - Abstract base classes (e.g., MultiOutput)
 - Pipeline metadata types (e.g., Provenance, RunManifest)
-- Nested field types not used as standalone artifacts (e.g., CostLineItem)
+- Nested field types not used as standalone artifacts
 - Internal implementation types (e.g., TimeSpan, SyncOuterStep)
-
-See test_all_user_facing_schemas_registered() for complete list of registered schemas.
 """
 from __future__ import annotations
 

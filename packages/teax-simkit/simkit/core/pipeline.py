@@ -80,7 +80,8 @@ def execute_pipeline(
     Args:
         spec_path: Path to pipeline YAML specification
         output_dir: Optional output directory (defaults to temp dir)
-        registry: Optional custom module registry. If None, uses built-in TEAx modules.
+        registry: Module registry for pipeline execution. Required for most pipelines.
+                 Domain packages provide registry factory functions (e.g., battery_tea.create_battery_registry()).
         output_router: Optional custom output router. If None and custom_schema_types
                       provided, auto-creates router with custom types registered for
                       JSON serialization. If both None, uses default router with
@@ -146,9 +147,10 @@ def execute_pipeline(
         schema_type_registry = _build_schema_type_registry(custom_schema_types)
         entry_loaders = _build_entry_loaders(custom_schema_types)
 
-    # Use custom registry if provided, otherwise default to builtins
+    # Use custom registry if provided, otherwise create empty registry
+    # (most pipelines require a registry - domain packages provide these)
     if registry is None:
-        registry = PipelineModuleRegistry.from_static_modules()
+        registry = PipelineModuleRegistry()
 
     # Use custom router if provided, otherwise auto-create from custom_schema_types
     if output_router is None:

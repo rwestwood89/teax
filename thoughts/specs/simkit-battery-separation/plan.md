@@ -2,7 +2,7 @@
 
 **Document Type:** Implementation Plan
 **Version:** v1.2
-**Status:** In Progress (Phase 4 Complete)
+**Status:** In Progress (Phase 5 Complete)
 **Owner:** Reid Westwood
 **Last Updated:** 2026-01-02
 **Related Docs:**
@@ -1021,12 +1021,78 @@ else:
 - [ ] `grep -r "Geography" packages/teax-simkit/` returns nothing (except generic geo concepts)
 
 #### Manual Verification:
-- [ ] `simkit/core/__init__.py` has no battery imports
-- [ ] `simkit/config/schema.py` has no battery types
-- [ ] `simkit/config/battery_schema.py` does not exist
-- [ ] `simkit/io/readers.py` has no battery-specific readers
-- [ ] `simkit/io/writers.py` has no battery-specific writers
-- [ ] `PipelineModuleRegistry` has no `from_static_modules()` method
+- [x] `simkit/core/__init__.py` has no battery imports
+- [x] `simkit/config/schema.py` has no battery types
+- [x] `simkit/config/battery_schema.py` does not exist
+- [x] `simkit/io/readers.py` has no battery-specific readers
+- [x] `simkit/io/writers.py` has no battery-specific writers
+- [x] `PipelineModuleRegistry` has no `from_static_modules()` method
+
+---
+
+## Implementation Notes - Phase 5
+
+**Completed:** 2026-01-02
+**Changes Made:**
+
+### Core Framework Cleanup
+1. **simkit/core/__init__.py**: Removed all battery module imports, exports only framework components (ModuleBase, ModuleResult, introspect_module, pipeline components)
+2. **simkit/core/pipeline_registry.py**: Deleted `from_static_modules()` method entirely, removed all battery imports
+3. **simkit/core/pipeline_executor.py**:
+   - Removed `battery_schema` import
+   - Removed battery types from `_build_schema_type_registry()` (only 8 generic types remain)
+   - Removed battery loaders from `_BUILTIN_ENTRY_LOADERS`
+   - Removed `_load_geography()` and `_load_load_profile()` helpers
+   - Removed battery_schema fallback from `_resolve_schema_type()`
+   - Updated default registry to use empty `PipelineModuleRegistry()` instead of `from_static_modules()`
+4. **simkit/core/pipeline.py**: Updated to use empty registry as default, updated docstrings
+5. **simkit/core/registry_builder.py**: Removed `include_builtins` parameter since no builtins exist
+
+### I/O Layer Cleanup
+6. **simkit/io/output_router.py**: Removed battery handlers from `create_default_router()`, only generic types remain
+7. **simkit/io/readers.py**: Removed `read_parquet_load_profile()` and `read_parquet_pv_profile()` (moved to battery_tea/io.py)
+8. **simkit/io/writers.py**: Removed `write_parquet_telemetry()`, `write_sync_telemetry_series()`, and helper functions (moved to battery_tea/io.py)
+
+### Config Cleanup
+9. **simkit/config/defaults.py**: Removed battery-specific defaults (DEFAULT_ROUNDTRIP_EFFICIENCY, DEFAULT_SOC_MIN, etc.) and `default_design_prefs()`
+10. **simkit/config/battery_schema.py**: DELETED
+11. **simkit/config/schema.py**: Updated docstring to remove battery_schema reference
+
+### Module Directories Deleted
+12. Deleted all battery module directories from `simkit/core/`:
+    - battery_config/
+    - cost_calc/
+    - perf_sim_simple/
+    - project_analyzer/
+    - rate_data/
+    - synchronous_sim/
+
+### Battery-Tea I/O Created
+13. **packages/battery-tea-demo/battery_tea/io.py**: Created with battery-specific readers and writers:
+    - `read_parquet_load_profile()`: Reads LoadProfile8760 from Parquet
+    - `read_parquet_pv_profile()`: Reads PVProfile8760 from Parquet
+    - `write_parquet_telemetry()`: Writes BatteryTelemetry8760 to Parquet
+    - `write_sync_telemetry_series()`: Writes SyncTelemetrySeries to Parquet
+
+### Test Updates
+14. Created `simkit/tests/test_no_battery_deps.py` with 11 verification tests
+15. Deleted battery-specific test directories:
+    - simkit/tests/pipeline_modules/ (battery module tests)
+    - simkit/tests/pipeline/ (battery integration tests)
+16. Updated/deleted tests that used battery types:
+    - test_custom_schema_registration.py (updated for generic-only types)
+    - test_output_router.py (updated for generic-only types)
+    - test_registry_builder.py (removed include_builtins tests)
+    - Deleted: test_pipeline.py, test_pipeline_field_reference_e2e.py, test_pipeline_synchronous_sim.py, test_toy_pipeline.py, test_custom_module_pipeline.py, test_pipeline_executor_entry.py, test_pipeline_executor_field_reference.py, config/test_sync_schema.py
+17. Cleaned fixtures module (`simkit/tests/fixtures/__init__.py`) to only contain generic types
+18. Updated `conftest.py` to remove battery fixtures
+
+**Final Test Results:** 103 tests passed, 0 failed
+
+**Verification Complete:**
+- `grep -r "battery_schema" packages/teax-simkit/simkit/` returns nothing (excluding tests that verify this)
+- `grep -r "BatteryConfig" packages/teax-simkit/simkit/` returns nothing (excluding tests)
+- All 11 verification tests in test_no_battery_deps.py pass
 
 ---
 

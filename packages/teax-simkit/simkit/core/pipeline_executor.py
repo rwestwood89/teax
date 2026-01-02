@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, Mapping
 
 from pydantic import BaseModel
 
-from ..config import battery_schema, schema
+from ..config import schema
 from ..config.schema import MultiOutput
 from ..config.environment import loadenv, resolve_input_dir
 from ..config.pipeline_schema import (
@@ -79,7 +79,10 @@ class SerialPipelineExecutor:
         """Initialize pipeline executor with optional custom registries.
 
         Args:
-            registry: Optional custom module registry. If None, uses built-in TEAx modules.
+            registry: Module registry containing module descriptors. If None, creates
+                     an empty registry (callers must provide registry via execute_pipeline
+                     or register modules manually). Domain packages like battery_tea
+                     provide registry factory functions (e.g., create_battery_registry()).
             output_router: Optional custom output router. If None, uses default router.
             schema_type_registry: Optional schema type name-to-type mapping for custom
                                  schemas. If None, only built-in TEAx schemas are available
@@ -88,7 +91,7 @@ class SerialPipelineExecutor:
                           If None, uses built-in loaders only. Custom types will need
                           loaders registered to be loadable.
         """
-        self._registry = registry or PipelineModuleRegistry.from_static_modules()
+        self._registry = registry or PipelineModuleRegistry()
         self._output_router = output_router or create_default_router()
         self._schema_type_registry = schema_type_registry
         self._entry_loaders = entry_loaders or dict(_BUILTIN_ENTRY_LOADERS)
@@ -318,7 +321,7 @@ def _resolve_schema_type(
     """Resolve type name string to type object using registry.
 
     Args:
-        type_name: String name of schema type (e.g., "Geography", "CustomParams")
+        type_name: String name of schema type (e.g., "FinancialParams", "CustomParams")
         type_registry: Optional mapping of type names to type objects. If None,
                       falls back to built-in schema module for backward compatibility.
 
@@ -342,13 +345,8 @@ def _resolve_schema_type(
             )
         return type_obj
     else:
-        # Backward compatibility: fall back to built-in schema and battery_schema modules
-        # First try generic schema module
+        # Fall back to built-in schema module only
         type_obj = getattr(schema, type_name, None)
-        if type_obj is not None:
-            return type_obj
-        # Then try battery-specific schema module
-        type_obj = getattr(battery_schema, type_name, None)
         if type_obj is not None:
             return type_obj
         raise ValueError(f"Unknown schema type '{type_name}'")
@@ -412,7 +410,7 @@ def _build_schema_type_registry(
     schemas. When adding a new schema to simkit/config/schema.py that should be
     usable in EntryPoint/ExitPoint or field references:
 
-    1. Add the schema to the registry dict below (lines ~438-457)
+    1. Add the schema to the registry dict below
     2. Update test_all_user_facing_schemas_registered() to expect the new schema
     3. Consider if schema needs custom entry loader in _BUILTIN_ENTRY_LOADERS
     4. Consider if schema needs write handler in create_default_router()
@@ -428,8 +426,8 @@ def _build_schema_type_registry(
                      Each type must be a BaseModel subclass.
 
     Returns:
-        Dict mapping type name strings (e.g., "Geography") to type objects
-        (e.g., simkit.config.schema.Geography class).
+        Dict mapping type name strings (e.g., "FinancialParams") to type objects
+        (e.g., simkit.config.schema.FinancialParams class).
 
     Raises:
         TypeError: If any custom type is not a BaseModel subclass
@@ -444,14 +442,12 @@ def _build_schema_type_registry(
         >>> registry = _build_schema_type_registry([CustomParams])
         >>> registry["CustomParams"]
         <class 'CustomParams'>
-        >>> registry["Geography"]  # Built-in
-        <class 'simkit.config.schema.Geography'>
+        >>> registry["FinancialParams"]  # Built-in
+        <class 'simkit.config.schema.FinancialParams'>
     """
     from pydantic import BaseModel
 
-    # Build registry starting with built-in schemas
-    # Manual enumeration follows existing pattern in create_default_router()
-    # Generic types from schema module
+    # Build registry starting with built-in generic schemas
     registry: dict[str, type] = {
         schema.FinancialParams.__name__: schema.FinancialParams,
         schema.FinancialResults.__name__: schema.FinancialResults,
@@ -462,19 +458,6 @@ def _build_schema_type_registry(
         schema.MockForecastSeries.__name__: schema.MockForecastSeries,
         schema.SyncGuidanceSeries.__name__: schema.SyncGuidanceSeries,
     }
-    # Battery-specific types from battery_schema module
-    registry.update({
-        battery_schema.Geography.__name__: battery_schema.Geography,
-        battery_schema.LoadProfile8760.__name__: battery_schema.LoadProfile8760,
-        battery_schema.PVProfile8760.__name__: battery_schema.PVProfile8760,
-        battery_schema.RateInfo.__name__: battery_schema.RateInfo,
-        battery_schema.BatteryConfig.__name__: battery_schema.BatteryConfig,
-        battery_schema.BatteryTelemetry8760.__name__: battery_schema.BatteryTelemetry8760,
-        battery_schema.CostBreakdown.__name__: battery_schema.CostBreakdown,
-        battery_schema.BatteryState.__name__: battery_schema.BatteryState,
-        battery_schema.GuidanceConfig.__name__: battery_schema.GuidanceConfig,
-        battery_schema.SyncTelemetrySeries.__name__: battery_schema.SyncTelemetrySeries,
-    })
 
     # Track seen names (includes built-ins)
     seen_names = set(registry.keys())
@@ -566,16 +549,8 @@ def _build_entry_loaders(
     return loaders
 
 
-def _load_geography(path: Path) -> battery_schema.Geography:
-    return readers.read_json_model(path, battery_schema.Geography)
-
-
 def _load_financial_params(path: Path) -> schema.FinancialParams:
     return readers.read_json_model(path, schema.FinancialParams)
-
-
-def _load_load_profile(path: Path) -> battery_schema.LoadProfile8760:
-    return readers.read_parquet_load_profile(path, source="pipeline_entry")
 
 
 # Built-in entry loaders for TEAx schema types.
@@ -584,17 +559,13 @@ def _load_load_profile(path: Path) -> battery_schema.LoadProfile8760:
 # artifacts from disk. All loaders follow signature: Callable[[Path], BaseModel].
 #
 # For custom schema types, use _build_entry_loaders() instead of modifying this dict.
+# Domain-specific packages (e.g., battery_tea) should register their own loaders
+# via custom_schema_types parameter in execute_pipeline().
 _BUILTIN_ENTRY_LOADERS: Dict[type[BaseModel], Any] = {
-    # Generic types from schema module
     schema.FinancialParams: _load_financial_params,
     schema.SyncTimeGrid: lambda path: readers.read_json_model(path, schema.SyncTimeGrid),
     schema.MockForecastConfig: lambda path: readers.read_json_model(path, schema.MockForecastConfig),
     schema.DynamicSimConfig: lambda path: readers.read_json_model(path, schema.DynamicSimConfig),
-    # Battery-specific types from battery_schema module
-    battery_schema.Geography: _load_geography,
-    battery_schema.LoadProfile8760: _load_load_profile,
-    battery_schema.BatteryState: lambda path: readers.read_json_model(path, battery_schema.BatteryState),
-    battery_schema.GuidanceConfig: lambda path: readers.read_json_model(path, battery_schema.GuidanceConfig),
 }
 
 

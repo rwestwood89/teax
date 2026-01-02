@@ -1,10 +1,14 @@
+"""Pytest fixtures for generic framework tests.
+
+Battery-specific fixtures have been moved to battery_tea package tests.
+"""
 from __future__ import annotations
 
 from pathlib import Path
 
 import pytest
 
-from simkit.config import battery_schema, defaults, schema
+from simkit.config import defaults, schema
 from simkit.io import readers
 
 # Shared fixtures pull data from simkit/tests/fixtures
@@ -12,36 +16,14 @@ FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 
 
 @pytest.fixture
-def geography_us_ca() -> battery_schema.Geography:
-    return readers.read_json_model(FIXTURE_DIR / "geography_us_ca_pge.json", battery_schema.Geography)
-
-
-@pytest.fixture
-def rate_info_synth() -> battery_schema.RateInfo:
-    return readers.read_json_model(FIXTURE_DIR / "rateinfo_tou_synthetic.json", battery_schema.RateInfo)
-
-
-@pytest.fixture
-def load_profile_flat() -> battery_schema.LoadProfile8760:
-    return readers.read_parquet_load_profile(
-        FIXTURE_DIR / "load_profile_flat_8760.parquet", source="flat_fixture"
-    )
-
-
-@pytest.fixture
-def load_profile_toy() -> battery_schema.LoadProfile8760:
-    return readers.read_parquet_load_profile(
-        FIXTURE_DIR / "load_profile_toy_8760.parquet", source="toy_fixture"
-    )
-
-
-@pytest.fixture
-def design_prefs_default() -> battery_schema.DesignPrefs:
-    return defaults.default_design_prefs()
-
-
-@pytest.fixture
 def financial_params_demo() -> schema.FinancialParams:
+    """Load demo financial parameters from fixture file."""
     return readers.read_json_model(
         FIXTURE_DIR / "financial_params_demo.json", schema.FinancialParams
     )
+
+
+@pytest.fixture
+def financial_params_default() -> schema.FinancialParams:
+    """Return default financial parameters."""
+    return defaults.default_financial_params()

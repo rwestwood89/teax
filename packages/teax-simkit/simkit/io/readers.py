@@ -5,11 +5,9 @@ import json
 from pathlib import Path
 from typing import Any, Callable, Dict, Type, TypeVar
 
-import pandas as pd
 import yaml
 from pydantic import BaseModel
 
-from ..config import battery_schema, defaults
 from ..config.pipeline_schema import PipelineSpecLoader, PipelineSpecification
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
@@ -23,6 +21,15 @@ def _load_raw(path: str | Path, loader: Callable[[Path], Any]) -> Any:
 
 
 def read_json_model(path: str | Path, model_cls: Type[ModelT]) -> ModelT:
+    """Read a JSON file and parse it into a Pydantic model.
+
+    Args:
+        path: Path to the JSON file
+        model_cls: Pydantic model class to parse the JSON into
+
+    Returns:
+        Parsed Pydantic model instance
+    """
     def loader(resolved: Path) -> Dict[str, Any]:
         with resolved.open("r", encoding="utf-8") as handle:
             return json.load(handle)
@@ -32,53 +39,19 @@ def read_json_model(path: str | Path, model_cls: Type[ModelT]) -> ModelT:
 
 
 def read_yaml_config(path: str | Path) -> Dict[str, Any]:
+    """Read a YAML file and return its contents as a dictionary.
+
+    Args:
+        path: Path to the YAML file
+
+    Returns:
+        Dictionary containing the YAML contents
+    """
     def loader(resolved: Path) -> Dict[str, Any]:
         with resolved.open("r", encoding="utf-8") as handle:
             return yaml.safe_load(handle)
 
     return _load_raw(path, loader)
-
-
-def read_parquet_load_profile(path: str | Path, source: str = "fixture") -> battery_schema.LoadProfile8760:
-    def loader(resolved: Path) -> pd.DataFrame:
-        return pd.read_parquet(resolved)
-
-    frame = _load_raw(path, loader)
-    if "load_kwh" not in frame.columns:
-        raise ValueError("Parquet load profile must contain 'load_kwh' column")
-    if "timestamp" in frame.columns:
-        ts = pd.to_datetime(frame["timestamp"], utc=False)
-        if ts.dt.tz is None:
-            ts = ts.dt.tz_localize("UTC")
-        time_index = ts.dt.tz_convert("UTC")
-    else:
-        time_index = defaults.default_time_index(defaults.DEFAULT_PRICE_YEAR, "UTC")
-    return battery_schema.LoadProfile8760(
-        time_index=[ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts for ts in time_index],
-        load_kwh=frame["load_kwh"].tolist(),
-        source=source,
-    )
-
-
-def read_parquet_pv_profile(path: str | Path, source: str = "fixture") -> battery_schema.PVProfile8760:
-    def loader(resolved: Path) -> pd.DataFrame:
-        return pd.read_parquet(resolved)
-
-    frame = _load_raw(path, loader)
-    if "production_kwh" not in frame.columns:
-        raise ValueError("PV profile parquet must contain 'production_kwh'")
-    if "timestamp" in frame.columns:
-        ts = pd.to_datetime(frame["timestamp"], utc=False)
-        if ts.dt.tz is None:
-            ts = ts.dt.tz_localize("UTC")
-        time_index = ts.dt.tz_convert("UTC")
-    else:
-        time_index = defaults.default_time_index(defaults.DEFAULT_PRICE_YEAR, "UTC")
-    return battery_schema.PVProfile8760(
-        time_index=[ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts for ts in time_index],
-        production_kwh=frame["production_kwh"].tolist(),
-        source=source,
-    )
 
 
 def read_pipeline_spec(path: str | Path) -> PipelineSpecification:

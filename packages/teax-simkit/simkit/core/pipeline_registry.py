@@ -6,14 +6,7 @@ from typing import Callable, Dict, Mapping, MutableMapping
 
 from pydantic import BaseModel
 
-from ..config import battery_schema, schema
 from .base import ModuleBase
-from .battery_config import ConfigureBatteryModule
-from .cost_calc import CostCalculatorModule
-from .perf_sim_simple import SimplePerformanceSimModule
-from .project_analyzer import ProjectAnalyzerModule
-from .rate_data import RateDataModule
-from .synchronous_sim import SynchronousSimModule
 
 
 ModuleFactory = Callable[[], ModuleBase]
@@ -37,115 +30,15 @@ class ModuleDescriptor:
 
 
 class PipelineModuleRegistry:
-    """Holds descriptors for known pipeline modules."""
+    """Holds descriptors for known pipeline modules.
+
+    Use create_registry() from registry_builder to create a registry
+    from module classes. Domain-specific packages (e.g., battery_tea)
+    should provide their own registry factory function.
+    """
 
     def __init__(self, modules: MutableMapping[str, ModuleDescriptor] | None = None) -> None:
         self._modules: Dict[str, ModuleDescriptor] = dict(modules or {})
-
-    @classmethod
-    def from_static_modules(cls) -> "PipelineModuleRegistry":
-        def _factory(module_cls: type[ModuleBase]) -> ModuleFactory:
-            def factory(cls=module_cls) -> ModuleBase:
-                return cls()
-
-            return factory
-
-        registry = cls()
-        registry.register(
-            "RateData",
-            ModuleDescriptor(
-                module_type="RateData",
-                factory=_factory(RateDataModule),
-                required_inputs={"geography": battery_schema.Geography},
-                optional_inputs={},
-                outputs={"rate_info": battery_schema.RateInfo},
-                version=RateDataModule.version,
-            ),
-        )
-        registry.register(
-            "ConfigureBattery",
-            ModuleDescriptor(
-                module_type="ConfigureBattery",
-                factory=_factory(ConfigureBatteryModule),
-                required_inputs={
-                    "load_profile": battery_schema.LoadProfile8760,
-                    "rate_info": battery_schema.RateInfo,
-                },
-                optional_inputs={"design_prefs": battery_schema.DesignPrefs},
-                outputs={"battery_config": battery_schema.BatteryConfig},
-                version=ConfigureBatteryModule.version,
-            ),
-        )
-        registry.register(
-            "SimplePerformanceSim",
-            ModuleDescriptor(
-                module_type="SimplePerformanceSim",
-                factory=_factory(SimplePerformanceSimModule),
-                required_inputs={
-                    "battery": battery_schema.BatteryConfig,
-                    "load_profile": battery_schema.LoadProfile8760,
-                    "rate_info": battery_schema.RateInfo,
-                },
-                optional_inputs={"pv_profile": battery_schema.PVProfile8760},
-                outputs={"telemetry": battery_schema.BatteryTelemetry8760},
-                version=SimplePerformanceSimModule.version,
-            ),
-        )
-        registry.register(
-            "CostCalculator",
-            ModuleDescriptor(
-                module_type="CostCalculator",
-                factory=_factory(CostCalculatorModule),
-                required_inputs={
-                    "config": battery_schema.BatteryConfig,
-                    "geography": battery_schema.Geography,
-                },
-                optional_inputs={},
-                outputs={"cost_breakdown": battery_schema.CostBreakdown},
-                version=CostCalculatorModule.version,
-            ),
-        )
-        registry.register(
-            "ProjectAnalyzer",
-            ModuleDescriptor(
-                module_type="ProjectAnalyzer",
-                factory=_factory(ProjectAnalyzerModule),
-                required_inputs={
-                    "rate_info": battery_schema.RateInfo,
-                    "telemetry": battery_schema.BatteryTelemetry8760,
-                },
-                optional_inputs={
-                    "financial_params": schema.FinancialParams,
-                    "cost_breakdown": battery_schema.CostBreakdown,
-                },
-                outputs={"financial_results": schema.FinancialResults},
-                version=ProjectAnalyzerModule.version,
-            ),
-        )
-        registry.register(
-            "SynchronousSim",
-            ModuleDescriptor(
-                module_type="SynchronousSim",
-                factory=_factory(SynchronousSimModule),
-                required_inputs={
-                    "time_grid": schema.SyncTimeGrid,
-                    "initial_state": battery_schema.BatteryState,
-                    "price_trajectory": schema.PriceTrajectory,
-                    "forecast_config": schema.MockForecastConfig,
-                    "guidance_config": battery_schema.GuidanceConfig,
-                    "dynamics_config": schema.DynamicSimConfig,
-                },
-                optional_inputs={},
-                outputs={
-                    "synchronous_sim": battery_schema.SyncSimOutputs,
-                    "forecasts": schema.MockForecastSeries,
-                    "guidances": schema.SyncGuidanceSeries,
-                    "telemetry": battery_schema.SyncTelemetrySeries,
-                },
-                version=SynchronousSimModule.version,
-            ),
-        )
-        return registry
 
     def register(self, module_type: str, descriptor: ModuleDescriptor) -> None:
         if module_type in self._modules:

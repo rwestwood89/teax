@@ -8,7 +8,6 @@ from .pipeline_registry import ModuleDescriptor, PipelineModuleRegistry
 
 def create_registry(
     modules: List[Type[ModuleBase]],
-    include_builtins: bool = False,
     module_type_override: Dict[Type[ModuleBase], str] | None = None,
 ) -> PipelineModuleRegistry:
     """Create PipelineModuleRegistry from list of module classes.
@@ -18,7 +17,6 @@ def create_registry(
 
     Args:
         modules: List of ModuleBase subclasses to register
-        include_builtins: If True, starts with builtin TEAx modules and adds custom modules
         module_type_override: Optional dict mapping module classes to custom module_type names
                              (defaults to class.__name__ if not provided)
 
@@ -53,11 +51,6 @@ def create_registry(
         >>> registry = create_registry([MyModule])
         >>> assert registry.has('MyModule')
         >>>
-        >>> # Include builtins
-        >>> registry = create_registry([MyModule], include_builtins=True)
-        >>> assert registry.has('MyModule')
-        >>> assert registry.has('RateData')
-        >>>
         >>> # Override module_type name
         >>> registry = create_registry(
         ...     [MyModule],
@@ -72,14 +65,11 @@ def create_registry(
 
         return factory
 
-    # Start with builtins or empty registry
-    if include_builtins:
-        registry = PipelineModuleRegistry.from_static_modules()
-    else:
-        registry = PipelineModuleRegistry()
+    # Start with empty registry
+    registry = PipelineModuleRegistry()
 
     # Track seen module_types to detect duplicates
-    seen_module_types = set(registry._modules.keys()) if include_builtins else set()
+    seen_module_types: set[str] = set()
 
     # Override dict defaults to empty
     override_dict = module_type_override or {}

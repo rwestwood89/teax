@@ -1,25 +1,16 @@
-"""Core functional modules for the async demo."""
+"""Core functional modules for simulation pipelines."""
 from .base import ModuleBase, ModuleResult
-from .battery_config import ConfigureBatteryModule
-from .cost_calc import CostCalculatorModule
-from .perf_sim_simple import SimplePerformanceSimModule
+from .module_introspector import introspect_module
 from .pipeline_executor import PipelineExecutionContext, SerialPipelineExecutor
 from .pipeline_graph import PipelineDagBuilder, PipelineGraph
 from .pipeline_registry import ModuleDescriptor, PipelineModuleRegistry
 from .pipeline_validator import PipelineValidationError, PipelineValidator
-from .project_analyzer import ProjectAnalyzerModule
-from .rate_data import RateDataModule
-from .synchronous_sim import SynchronousSimModule
+from .registry_builder import create_registry
 
 __all__ = [
     "ModuleBase",
     "ModuleResult",
-    "RateDataModule",
-    "ConfigureBatteryModule",
-    "CostCalculatorModule",
-    "SimplePerformanceSimModule",
-    "ProjectAnalyzerModule",
-    "SynchronousSimModule",
+    "introspect_module",
     "PipelineDagBuilder",
     "PipelineGraph",
     "PipelineExecutionContext",
@@ -28,4 +19,5 @@ __all__ = [
     "ModuleDescriptor",
     "PipelineValidator",
     "PipelineValidationError",
+    "create_registry",
 ]

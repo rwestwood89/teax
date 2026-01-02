@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, MutableMapping
 
-from ..config import battery_schema, environment, schema
+from ..config import environment, schema
 from ..config.pipeline_schema import PipelineChannelBinding
 from . import writers
 
@@ -248,14 +248,18 @@ class OutputRouter:
 
 
 def create_default_router(*, in_memory: bool = False) -> OutputRouter:
-    """Create an OutputRouter populated with default schema type handlers.
+    """Create an OutputRouter populated with default generic schema type handlers.
 
     Args:
         in_memory: If True, router validates but doesn't write files.
                   Default: False.
+
+    Note:
+        Domain-specific packages (e.g., battery_tea) should register their own
+        type handlers via create_output_router_with_json_schemas() or by creating
+        a custom OutputRouter instance.
     """
     handlers: MutableMapping[str, WriteHandler] = {
-        # Generic types from schema module
         schema.FinancialResults.__name__: WriteHandler(fn=writers.write_json_model, extension=".json"),
         schema.MockForecastSeries.__name__: WriteHandler(
             fn=writers.write_mock_forecast_series,
@@ -264,15 +268,6 @@ def create_default_router(*, in_memory: bool = False) -> OutputRouter:
         schema.SyncGuidanceSeries.__name__: WriteHandler(
             fn=writers.write_sync_guidance_series,
             extension=".json",
-        ),
-        # Battery-specific types from battery_schema module
-        battery_schema.RateInfo.__name__: WriteHandler(fn=writers.write_json_model, extension=".json"),
-        battery_schema.BatteryConfig.__name__: WriteHandler(fn=writers.write_json_model, extension=".json"),
-        battery_schema.CostBreakdown.__name__: WriteHandler(fn=writers.write_json_model, extension=".json"),
-        battery_schema.BatteryTelemetry8760.__name__: WriteHandler(fn=writers.write_parquet_telemetry, extension=".parquet"),
-        battery_schema.SyncTelemetrySeries.__name__: WriteHandler(
-            fn=writers.write_sync_telemetry_series,
-            extension=".parquet",
         ),
     }
     return OutputRouter(type_handlers=handlers, in_memory=in_memory)

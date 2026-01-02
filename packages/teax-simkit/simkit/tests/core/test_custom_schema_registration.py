@@ -8,7 +8,6 @@ Test Categories:
 2. Executor/Validator Integration (Phase 2)
 3. Pipeline API (Phase 3)
 4. Error Conditions & Edge Cases
-5. Backward Compatibility
 """
 
 import json
@@ -17,6 +16,7 @@ from pathlib import Path
 from pydantic import BaseModel, RootModel
 
 from simkit.config.schema import StrictBaseModel
+from simkit.config import schema
 from simkit.core.pipeline import execute_pipeline
 from simkit.core.pipeline_executor import (
     SerialPipelineExecutor,
@@ -54,17 +54,21 @@ class TestBuildSchemaTypeRegistry:
     """Tests for _build_schema_type_registry() function."""
 
     def test_returns_dict_with_builtin_schemas(self):
-        """Registry includes all 18 built-in TEAx schemas."""
+        """Registry includes all built-in generic TEAx schemas."""
         registry = _build_schema_type_registry()
 
-        # Check a few key built-ins
-        assert "Geography" in registry
-        assert "RateInfo" in registry
-        assert "BatteryConfig" in registry
-        assert "LoadProfile8760" in registry
+        # Check generic built-in types
+        assert "FinancialParams" in registry
+        assert "FinancialResults" in registry
+        assert "SyncTimeGrid" in registry
+        assert "PriceTrajectory" in registry
+        assert "MockForecastConfig" in registry
+        assert "DynamicSimConfig" in registry
+        assert "MockForecastSeries" in registry
+        assert "SyncGuidanceSeries" in registry
 
-        # Should have all built-ins (18 total)
-        assert len(registry) >= 18
+        # Should have 8 generic built-ins
+        assert len(registry) == 8
 
     def test_adds_custom_schema(self):
         """Custom type added to registry with correct name."""
@@ -74,7 +78,7 @@ class TestBuildSchemaTypeRegistry:
         assert registry["CustomParamsA"] is CustomParamsA
 
         # Built-ins still present
-        assert "Geography" in registry
+        assert "FinancialParams" in registry
 
     def test_adds_multiple_custom_schemas(self):
         """Multiple custom types added correctly."""
@@ -93,12 +97,12 @@ class TestBuildSchemaTypeRegistry:
 
     def test_rejects_custom_conflicting_with_builtin(self):
         """Custom type with built-in name raises ValueError."""
-        # Create custom type named "Geography"
-        class Geography(StrictBaseModel):
+        # Create custom type named "FinancialParams" (a generic built-in)
+        class FinancialParams(StrictBaseModel):
             custom_field: str
 
-        with pytest.raises(ValueError, match="Duplicate schema type name 'Geography'"):
-            _build_schema_type_registry([Geography])
+        with pytest.raises(ValueError, match="Duplicate schema type name 'FinancialParams'"):
+            _build_schema_type_registry([FinancialParams])
 
     def test_rejects_non_basemodel_type(self):
         """Non-Pydantic type raises TypeError."""
@@ -116,7 +120,7 @@ class TestBuildSchemaTypeRegistry:
         """Empty custom type list returns only built-ins."""
         registry = _build_schema_type_registry([])
 
-        assert "Geography" in registry
+        assert "FinancialParams" in registry
         assert "CustomParamsA" not in registry
 
     def test_all_user_facing_schemas_registered(self):
@@ -126,41 +130,16 @@ class TestBuildSchemaTypeRegistry:
         simkit.config.schema without updating _build_schema_type_registry().
 
         User-facing schemas are those intended for:
-        - EntryPoint artifact loading (e.g., Geography, LoadProfile8760)
-        - Module I/O type hints (e.g., BatteryConfig, RateInfo)
-        - ExitPoint output writing (e.g., FinancialResults, BatteryTelemetry8760)
-
-        Excluded schemas:
-        - MultiOutput: Abstract base class for multi-output modules
-        - Provenance, PipelineRunMetadata, RunManifest, RunArtifactRecord:
-          Pipeline metadata (internal use only, not user-loadable)
-        - CostLineItem, CashflowEntry, LedgerEntry:
-          Nested fields within larger schemas (not standalone artifacts)
-        - TimeSpan, SyncOuterStep, InnerLoopConfig, etc.:
-          Internal synchronous sim types (not standalone artifacts)
-        - DesignPrefs: Optional module input, not loaded from EntryPoint
+        - EntryPoint artifact loading
+        - Module I/O type hints
+        - ExitPoint output writing
         """
-        from simkit.config import battery_schema, schema
         import inspect
 
         registry = _build_schema_type_registry()
 
-        # Define expected user-facing schemas (must match _build_schema_type_registry)
-        # This list should be updated when new user-facing schemas are added
-        # Note: Battery-specific types are from battery_schema, generic types from schema
+        # Define expected generic user-facing schemas
         expected_user_facing_schemas = [
-            # Battery-specific types (from battery_schema)
-            battery_schema.Geography,
-            battery_schema.LoadProfile8760,
-            battery_schema.PVProfile8760,
-            battery_schema.RateInfo,
-            battery_schema.BatteryConfig,
-            battery_schema.BatteryTelemetry8760,
-            battery_schema.CostBreakdown,
-            battery_schema.BatteryState,
-            battery_schema.GuidanceConfig,
-            battery_schema.SyncTelemetrySeries,
-            # Generic types (from schema)
             schema.FinancialParams,
             schema.FinancialResults,
             schema.SyncTimeGrid,
@@ -169,7 +148,6 @@ class TestBuildSchemaTypeRegistry:
             schema.DynamicSimConfig,
             schema.MockForecastSeries,
             schema.SyncGuidanceSeries,
-            # Add new user-facing schemas here as they are created
         ]
 
         # Verify all expected schemas are registered
@@ -184,69 +162,12 @@ class TestBuildSchemaTypeRegistry:
                 f"Schema '{schema_name}' registered but points to wrong type"
             )
 
-        # Verify count matches (18 currently expected)
-        assert len(expected_user_facing_schemas) == 18, (
-            f"Expected 18 user-facing schemas, but list has "
+        # Verify count matches (8 generic types)
+        assert len(expected_user_facing_schemas) == 8, (
+            f"Expected 8 user-facing generic schemas, but list has "
             f"{len(expected_user_facing_schemas)}. Update this test when "
             f"adding/removing user-facing schemas."
         )
-
-        # Optional: Warn about unregistered StrictBaseModel subclasses
-        # This helps catch schemas that should be registered but aren't
-        # Check both schema and battery_schema modules
-        all_schema_classes = []
-        for mod in [schema, battery_schema]:
-            all_schema_classes.extend([
-                obj for name, obj in inspect.getmembers(mod, inspect.isclass)
-                if (issubclass(obj, schema.StrictBaseModel)
-                    and obj is not schema.StrictBaseModel
-                    and not name.startswith('_'))
-            ])
-
-        unregistered_schemas = [
-            cls for cls in all_schema_classes
-            if cls.__name__ not in registry
-        ]
-
-        # Document which schemas are intentionally unregistered
-        intentionally_excluded = {
-            'MultiOutput',  # Abstract base class for multi-output modules
-            'Provenance',  # Pipeline metadata
-            'PipelineRunMetadata',  # Pipeline metadata
-            'RunArtifactRecord',  # Pipeline metadata
-            'RunManifest',  # Pipeline metadata
-            'CostLineItem',  # Nested field in CostBreakdown
-            'CashflowEntry',  # Nested field in FinancialResults
-            'LedgerEntry',  # Nested field in FinancialResults
-            'DesignPrefs',  # Optional module input, not loaded from EntryPoint
-            'TimeSpan',  # Internal synchronous sim type
-            'SyncOuterStep',  # Internal synchronous sim type
-            'InnerLoopConfig',  # Internal synchronous sim type
-            'PriceTrajectoryWindow',  # Derived from PriceTrajectory, internal only
-            'MockForecastMetadata',  # Metadata field within MockForecastPoint
-            'MockForecastPoint',  # Nested type within MockForecastSeries
-            'GuidanceMetadata',  # Metadata field within SyncGuidance
-            'SyncGuidance',  # Nested type within SyncGuidanceSeries
-            'DynamicsInitInput',  # Internal module private input
-            'DynamicsStepInput',  # Internal module private input
-            'SyncTelemetryFrame',  # Nested type within SyncTelemetrySeries
-            'SyncSimOutputs',  # Internal module composite output
-        }
-
-        unexpected_unregistered = [
-            cls.__name__ for cls in unregistered_schemas
-            if cls.__name__ not in intentionally_excluded
-        ]
-
-        if unexpected_unregistered:
-            import warnings
-            warnings.warn(
-                f"Found unregistered schemas that may need registration: "
-                f"{unexpected_unregistered}. Review these and either add to "
-                f"_build_schema_type_registry() or add to intentionally_excluded "
-                f"set in this test.",
-                UserWarning
-            )
 
 
 class TestBuildEntryLoaders:
@@ -259,10 +180,9 @@ class TestBuildEntryLoaders:
         # Check it's a copy, not reference to _BUILTIN_ENTRY_LOADERS
         assert loaders is not _BUILTIN_ENTRY_LOADERS
 
-        # Check key built-in loaders present
-        from simkit.config import battery_schema, schema
-        assert battery_schema.Geography in loaders
-        assert battery_schema.LoadProfile8760 in loaders
+        # Check key generic built-in loaders present
+        assert schema.FinancialParams in loaders
+        assert schema.SyncTimeGrid in loaders
         assert schema.PriceTrajectory in loaders
 
     def test_registers_custom_type_loader(self):
@@ -329,7 +249,7 @@ class TestSerialPipelineExecutorIntegration:
         assert executor._entry_loaders is entry_loaders
 
     def test_backward_compatible_with_no_args(self):
-        """Executor works with no arguments (backward compat)."""
+        """Executor works with no arguments (creates empty registry)."""
         executor = SerialPipelineExecutor()
 
         # Should use built-in defaults
@@ -339,7 +259,7 @@ class TestSerialPipelineExecutorIntegration:
 
     def test_backward_compatible_with_registry_only(self):
         """Executor works with only registry arg (existing pattern)."""
-        registry = PipelineModuleRegistry.from_static_modules()
+        registry = PipelineModuleRegistry()
         executor = SerialPipelineExecutor(registry)
 
         assert executor._registry is registry
@@ -351,7 +271,7 @@ class TestPipelineValidatorIntegration:
     def test_constructor_accepts_optional_parameter(self):
         """Validator accepts schema_type_registry parameter."""
         schema_registry = _build_schema_type_registry([CustomParamsA])
-        registry = PipelineModuleRegistry.from_static_modules()
+        registry = PipelineModuleRegistry()
         router = create_default_router()
 
         # Should not raise
