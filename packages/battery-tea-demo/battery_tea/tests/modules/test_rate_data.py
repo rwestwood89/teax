@@ -15,12 +15,12 @@ class TestRateDataModuleValidation:
         module = RateDataModule()
         validated = module.validate_and_fill_default(geography_us_ca)
 
-        assert validated.country == "US"
-        assert validated.region == "CA"
-        assert validated.utility == geography_us_ca.utility  # Use fixture value
+        assert validated.geography.country == "US"
+        assert validated.geography.region == "CA"
+        assert validated.geography.utility == geography_us_ca.utility  # Use fixture value
         # Defaults may be filled
-        assert validated.timezone is not None
-        assert validated.currency is not None
+        assert validated.geography.timezone is not None
+        assert validated.geography.currency is not None
 
     def test_geography_infers_timezone(self):
         """Infers timezone from country/region."""
@@ -28,7 +28,7 @@ class TestRateDataModuleValidation:
         geo = schemas.Geography(country="US", region="CA", utility="Test")
         validated = module.validate_and_fill_default(geo)
 
-        assert validated.timezone == "America/Los_Angeles"
+        assert validated.geography.timezone == "America/Los_Angeles"
 
     def test_geography_infers_currency(self):
         """Infers currency from country."""
@@ -36,7 +36,7 @@ class TestRateDataModuleValidation:
         geo = schemas.Geography(country="US", region="TX", utility="Test")
         validated = module.validate_and_fill_default(geo)
 
-        assert validated.currency == "USD"
+        assert validated.geography.currency == "USD"
 
     def test_unsupported_country_raises(self):
         """Non-US country raises ValueError."""
@@ -52,8 +52,8 @@ class TestRateDataModuleValidation:
         geo_dict = {"country": "US", "region": "CA", "utility": "Test"}
         validated = module.validate_and_fill_default(geo_dict)
 
-        assert isinstance(validated, schemas.Geography)
-        assert validated.country == "US"
+        assert isinstance(validated.geography, schemas.Geography)
+        assert validated.geography.country == "US"
 
 
 class TestRateDataModuleRun:
@@ -65,7 +65,7 @@ class TestRateDataModuleRun:
         result = module.run(geography_us_ca)
 
         assert result.data is not None
-        rate_info = result.data
+        rate_info = result.data.root
         assert isinstance(rate_info, schemas.RateInfo)
         assert rate_info.energy_price_usd_per_kwh is not None
         assert len(rate_info.energy_price_usd_per_kwh) == 8760
@@ -75,7 +75,7 @@ class TestRateDataModuleRun:
         module = RateDataModule()
         result = module.run(geography_us_ca)
 
-        rate_info = result.data
+        rate_info = result.data.root
         assert rate_info.tou_periods is not None
         assert "peak" in rate_info.tou_periods
         assert "off_peak" in rate_info.tou_periods
@@ -86,7 +86,7 @@ class TestRateDataModuleRun:
         module = RateDataModule()
         result = module.run(geography_us_ca)
 
-        rate_info = result.data
+        rate_info = result.data.root
         assert rate_info.tou_mapping_hourly is not None
         assert len(rate_info.tou_mapping_hourly) == 8760
 
@@ -95,7 +95,7 @@ class TestRateDataModuleRun:
         module = RateDataModule()
         result = module.run(geography_us_ca)
 
-        rate_info = result.data
+        rate_info = result.data.root
         assert rate_info.currency == "USD"
 
     def test_run_with_dict_input(self):
@@ -104,7 +104,7 @@ class TestRateDataModuleRun:
         result = module.run({"country": "US", "region": "CA", "utility": "Test"})
 
         assert result.data is not None
-        assert isinstance(result.data, schemas.RateInfo)
+        assert isinstance(result.data.root, schemas.RateInfo)
 
     def test_run_includes_notes(self, geography_us_ca: schemas.Geography):
         """Run includes execution notes."""

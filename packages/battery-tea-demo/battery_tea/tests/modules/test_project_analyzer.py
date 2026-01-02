@@ -83,7 +83,7 @@ class TestProjectAnalyzerModuleRun:
         result = module.run(rate_info, telemetry, financial_params_demo, cost)
 
         assert result.data is not None
-        assert isinstance(result.data, schema.FinancialResults)
+        assert isinstance(result.data.root, schema.FinancialResults)
 
     def test_run_produces_annual_savings(
         self, financial_params_demo: schema.FinancialParams
@@ -98,7 +98,7 @@ class TestProjectAnalyzerModuleRun:
         result = module.run(rate_info, telemetry, financial_params_demo, cost)
 
         # Annual savings should be calculated
-        assert result.data.annual_savings is not None
+        assert result.data.root.annual_savings is not None
 
     def test_run_produces_cashflow(
         self, financial_params_demo: schema.FinancialParams
@@ -112,11 +112,11 @@ class TestProjectAnalyzerModuleRun:
 
         result = module.run(rate_info, telemetry, financial_params_demo, cost)
 
-        assert result.data.cashflow is not None
-        assert len(result.data.cashflow) > 0
+        assert result.data.root.cashflow is not None
+        assert len(result.data.root.cashflow) > 0
         # First entry should be year 0 (CAPEX)
-        assert result.data.cashflow[0].year == 0
-        assert result.data.cashflow[0].net_cashflow < 0  # CAPEX is negative
+        assert result.data.root.cashflow[0].year == 0
+        assert result.data.root.cashflow[0].net_cashflow < 0  # CAPEX is negative
 
     def test_run_produces_npv(
         self, financial_params_demo: schema.FinancialParams
@@ -130,7 +130,7 @@ class TestProjectAnalyzerModuleRun:
 
         result = module.run(rate_info, telemetry, financial_params_demo, cost)
 
-        assert result.data.npv is not None
+        assert result.data.root.npv is not None
 
     def test_run_produces_ledger(
         self, financial_params_demo: schema.FinancialParams
@@ -144,11 +144,11 @@ class TestProjectAnalyzerModuleRun:
 
         result = module.run(rate_info, telemetry, financial_params_demo, cost)
 
-        assert result.data.ledger is not None
-        assert len(result.data.ledger) > 0
+        assert result.data.root.ledger is not None
+        assert len(result.data.root.ledger) > 0
 
         # Should have CAPEX, revenue, and O&M entries
-        categories = {entry.category for entry in result.data.ledger}
+        categories = {entry.category for entry in result.data.root.ledger}
         assert "capex" in categories
 
     def test_run_uses_cost_breakdown_values(
@@ -172,7 +172,7 @@ class TestProjectAnalyzerModuleRun:
         result = module.run(rate_info, telemetry, financial_params_demo, cost)
 
         # Year 0 cashflow should reflect the CAPEX from cost breakdown
-        year0 = result.data.cashflow[0]
+        year0 = result.data.root.cashflow[0]
         assert year0.net_cashflow == -50000.0
 
     def test_run_includes_notes(

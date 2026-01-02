@@ -102,7 +102,7 @@ class TestConfigureBatteryModuleRun:
         result = module.run(load_profile_flat, rate_info_synth)
 
         assert result.data is not None
-        config = result.data
+        config = result.data.root
         assert isinstance(config, schemas.BatteryConfig)
 
     def test_run_produces_positive_capacity(
@@ -114,7 +114,7 @@ class TestConfigureBatteryModuleRun:
         module = ConfigureBatteryModule()
         result = module.run(load_profile_flat, rate_info_synth)
 
-        config = result.data
+        config = result.data.root
         assert config.capacity_kwh > 0
 
     def test_run_produces_valid_soc_bounds(
@@ -126,7 +126,7 @@ class TestConfigureBatteryModuleRun:
         module = ConfigureBatteryModule()
         result = module.run(load_profile_flat, rate_info_synth)
 
-        config = result.data
+        config = result.data.root
         assert 0.0 <= config.soc_min < config.soc_max <= 1.0
 
     def test_run_produces_valid_efficiency(
@@ -138,7 +138,7 @@ class TestConfigureBatteryModuleRun:
         module = ConfigureBatteryModule()
         result = module.run(load_profile_flat, rate_info_synth)
 
-        config = result.data
+        config = result.data.root
         assert 0.0 < config.eta_roundtrip <= 1.0
 
     def test_run_respects_design_prefs(
@@ -166,7 +166,7 @@ class TestConfigureBatteryModuleRun:
         result_large = module.run(load_profile_flat, rate_info_synth, prefs_large)
 
         # Larger peak shaving hours should result in larger capacity
-        assert result_large.data.capacity_kwh > result_small.data.capacity_kwh
+        assert result_large.data.root.capacity_kwh > result_small.data.root.capacity_kwh
 
     def test_run_includes_notes(
         self,

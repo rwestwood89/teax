@@ -17,7 +17,7 @@ class TestCostCalculatorModuleValidation:
         battery = sample_battery_config()
         inputs = module.validate_and_fill_default(battery, geography_us_ca)
 
-        assert inputs.battery == battery
+        assert inputs.config == battery
         assert inputs.geography == geography_us_ca
 
     def test_non_us_geography_raises(self):
@@ -54,7 +54,7 @@ class TestCostCalculatorModuleValidation:
         }
         inputs = module.validate_and_fill_default(battery_dict, geography_us_ca)
 
-        assert isinstance(inputs.battery, schemas.BatteryConfig)
+        assert isinstance(inputs.config, schemas.BatteryConfig)
 
 
 class TestCostCalculatorModuleRun:
@@ -67,7 +67,7 @@ class TestCostCalculatorModuleRun:
         result = module.run(battery, geography_us_ca)
 
         assert result.data is not None
-        breakdown = result.data
+        breakdown = result.data.root
         assert isinstance(breakdown, schemas.CostBreakdown)
 
     def test_run_produces_positive_capex(self, geography_us_ca: schemas.Geography):
@@ -76,7 +76,7 @@ class TestCostCalculatorModuleRun:
         battery = sample_battery_config()
         result = module.run(battery, geography_us_ca)
 
-        breakdown = result.data
+        breakdown = result.data.root
         assert breakdown.capex_total > 0
 
     def test_run_produces_line_items(self, geography_us_ca: schemas.Geography):
@@ -85,7 +85,7 @@ class TestCostCalculatorModuleRun:
         battery = sample_battery_config()
         result = module.run(battery, geography_us_ca)
 
-        breakdown = result.data
+        breakdown = result.data.root
         assert len(breakdown.line_items) > 0
 
         # Should include battery modules and inverter
@@ -99,7 +99,7 @@ class TestCostCalculatorModuleRun:
         battery = sample_battery_config()
         result = module.run(battery, geography_us_ca)
 
-        breakdown = result.data
+        breakdown = result.data.root
         assert breakdown.annual_om_usd > 0
 
     def test_run_scales_with_capacity(self, geography_us_ca: schemas.Geography):
@@ -132,7 +132,7 @@ class TestCostCalculatorModuleRun:
         result_small = module.run(small_battery, geography_us_ca)
         result_large = module.run(large_battery, geography_us_ca)
 
-        assert result_large.data.capex_total > result_small.data.capex_total
+        assert result_large.data.root.capex_total > result_small.data.root.capex_total
 
     def test_run_applies_regional_multiplier(self):
         """California region applies higher regional multiplier."""
@@ -146,7 +146,7 @@ class TestCostCalculatorModuleRun:
         result_tx = module.run(battery, geo_tx)
 
         # CA has higher multiplier (1.18) vs TX default (~1.05)
-        assert result_ca.data.capex_total > result_tx.data.capex_total
+        assert result_ca.data.root.capex_total > result_tx.data.root.capex_total
 
     def test_run_includes_notes(self, geography_us_ca: schemas.Geography):
         """Run includes execution notes."""

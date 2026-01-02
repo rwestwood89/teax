@@ -106,3 +106,42 @@ class TestModuleInstantiation:
 
         assert module is not None
         assert hasattr(module, "run")
+
+
+class TestPipelineExecution:
+    """Tests for YAML pipeline execution."""
+
+    @pytest.mark.skip(
+        reason="Requires custom entry loaders for parquet files (future feature). "
+        "See CLAUDE.md 'Custom Loaders (Future Enhancement)'"
+    )
+    def test_demo_linear_pipeline_executes(self, tmp_path):
+        """demo_linear_alt.yaml executes successfully."""
+        from pathlib import Path
+
+        from simkit.core.pipeline import execute_pipeline
+
+        registry = create_battery_registry()
+        config_path = Path(__file__).parent / "fixtures" / "pipeline_configs" / "demo_linear_alt.yaml"
+
+        result = execute_pipeline(
+            str(config_path),
+            output_dir=str(tmp_path),
+            registry=registry,
+            custom_schema_types=[
+                schemas.Geography,
+                schemas.LoadProfile8760,
+                schemas.RateInfo,
+                schemas.BatteryConfig,
+                schemas.BatteryTelemetry8760,
+                schemas.CostBreakdown,
+            ],
+        )
+
+        # Verify outputs exist
+        assert result.outputs is not None
+        assert "rate_info" in result.outputs
+        assert "battery_config" in result.outputs
+        assert "telemetry" in result.outputs
+        assert "cost_breakdown" in result.outputs
+        assert "financial_results" in result.outputs

@@ -5,12 +5,19 @@ from typing import Dict
 
 import numpy as np
 
+from simkit.config.schema import StrictBaseModel
 from simkit.core.base import ModuleBase, ModuleResult
 
 from ... import defaults, schemas
 
 
-class RateDataModule(ModuleBase[schemas.Geography, schemas.RateInfo]):
+class RateDataInputs(StrictBaseModel):
+    """Container for RateData module inputs."""
+
+    geography: schemas.Geography
+
+
+class RateDataModule(ModuleBase[RateDataInputs, schemas.RateInfoOutput]):
     name = "rate_data"
     version = "v0.1"
 
@@ -19,19 +26,20 @@ class RateDataModule(ModuleBase[schemas.Geography, schemas.RateInfo]):
             return geography
         return schemas.Geography(**geography)
 
-    def validate_and_fill_default(self, geography: schemas.Geography | Dict[str, object]) -> schemas.Geography:
+    def validate_and_fill_default(self, geography: schemas.Geography | Dict[str, object]) -> RateDataInputs:
         geo = self._coerce(geography)
         if geo.country not in {"US"}:
             raise ValueError("Unsupported country for demo")
         timezone = geo.timezone or self._infer_timezone(geo.country, geo.region)
         currency = geo.currency or self._infer_currency(geo.country)
-        return schemas.Geography(
+        validated_geo = schemas.Geography(
             country=geo.country,
             region=geo.region,
             utility=geo.utility,
             timezone=timezone,
             currency=currency,
         )
+        return RateDataInputs(geography=validated_geo)
 
     def _infer_timezone(self, country: str, region: str | None) -> str:
         """Infer timezone from country and region."""
@@ -82,8 +90,9 @@ class RateDataModule(ModuleBase[schemas.Geography, schemas.RateInfo]):
             escalation_rules={"energy": defaults.DEFAULT_ESCALATION_ENERGY},
         )
 
-    def run(self, geography: schemas.Geography | Dict[str, object]) -> ModuleResult[schemas.RateInfo]:
-        geo_validated = self.validate_and_fill_default(geography)
-        rate_info = self._synthetic_prices(geo_validated.timezone or "UTC")
-        rate_info = rate_info.model_copy(update={"currency": geo_validated.currency})
-        return ModuleResult(rate_info, notes="Generated synthetic TOU rate curve")
+    def run(self, geography: schemas.Geography | Dict[str, object]) -> ModuleResult[schemas.RateInfoOutput]:
+        inputs = self.validate_and_fill_default(geography)
+        geo = inputs.geography
+        rate_info = self._synthetic_prices(geo.timezone or "UTC")
+        rate_info = rate_info.model_copy(update={"currency": geo.currency})
+        return ModuleResult(schemas.RateInfoOutput(rate_info), notes="Generated synthetic TOU rate curve")

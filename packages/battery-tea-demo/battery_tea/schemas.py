@@ -10,6 +10,7 @@ from typing import Dict, List, Literal, Optional, Sequence, Tuple
 from pydantic import (
     Field,
     PositiveFloat,
+    RootModel,
     field_validator,
     model_validator,
 )
@@ -266,3 +267,11 @@ class SyncSimOutputs(MultiOutput):
         if self.guidances.outer_indices != expected or self.telemetry.outer_indices != expected:
             raise ValueError("Synchronous simulation series must share identical outer indices")
         return self
+
+
+# Output wrapper types for pipeline compatibility.
+# These enable single-output semantics via the introspector's RootModel special case.
+RateInfoOutput = RootModel[RateInfo]
+BatteryConfigOutput = RootModel[BatteryConfig]
+BatteryTelemetry8760Output = RootModel[BatteryTelemetry8760]
+CostBreakdownOutput = RootModel[CostBreakdown]

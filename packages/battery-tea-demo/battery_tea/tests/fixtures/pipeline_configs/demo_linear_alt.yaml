@@ -14,45 +14,45 @@ modules:
     inputs:
       geography: Geography geo
     outputs:
-      rate_info: RateInfo rate_info 
+      root: RootModel[RateInfo] rate_info
   configure_battery:
     module_type: ConfigureBattery
     inputs:
       load_profile: LoadProfile8760 load_profile
-      rate_info: RateInfo rate_info
+      rate_info: RateInfo rate_info.root
       design_prefs: None -> design_pref_default
     outputs:
-      battery_config: BatteryConfig battery_config
+      root: RootModel[BatteryConfig] battery_config
   simple_performance_sim:
     module_type: SimplePerformanceSim
     inputs:
-      battery: BatteryConfig battery_config
+      battery: BatteryConfig battery_config.root
       load_profile: LoadProfile8760 load_profile
       pv_profile: None -> pv_profile_default
-      rate_info: RateInfo rate_info
+      rate_info: RateInfo rate_info.root
     outputs:
-      telemetry: BatteryTelemetry8760 telemetry
+      root: RootModel[BatteryTelemetry8760] telemetry
   cost_calculator:
     module_type: CostCalculator
     inputs:
-      config: BatteryConfig battery_config
+      config: BatteryConfig battery_config.root
       geography: Geography geo
     outputs:
-      cost_breakdown: CostBreakdown cost_breakdown
+      root: RootModel[CostBreakdown] cost_breakdown
   project_analyzer:
     module_type: ProjectAnalyzer
     inputs:
-      rate_info: RateInfo rate_info
-      telemetry: BatteryTelemetry8760 telemetry
+      rate_info: RateInfo rate_info.root
+      telemetry: BatteryTelemetry8760 telemetry.root
       financial_params: FinancialParams financial_params
-      cost_breakdown: CostBreakdown cost_breakdown
+      cost_breakdown: CostBreakdown cost_breakdown.root
     outputs:
-      financial_results: FinancialResults financial_results
+      root: RootModel[FinancialResults] financial_results
   exit_point:
     module_type: ExitPoint
     outputs:
-      rate_info: RateInfo rate_info.json
-      battery_config: BatteryConfig battery_config.json
-      cost_breakdown: CostBreakdown cost_breakdown.json
-      telemetry: BatteryTelemetry8760 telemetry.parquet
-      financial_results: FinancialResults financial_results.json
+      rate_info: RateInfo rate_info.root.json
+      battery_config: BatteryConfig battery_config.root.json
+      cost_breakdown: CostBreakdown cost_breakdown.root.json
+      telemetry: BatteryTelemetry8760 telemetry.root.parquet
+      financial_results: FinancialResults financial_results.root.json

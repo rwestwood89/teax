@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 import numpy as np
+from pydantic import RootModel
 
 from simkit.config import schema
 from simkit.config.defaults import default_financial_params
@@ -20,7 +21,7 @@ class AnalyzerInputs(StrictBaseModel):
     cost_breakdown: Optional[schemas.CostBreakdown] = None
 
 
-class ProjectAnalyzerModule(ModuleBase[AnalyzerInputs, schema.FinancialResults]):
+class ProjectAnalyzerModule(ModuleBase[AnalyzerInputs, RootModel[schema.FinancialResults]]):
     name = "project_analyzer"
     version = "v0.1"
 
@@ -171,7 +172,7 @@ class ProjectAnalyzerModule(ModuleBase[AnalyzerInputs, schema.FinancialResults])
         telemetry: schemas.BatteryTelemetry8760 | Dict[str, object],
         financial_params: schema.FinancialParams | Dict[str, object] | None = None,
         cost_breakdown: schemas.CostBreakdown | Dict[str, object] | None = None,
-    ) -> ModuleResult[schema.FinancialResults]:
+    ) -> ModuleResult[RootModel[schema.FinancialResults]]:
         inputs = self.validate_and_fill_default(rate_info, telemetry, financial_params, cost_breakdown)
         params = inputs.financial_params
         annual_savings = self._annual_savings(inputs)
@@ -201,4 +202,4 @@ class ProjectAnalyzerModule(ModuleBase[AnalyzerInputs, schema.FinancialResults])
             currency=inputs.rate_info.currency,
             price_year=inputs.rate_info.price_year,
         )
-        return ModuleResult(results, notes="Computed financial summary")
+        return ModuleResult(RootModel[schema.FinancialResults](results), notes="Computed financial summary")

@@ -1,7 +1,7 @@
 """Heuristic battery configuration module."""
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy as np
 
@@ -14,10 +14,10 @@ from ... import defaults, schemas
 class BatteryConfigInputs(StrictBaseModel):
     load_profile: schemas.LoadProfile8760
     rate_info: schemas.RateInfo
-    design_prefs: schemas.DesignPrefs
+    design_prefs: Optional[schemas.DesignPrefs] = None
 
 
-class ConfigureBatteryModule(ModuleBase[BatteryConfigInputs, schemas.BatteryConfig]):
+class ConfigureBatteryModule(ModuleBase[BatteryConfigInputs, schemas.BatteryConfigOutput]):
     name = "configure_battery"
     version = "v0.1"
 
@@ -95,7 +95,7 @@ class ConfigureBatteryModule(ModuleBase[BatteryConfigInputs, schemas.BatteryConf
         load_profile: schemas.LoadProfile8760 | Dict[str, object],
         rate_info: schemas.RateInfo | Dict[str, object],
         design_prefs: schemas.DesignPrefs | Dict[str, object] | None = None,
-    ) -> ModuleResult[schemas.BatteryConfig]:
+    ) -> ModuleResult[schemas.BatteryConfigOutput]:
         inputs = self.validate_and_fill_default(load_profile, rate_info, design_prefs)
         config = self._sizing_heuristic(inputs)
-        return ModuleResult(config, notes="Heuristic battery sizing complete")
+        return ModuleResult(schemas.BatteryConfigOutput(config), notes="Heuristic battery sizing complete")

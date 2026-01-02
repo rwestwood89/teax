@@ -90,7 +90,7 @@ class TestSimplePerformanceSimModuleRun:
         result = module.run(battery, load_profile_flat, None, rate_info_synth)
 
         assert result.data is not None
-        telemetry = result.data
+        telemetry = result.data.root
         assert isinstance(telemetry, schemas.BatteryTelemetry8760)
 
     def test_run_produces_8760_series(
@@ -103,7 +103,7 @@ class TestSimplePerformanceSimModuleRun:
         battery = sample_battery_config()
         result = module.run(battery, load_profile_flat, None, rate_info_synth)
 
-        telemetry = result.data
+        telemetry = result.data.root
         assert len(telemetry.charge_in_kwh) == 8760
         assert len(telemetry.discharge_out_kwh) == 8760
         assert len(telemetry.soc_kwh) == 8760
@@ -118,7 +118,7 @@ class TestSimplePerformanceSimModuleRun:
         battery = sample_battery_config()
         result = module.run(battery, load_profile_flat, None, rate_info_synth)
 
-        telemetry = result.data
+        telemetry = result.data.root
         soc_array = np.array(telemetry.soc_kwh)
         soc_min_kwh = battery.capacity_kwh * battery.soc_min
         soc_max_kwh = battery.capacity_kwh * battery.soc_max
@@ -137,7 +137,7 @@ class TestSimplePerformanceSimModuleRun:
         battery = sample_battery_config()
         result = module.run(battery, load_profile_flat, None, rate_info_synth)
 
-        telemetry = result.data
+        telemetry = result.data.root
         assert all(v >= 0 for v in telemetry.charge_in_kwh)
         assert all(v >= 0 for v in telemetry.discharge_out_kwh)
 
@@ -151,7 +151,7 @@ class TestSimplePerformanceSimModuleRun:
         battery = sample_battery_config()
         result = module.run(battery, load_profile_flat, None, rate_info_synth)
 
-        telemetry = result.data
+        telemetry = result.data.root
 
         # Note: The actual charge/discharge values may be slightly different
         # due to efficiency factors, so we allow some tolerance
@@ -171,7 +171,7 @@ class TestSimplePerformanceSimModuleRun:
         battery = sample_battery_config()
         result = module.run(battery, load_profile_flat, None, rate_info_synth)
 
-        telemetry = result.data
+        telemetry = result.data.root
         assert "soc_min" in telemetry.constraints_hits
         assert "soc_max" in telemetry.constraints_hits
 

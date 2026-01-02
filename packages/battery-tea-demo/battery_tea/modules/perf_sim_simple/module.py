@@ -19,7 +19,7 @@ class PerformanceInputs(StrictBaseModel):
 
 
 class SimplePerformanceSimModule(
-    ModuleBase[PerformanceInputs, schemas.BatteryTelemetry8760]
+    ModuleBase[PerformanceInputs, schemas.BatteryTelemetry8760Output]
 ):
     name = "simple_performance_sim"
     version = "v0.1"
@@ -141,7 +141,7 @@ class SimplePerformanceSimModule(
         load_profile: schemas.LoadProfile8760 | Dict[str, object],
         pv_profile: schemas.PVProfile8760 | Dict[str, object] | None,
         rate_info: schemas.RateInfo | Dict[str, object],
-    ) -> ModuleResult[schemas.BatteryTelemetry8760]:
+    ) -> ModuleResult[schemas.BatteryTelemetry8760Output]:
         inputs = self.validate_and_fill_default(battery, load_profile, pv_profile, rate_info)
         telemetry = self._simulate(inputs)
-        return ModuleResult(telemetry, notes="Generated heuristic telemetry")
+        return ModuleResult(schemas.BatteryTelemetry8760Output(telemetry), notes="Generated heuristic telemetry")

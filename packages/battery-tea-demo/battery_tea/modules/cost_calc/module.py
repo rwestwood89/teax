@@ -18,11 +18,11 @@ REGIONAL_MULTIPLIERS: Dict[str, float] = {
 
 
 class CostInputs(StrictBaseModel):
-    battery: schemas.BatteryConfig
+    config: schemas.BatteryConfig
     geography: schemas.Geography
 
 
-class CostCalculatorModule(ModuleBase[CostInputs, schemas.CostBreakdown]):
+class CostCalculatorModule(ModuleBase[CostInputs, schemas.CostBreakdownOutput]):
     name = "cost_calculator"
     version = "v0.1"
 
@@ -47,7 +47,7 @@ class CostCalculatorModule(ModuleBase[CostInputs, schemas.CostBreakdown]):
             raise ValueError("Cost calculator demo supports US only")
         if geo.currency not in {None, "USD"}:
             raise ValueError("Demo cost calculator assumes USD currency")
-        return CostInputs(battery=battery, geography=geo)
+        return CostInputs(config=battery, geography=geo)
 
     def _regional_multiplier(self, geography: schemas.Geography) -> float:
         key = f"{geography.country}_{geography.region}" if geography.region else geography.country
@@ -66,7 +66,7 @@ class CostCalculatorModule(ModuleBase[CostInputs, schemas.CostBreakdown]):
 
     def _build_breakdown(self, inputs: CostInputs) -> schemas.CostBreakdown:
         multiplier = self._regional_multiplier(inputs.geography)
-        battery = inputs.battery
+        battery = inputs.config
 
         energy_item = self._line_item(
             "Battery Modules",
@@ -112,7 +112,7 @@ class CostCalculatorModule(ModuleBase[CostInputs, schemas.CostBreakdown]):
         self,
         config: schemas.BatteryConfig | Dict[str, object],
         geography: schemas.Geography | Dict[str, object],
-    ) -> ModuleResult[schemas.CostBreakdown]:
+    ) -> ModuleResult[schemas.CostBreakdownOutput]:
         inputs = self.validate_and_fill_default(config, geography)
         breakdown = self._build_breakdown(inputs)
-        return ModuleResult(breakdown, notes="Computed heuristic CAPEX/OPEX breakdown")
+        return ModuleResult(schemas.CostBreakdownOutput(breakdown), notes="Computed heuristic CAPEX/OPEX breakdown")
