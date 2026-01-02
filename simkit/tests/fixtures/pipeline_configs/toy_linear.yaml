@@ -1,0 +1,31 @@
+# Toy linear pipeline for generic framework testing.
+# Uses ToyDoublerModule and ToyAdderModule with no battery dependencies.
+# Demonstrates RootModel[float] pattern for single-primitive-value modules.
+metadata:
+  run_description: Generic framework test pipeline without battery dependencies
+
+modules:
+  entry:
+    module_type: EntryPoint
+    inputs:
+      input_value: ToyInput ../toy_input.json
+
+  doubler:
+    module_type: ToyDoublerModule
+    inputs:
+      value: float input_value.value
+    outputs:
+      root: RootModel[float] doubled
+
+  adder:
+    module_type: ToyAdderModule
+    inputs:
+      root: float doubled.root
+    outputs:
+      root: RootModel[float] added
+
+  exit:
+    module_type: ExitPoint
+    outputs:
+      doubled: RootModel[float] doubled.json
+      added: RootModel[float] added.json
