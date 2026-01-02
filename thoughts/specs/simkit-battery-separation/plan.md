@@ -2,7 +2,7 @@
 
 **Document Type:** Implementation Plan
 **Version:** v1.2
-**Status:** In Progress (Phase 3 Complete)
+**Status:** In Progress (Phase 4 Complete)
 **Owner:** Reid Westwood
 **Last Updated:** 2026-01-02
 **Related Docs:**
@@ -628,8 +628,8 @@ def test_battery_pipeline_executes():
 **From:** `packages/teax-simkit/simkit/config/battery_schema.py`
 **To:** `packages/battery-tea-demo/battery_tea/schemas.py`
 
-- [ ] Move entire file
-- [ ] Update imports to reference `simkit.config.schema` for base types
+- [x] Move entire file
+- [x] Update imports to reference `simkit.config.schema` for base types
 
 ```python
 """Battery TEA schema types."""
@@ -648,59 +648,59 @@ from simkit.config.schema import (
 **From:** `packages/teax-simkit/simkit/config/defaults.py` (battery parts)
 **To:** `packages/battery-tea-demo/battery_tea/defaults.py` (NEW)
 
-- [ ] Create new file with battery-specific defaults
-- [ ] Move: `DEFAULT_ROUNDTRIP_EFFICIENCY`, `DEFAULT_SOC_MIN`, `DEFAULT_SOC_MAX`, `DEFAULT_BATTERY_NOTES`
-- [ ] Move: `default_design_prefs()` function
-- [ ] Keep generic defaults in original file: `DEFAULT_DISCOUNT_RATE`, `DEFAULT_ANALYSIS_YEARS`, etc.
+- [x] Create new file with battery-specific defaults
+- [x] Move: `DEFAULT_ROUNDTRIP_EFFICIENCY`, `DEFAULT_SOC_MIN`, `DEFAULT_SOC_MAX`, `DEFAULT_BATTERY_NOTES`
+- [x] Move: `default_design_prefs()` function
+- [x] Keep generic defaults in original file: `DEFAULT_DISCOUNT_RATE`, `DEFAULT_ANALYSIS_YEARS`, etc.
 
 #### 3. Move Rate Data Module
 **From:** `packages/teax-simkit/simkit/core/rate_data/`
 **To:** `packages/battery-tea-demo/battery_tea/modules/rate_data/`
 
-- [ ] Move `module.py` and `__init__.py`
-- [ ] Update imports: `from battery_tea.schemas import Geography, RateInfo`
-- [ ] Update imports: `from simkit.core.base import ModuleBase, ModuleResult`
+- [x] Move `module.py` and `__init__.py`
+- [x] Update imports: `from battery_tea.schemas import Geography, RateInfo`
+- [x] Update imports: `from simkit.core.base import ModuleBase, ModuleResult`
 
 #### 4. Move Battery Config Module
 **From:** `packages/teax-simkit/simkit/core/battery_config/`
 **To:** `packages/battery-tea-demo/battery_tea/modules/battery_config/`
 
-- [ ] Move `module.py` and `__init__.py`
-- [ ] Update imports to use `battery_tea.schemas`
-- [ ] Update imports to use `battery_tea.defaults`
+- [x] Move `module.py` and `__init__.py`
+- [x] Update imports to use `battery_tea.schemas`
+- [x] Update imports to use `battery_tea.defaults`
 
 #### 5. Move Performance Sim Module
 **From:** `packages/teax-simkit/simkit/core/perf_sim_simple/`
 **To:** `packages/battery-tea-demo/battery_tea/modules/perf_sim_simple/`
 
-- [ ] Move `module.py` and `__init__.py`
-- [ ] Update imports
+- [x] Move `module.py` and `__init__.py`
+- [x] Update imports
 
 #### 6. Move Cost Calculator Module
 **From:** `packages/teax-simkit/simkit/core/cost_calc/`
 **To:** `packages/battery-tea-demo/battery_tea/modules/cost_calc/`
 
-- [ ] Move `module.py` and `__init__.py`
-- [ ] Update imports
+- [x] Move `module.py` and `__init__.py`
+- [x] Update imports
 
 #### 7. Move Project Analyzer Module
 **From:** `packages/teax-simkit/simkit/core/project_analyzer/`
 **To:** `packages/battery-tea-demo/battery_tea/modules/project_analyzer/`
 
-- [ ] Move `module.py` and `__init__.py`
-- [ ] Update imports
+- [x] Move `module.py` and `__init__.py`
+- [x] Update imports
 
 #### 8. Move Synchronous Sim Module
 **From:** `packages/teax-simkit/simkit/core/synchronous_sim/`
 **To:** `packages/battery-tea-demo/battery_tea/modules/synchronous_sim/`
 
-- [ ] Move `module.py`, `guidance.py`, `dynamics.py`, `forecast.py`, `__init__.py`
-- [ ] Update imports in all files
+- [x] Move `module.py`, `guidance.py`, `dynamics.py`, `forecast.py`, `__init__.py`
+- [x] Update imports in all files
 
 #### 9. Create Battery Modules Init
 **File:** `packages/battery-tea-demo/battery_tea/modules/__init__.py` (NEW)
 
-- [ ] Export all module classes
+- [x] Export all module classes
 
 ```python
 """Battery TEA modules."""
@@ -724,7 +724,7 @@ __all__ = [
 #### 10. Create Battery Registry
 **File:** `packages/battery-tea-demo/battery_tea/registry.py` (NEW)
 
-- [ ] Create `create_battery_registry()` function using `simkit.core.registry_builder.create_registry()`
+- [x] Create `create_battery_registry()` function using `simkit.core.registry_builder.create_registry()`
 
 ```python
 """Battery TEA module registry."""
@@ -755,7 +755,7 @@ def create_battery_registry():
 #### 11. Update battery_tea Package Init
 **File:** `packages/battery-tea-demo/battery_tea/__init__.py`
 
-- [ ] Export registry function and key schemas
+- [x] Export registry function and key schemas
 
 ```python
 """Battery TEA example implementation using teax-simkit framework."""
@@ -786,14 +786,45 @@ __all__ = [
 ### Success Criteria
 
 #### Automated Verification:
-- [ ] `cd packages/battery-tea-demo && pip install -e . && python -c "from battery_tea import create_battery_registry"`
-- [ ] `python -c "from battery_tea.modules import ConfigureBatteryModule"`
-- [ ] `python -c "from battery_tea.schemas import BatteryConfig"`
+- [x] `cd packages/battery-tea-demo && pip install -e . && python -c "from battery_tea import create_battery_registry"`
+- [x] `python -c "from battery_tea.modules import ConfigureBatteryModule"`
+- [x] `python -c "from battery_tea.schemas import BatteryConfig"`
 
 #### Manual Verification:
-- [ ] No battery module directories in `packages/teax-simkit/simkit/core/`
-- [ ] All 6 modules exist in `packages/battery-tea-demo/battery_tea/modules/`
-- [ ] `battery_schema.py` no longer exists in teax-simkit
+- [ ] No battery module directories in `packages/teax-simkit/simkit/core/` (Phase 5)
+- [x] All 6 modules exist in `packages/battery-tea-demo/battery_tea/modules/`
+- [ ] `battery_schema.py` no longer exists in teax-simkit (Phase 5)
+
+## Implementation Notes - Phase 4
+**Completed:** 2026-01-02
+**Changes Made:**
+- Created `battery_tea/schemas.py` with all 16 battery-specific types from battery_schema.py
+- Created `battery_tea/defaults.py` with battery-specific defaults (DEFAULT_ROUNDTRIP_EFFICIENCY, etc.)
+- Created all 6 modules in `battery_tea/modules/`:
+  - `rate_data/` - RateDataModule
+  - `battery_config/` - ConfigureBatteryModule
+  - `perf_sim_simple/` - SimplePerformanceSimModule
+  - `cost_calc/` - CostCalculatorModule
+  - `project_analyzer/` - ProjectAnalyzerModule
+  - `synchronous_sim/` - SynchronousSimModule (with forecast.py, guidance.py, dynamics.py)
+- Created `battery_tea/modules/__init__.py` with all module exports
+- Created `battery_tea/registry.py` with `create_battery_registry()` function
+- Updated `battery_tea/__init__.py` with registry and key schema exports
+
+**Verification Results:**
+- All 185 tests pass from root with `pytest`
+- `from battery_tea import create_battery_registry` works
+- `from battery_tea.modules import ConfigureBatteryModule` works
+- `from battery_tea.schemas import BatteryConfig` works
+- Registry successfully creates with all 6 modules
+
+**Deviations from Original Plan:**
+- Input types changed from dataclasses to StrictBaseModel subclasses (required by module introspector)
+- SynchronousSimModule output type changed from `Dict[str, StrictBaseModel]` to `SyncSimOutputs` (MultiOutput) for registry compatibility
+- Battery modules in teax-simkit NOT deleted yet - deferred to Phase 5 (Clean Core Framework)
+- battery_schema.py in teax-simkit NOT deleted yet - deferred to Phase 5
+
+**Note:** Phase 4 creates copies of the battery modules in battery_tea. The original modules remain in teax-simkit until Phase 5 removes them.
 
 ---
 
