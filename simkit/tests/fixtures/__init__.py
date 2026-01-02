@@ -4,11 +4,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Dict
 
-from simkit.config import schema
+from simkit.config import battery_schema, schema
 
 
-def sample_rate_info() -> schema.RateInfo:
-    return schema.RateInfo(
+def sample_rate_info() -> battery_schema.RateInfo:
+    return battery_schema.RateInfo(
         energy_price_usd_per_kwh=None,
         tou_periods=None,
         tou_mapping_hourly=None,
@@ -22,8 +22,8 @@ def sample_rate_info() -> schema.RateInfo:
     )
 
 
-def sample_battery_config() -> schema.BatteryConfig:
-    return schema.BatteryConfig(
+def sample_battery_config() -> battery_schema.BatteryConfig:
+    return battery_schema.BatteryConfig(
         capacity_kwh=100.0,
         power_kw=50.0,
         charge_kw_max=45.0,
@@ -38,9 +38,9 @@ def sample_battery_config() -> schema.BatteryConfig:
     )
 
 
-def sample_cost_breakdown() -> schema.CostBreakdown:
+def sample_cost_breakdown() -> battery_schema.CostBreakdown:
     line_items = [
-        schema.CostLineItem(
+        battery_schema.CostLineItem(
             name="Battery Modules",
             basis="unit",
             unit_cost=300.0,
@@ -49,7 +49,7 @@ def sample_cost_breakdown() -> schema.CostBreakdown:
             currency="USD",
         )
     ]
-    return schema.CostBreakdown(
+    return battery_schema.CostBreakdown(
         line_items=line_items,
         capex_total=300.0,
         annual_om_usd=15.0,
@@ -59,9 +59,9 @@ def sample_cost_breakdown() -> schema.CostBreakdown:
     )
 
 
-def sample_telemetry() -> schema.BatteryTelemetry8760:
+def sample_telemetry() -> battery_schema.BatteryTelemetry8760:
     hours = 8760
-    return schema.BatteryTelemetry8760(
+    return battery_schema.BatteryTelemetry8760(
         charge_in_kwh=[0.1] * hours,
         discharge_out_kwh=[0.08] * hours,
         soc_kwh=[50.0] * hours,
@@ -110,7 +110,7 @@ def sample_exit_payload() -> Dict[str, schema.StrictBaseModel]:
     }
 
 
-def sample_sync_outputs() -> schema.SyncSimOutputs:
+def sample_sync_outputs() -> battery_schema.SyncSimOutputs:
     outer_step = schema.SyncOuterStep(
         index=0,
         start=datetime(2025, 1, 1, 0, 0, tzinfo=timezone.utc),
@@ -129,7 +129,7 @@ def sample_sync_outputs() -> schema.SyncSimOutputs:
         timestamp=outer_step.start,
         setpoint_kw=0.0,
     )
-    telemetry_frame = schema.SyncTelemetryFrame(
+    telemetry_frame = battery_schema.SyncTelemetryFrame(
         outer_index=0,
         timestamp=outer_step.start,
         inner_times=(outer_step.start,),
@@ -137,8 +137,8 @@ def sample_sync_outputs() -> schema.SyncSimOutputs:
         charge_in_kw=(0.0,),
         discharge_in_kw=(0.0,),
     )
-    return schema.SyncSimOutputs(
+    return battery_schema.SyncSimOutputs(
         forecasts=schema.MockForecastSeries(series=(forecast_point,)),
         guidances=schema.SyncGuidanceSeries(series=(guidance,)),
-        telemetry=schema.SyncTelemetrySeries(frames=(telemetry_frame,)),
+        telemetry=battery_schema.SyncTelemetrySeries(frames=(telemetry_frame,)),
     )

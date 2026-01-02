@@ -6,7 +6,7 @@ from typing import Callable, Dict, Mapping, MutableMapping
 
 from pydantic import BaseModel
 
-from ..config import schema
+from ..config import battery_schema, schema
 from .base import ModuleBase
 from .battery_config import ConfigureBatteryModule
 from .cost_calc import CostCalculatorModule
@@ -56,9 +56,9 @@ class PipelineModuleRegistry:
             ModuleDescriptor(
                 module_type="RateData",
                 factory=_factory(RateDataModule),
-                required_inputs={"geography": schema.Geography},
+                required_inputs={"geography": battery_schema.Geography},
                 optional_inputs={},
-                outputs={"rate_info": schema.RateInfo},
+                outputs={"rate_info": battery_schema.RateInfo},
                 version=RateDataModule.version,
             ),
         )
@@ -68,11 +68,11 @@ class PipelineModuleRegistry:
                 module_type="ConfigureBattery",
                 factory=_factory(ConfigureBatteryModule),
                 required_inputs={
-                    "load_profile": schema.LoadProfile8760,
-                    "rate_info": schema.RateInfo,
+                    "load_profile": battery_schema.LoadProfile8760,
+                    "rate_info": battery_schema.RateInfo,
                 },
-                optional_inputs={"design_prefs": schema.DesignPrefs},
-                outputs={"battery_config": schema.BatteryConfig},
+                optional_inputs={"design_prefs": battery_schema.DesignPrefs},
+                outputs={"battery_config": battery_schema.BatteryConfig},
                 version=ConfigureBatteryModule.version,
             ),
         )
@@ -82,12 +82,12 @@ class PipelineModuleRegistry:
                 module_type="SimplePerformanceSim",
                 factory=_factory(SimplePerformanceSimModule),
                 required_inputs={
-                    "battery": schema.BatteryConfig,
-                    "load_profile": schema.LoadProfile8760,
-                    "rate_info": schema.RateInfo,
+                    "battery": battery_schema.BatteryConfig,
+                    "load_profile": battery_schema.LoadProfile8760,
+                    "rate_info": battery_schema.RateInfo,
                 },
-                optional_inputs={"pv_profile": schema.PVProfile8760},
-                outputs={"telemetry": schema.BatteryTelemetry8760},
+                optional_inputs={"pv_profile": battery_schema.PVProfile8760},
+                outputs={"telemetry": battery_schema.BatteryTelemetry8760},
                 version=SimplePerformanceSimModule.version,
             ),
         )
@@ -97,11 +97,11 @@ class PipelineModuleRegistry:
                 module_type="CostCalculator",
                 factory=_factory(CostCalculatorModule),
                 required_inputs={
-                    "config": schema.BatteryConfig,
-                    "geography": schema.Geography,
+                    "config": battery_schema.BatteryConfig,
+                    "geography": battery_schema.Geography,
                 },
                 optional_inputs={},
-                outputs={"cost_breakdown": schema.CostBreakdown},
+                outputs={"cost_breakdown": battery_schema.CostBreakdown},
                 version=CostCalculatorModule.version,
             ),
         )
@@ -111,12 +111,12 @@ class PipelineModuleRegistry:
                 module_type="ProjectAnalyzer",
                 factory=_factory(ProjectAnalyzerModule),
                 required_inputs={
-                    "rate_info": schema.RateInfo,
-                    "telemetry": schema.BatteryTelemetry8760,
+                    "rate_info": battery_schema.RateInfo,
+                    "telemetry": battery_schema.BatteryTelemetry8760,
                 },
                 optional_inputs={
                     "financial_params": schema.FinancialParams,
-                    "cost_breakdown": schema.CostBreakdown,
+                    "cost_breakdown": battery_schema.CostBreakdown,
                 },
                 outputs={"financial_results": schema.FinancialResults},
                 version=ProjectAnalyzerModule.version,
@@ -129,18 +129,18 @@ class PipelineModuleRegistry:
                 factory=_factory(SynchronousSimModule),
                 required_inputs={
                     "time_grid": schema.SyncTimeGrid,
-                    "initial_state": schema.BatteryState,
+                    "initial_state": battery_schema.BatteryState,
                     "price_trajectory": schema.PriceTrajectory,
                     "forecast_config": schema.MockForecastConfig,
-                    "guidance_config": schema.GuidanceConfig,
+                    "guidance_config": battery_schema.GuidanceConfig,
                     "dynamics_config": schema.DynamicSimConfig,
                 },
                 optional_inputs={},
                 outputs={
-                    "synchronous_sim": schema.SyncSimOutputs,
+                    "synchronous_sim": battery_schema.SyncSimOutputs,
                     "forecasts": schema.MockForecastSeries,
                     "guidances": schema.SyncGuidanceSeries,
-                    "telemetry": schema.SyncTelemetrySeries,
+                    "telemetry": battery_schema.SyncTelemetrySeries,
                 },
                 version=SynchronousSimModule.version,
             ),

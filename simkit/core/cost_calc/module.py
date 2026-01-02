@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict
 
-from ...config import defaults, schema
+from ...config import battery_schema, defaults
 from ..base import ModuleBase, ModuleResult
 
 BASE_CAPEX_PER_KWH = 380.0
@@ -18,28 +18,28 @@ REGIONAL_MULTIPLIERS: Dict[str, float] = {
 
 @dataclass(frozen=True)
 class CostInputs:
-    battery: schema.BatteryConfig
-    geography: schema.Geography
+    battery: battery_schema.BatteryConfig
+    geography: battery_schema.Geography
 
 
-class CostCalculatorModule(ModuleBase[CostInputs, schema.CostBreakdown]):
+class CostCalculatorModule(ModuleBase[CostInputs, battery_schema.CostBreakdown]):
     name = "cost_calculator"
     version = "v0.1"
 
-    def _coerce_battery(self, config: schema.BatteryConfig | Dict[str, object]) -> schema.BatteryConfig:
-        if isinstance(config, schema.BatteryConfig):
+    def _coerce_battery(self, config: battery_schema.BatteryConfig | Dict[str, object]) -> battery_schema.BatteryConfig:
+        if isinstance(config, battery_schema.BatteryConfig):
             return config
-        return schema.BatteryConfig(**config)
+        return battery_schema.BatteryConfig(**config)
 
-    def _coerce_geo(self, geography: schema.Geography | Dict[str, object]) -> schema.Geography:
-        if isinstance(geography, schema.Geography):
+    def _coerce_geo(self, geography: battery_schema.Geography | Dict[str, object]) -> battery_schema.Geography:
+        if isinstance(geography, battery_schema.Geography):
             return geography
-        return schema.Geography(**geography)
+        return battery_schema.Geography(**geography)
 
     def validate_and_fill_default(
         self,
-        config: schema.BatteryConfig | Dict[str, object],
-        geography: schema.Geography | Dict[str, object],
+        config: battery_schema.BatteryConfig | Dict[str, object],
+        geography: battery_schema.Geography | Dict[str, object],
     ) -> CostInputs:
         battery = self._coerce_battery(config)
         geo = self._coerce_geo(geography)
@@ -49,13 +49,13 @@ class CostCalculatorModule(ModuleBase[CostInputs, schema.CostBreakdown]):
             raise ValueError("Demo cost calculator assumes USD currency")
         return CostInputs(battery, geo)
 
-    def _regional_multiplier(self, geography: schema.Geography) -> float:
+    def _regional_multiplier(self, geography: battery_schema.Geography) -> float:
         key = f"{geography.country}_{geography.region}" if geography.region else geography.country
         return REGIONAL_MULTIPLIERS.get(key, 1.05 if geography.country == "US" else 1.0)
 
-    def _line_item(self, name: str, basis: str, unit_cost: float, qty: float) -> schema.CostLineItem:
+    def _line_item(self, name: str, basis: str, unit_cost: float, qty: float) -> battery_schema.CostLineItem:
         cost = round(unit_cost * qty, 2)
-        return schema.CostLineItem(
+        return battery_schema.CostLineItem(
             name=name,
             basis=basis,
             unit_cost=round(unit_cost, 2),
@@ -64,7 +64,7 @@ class CostCalculatorModule(ModuleBase[CostInputs, schema.CostBreakdown]):
             currency="USD",
         )
 
-    def _build_breakdown(self, inputs: CostInputs) -> schema.CostBreakdown:
+    def _build_breakdown(self, inputs: CostInputs) -> battery_schema.CostBreakdown:
         multiplier = self._regional_multiplier(inputs.geography)
         battery = inputs.battery
 
@@ -96,7 +96,7 @@ class CostCalculatorModule(ModuleBase[CostInputs, schema.CostBreakdown]):
         capex_total = round(sum(item.cost for item in line_items), 2)
         annual_om = round(capex_total * 0.02, 2)
 
-        return schema.CostBreakdown(
+        return battery_schema.CostBreakdown(
             line_items=line_items,
             capex_total=capex_total,
             annual_om_usd=annual_om,
@@ -110,9 +110,9 @@ class CostCalculatorModule(ModuleBase[CostInputs, schema.CostBreakdown]):
 
     def run(
         self,
-        config: schema.BatteryConfig | Dict[str, object],
-        geography: schema.Geography | Dict[str, object],
-    ) -> ModuleResult[schema.CostBreakdown]:
+        config: battery_schema.BatteryConfig | Dict[str, object],
+        geography: battery_schema.Geography | Dict[str, object],
+    ) -> ModuleResult[battery_schema.CostBreakdown]:
         inputs = self.validate_and_fill_default(config, geography)
         breakdown = self._build_breakdown(inputs)
         return ModuleResult(breakdown, notes="Computed heuristic CAPEX/OPEX breakdown")

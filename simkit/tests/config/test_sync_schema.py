@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from simkit.config import schema, time_utils
+from simkit.config import battery_schema, schema, time_utils
 
 
 _FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "synchronous_sim"
@@ -85,7 +85,7 @@ def test_sync_sim_outputs_alignment() -> None:
         datetime(2025, 1, 1, 0, 0, tzinfo=tz),
         datetime(2025, 1, 1, 0, 5, tzinfo=tz),
     )
-    telemetry_frame = schema.SyncTelemetryFrame(
+    telemetry_frame = battery_schema.SyncTelemetryFrame(
         outer_index=0,
         timestamp=datetime(2025, 1, 1, 0, 0, tzinfo=tz),
         inner_times=inner_times,
@@ -93,16 +93,16 @@ def test_sync_sim_outputs_alignment() -> None:
         charge_in_kw=(0.0, 0.0),
         discharge_in_kw=(0.0, 0.0),
     )
-    telemetry = schema.SyncTelemetrySeries(frames=(telemetry_frame,))
+    telemetry = battery_schema.SyncTelemetrySeries(frames=(telemetry_frame,))
 
-    outputs = schema.SyncSimOutputs(
+    outputs = battery_schema.SyncSimOutputs(
         forecasts=forecasts,
         guidances=guidance,
         telemetry=telemetry,
     )
     assert outputs.forecasts.outer_indices == (0,)
 
-    mismatched_frame = schema.SyncTelemetryFrame(
+    mismatched_frame = battery_schema.SyncTelemetryFrame(
         outer_index=1,
         timestamp=datetime(2025, 1, 1, 1, 0, tzinfo=tz),
         inner_times=inner_times,
@@ -111,8 +111,8 @@ def test_sync_sim_outputs_alignment() -> None:
         discharge_in_kw=(0.0, 0.0),
     )
     with pytest.raises(ValueError):
-        schema.SyncSimOutputs(
+        battery_schema.SyncSimOutputs(
             forecasts=forecasts,
             guidances=guidance,
-            telemetry=schema.SyncTelemetrySeries(frames=(mismatched_frame,)),
+            telemetry=battery_schema.SyncTelemetrySeries(frames=(mismatched_frame,)),
         )

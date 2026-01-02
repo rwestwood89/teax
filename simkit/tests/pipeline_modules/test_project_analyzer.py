@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from simkit.config import defaults, schema
+from simkit.config import battery_schema, defaults, schema
 from simkit.core.project_analyzer import ProjectAnalyzerModule
 
 
-def _sample_cost_breakdown() -> schema.CostBreakdown:
+def _sample_cost_breakdown() -> battery_schema.CostBreakdown:
     line_items = [
-        schema.CostLineItem(
+        battery_schema.CostLineItem(
             name="Battery Modules",
             basis="per_kwh",
             unit_cost=350.0,
@@ -17,7 +17,7 @@ def _sample_cost_breakdown() -> schema.CostBreakdown:
             currency="USD",
         )
     ]
-    return schema.CostBreakdown(
+    return battery_schema.CostBreakdown(
         line_items=line_items,
         capex_total=35000.0,
         annual_om_usd=500.0,
@@ -27,11 +27,11 @@ def _sample_cost_breakdown() -> schema.CostBreakdown:
     )
 
 
-def _sample_telemetry() -> schema.BatteryTelemetry8760:
+def _sample_telemetry() -> battery_schema.BatteryTelemetry8760:
     charge = [0.5] * 8760
     discharge = [0.45] * 8760
     soc = [50.0] * 8760
-    return schema.BatteryTelemetry8760(
+    return battery_schema.BatteryTelemetry8760(
         charge_in_kwh=charge,
         discharge_out_kwh=discharge,
         soc_kwh=soc,
@@ -43,7 +43,7 @@ def _sample_telemetry() -> schema.BatteryTelemetry8760:
 def test_validate_rejects_missing_pricing(financial_params_demo):
     module = ProjectAnalyzerModule()
     telemetry = _sample_telemetry()
-    bad_rate = schema.RateInfo(
+    bad_rate = battery_schema.RateInfo(
         energy_price_usd_per_kwh=None,
         tou_periods=None,
         tou_mapping_hourly=None,

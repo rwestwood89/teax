@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from simkit.config import defaults, schema
+from simkit.config import battery_schema, defaults, schema
 from simkit.io import readers
 
 # Shared fixtures pull data from simkit/tests/fixtures
@@ -12,31 +12,31 @@ FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 
 
 @pytest.fixture
-def geography_us_ca() -> schema.Geography:
-    return readers.read_json_model(FIXTURE_DIR / "geography_us_ca_pge.json", schema.Geography)
+def geography_us_ca() -> battery_schema.Geography:
+    return readers.read_json_model(FIXTURE_DIR / "geography_us_ca_pge.json", battery_schema.Geography)
 
 
 @pytest.fixture
-def rate_info_synth() -> schema.RateInfo:
-    return readers.read_json_model(FIXTURE_DIR / "rateinfo_tou_synthetic.json", schema.RateInfo)
+def rate_info_synth() -> battery_schema.RateInfo:
+    return readers.read_json_model(FIXTURE_DIR / "rateinfo_tou_synthetic.json", battery_schema.RateInfo)
 
 
 @pytest.fixture
-def load_profile_flat() -> schema.LoadProfile8760:
+def load_profile_flat() -> battery_schema.LoadProfile8760:
     return readers.read_parquet_load_profile(
         FIXTURE_DIR / "load_profile_flat_8760.parquet", source="flat_fixture"
     )
 
 
 @pytest.fixture
-def load_profile_toy() -> schema.LoadProfile8760:
+def load_profile_toy() -> battery_schema.LoadProfile8760:
     return readers.read_parquet_load_profile(
         FIXTURE_DIR / "load_profile_toy_8760.parquet", source="toy_fixture"
     )
 
 
 @pytest.fixture
-def design_prefs_default() -> schema.DesignPrefs:
+def design_prefs_default() -> battery_schema.DesignPrefs:
     return defaults.default_design_prefs()
 
 

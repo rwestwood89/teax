@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from simkit.config import schema
+from simkit.config import battery_schema
 from simkit.core.battery_config import ConfigureBatteryModule
 
 
@@ -23,7 +23,7 @@ def test_validate_returns_inputs(load_profile_flat, rate_info_synth, design_pref
 def test_run_generates_reasonable_config(load_profile_flat, rate_info_synth, design_prefs_default):
     module = ConfigureBatteryModule()
     result = module.run(load_profile_flat, rate_info_synth, design_prefs_default).data
-    assert isinstance(result, schema.BatteryConfig)
+    assert isinstance(result, battery_schema.BatteryConfig)
     assert result.capacity_kwh > 0
     assert result.soc_min < result.soc_max
     assert result.charge_kw_max <= result.power_kw

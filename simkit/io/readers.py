@@ -9,7 +9,7 @@ import pandas as pd
 import yaml
 from pydantic import BaseModel
 
-from ..config import defaults, schema
+from ..config import battery_schema, defaults
 from ..config.pipeline_schema import PipelineSpecLoader, PipelineSpecification
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
@@ -39,7 +39,7 @@ def read_yaml_config(path: str | Path) -> Dict[str, Any]:
     return _load_raw(path, loader)
 
 
-def read_parquet_load_profile(path: str | Path, source: str = "fixture") -> schema.LoadProfile8760:
+def read_parquet_load_profile(path: str | Path, source: str = "fixture") -> battery_schema.LoadProfile8760:
     def loader(resolved: Path) -> pd.DataFrame:
         return pd.read_parquet(resolved)
 
@@ -53,14 +53,14 @@ def read_parquet_load_profile(path: str | Path, source: str = "fixture") -> sche
         time_index = ts.dt.tz_convert("UTC")
     else:
         time_index = defaults.default_time_index(defaults.DEFAULT_PRICE_YEAR, "UTC")
-    return schema.LoadProfile8760(
+    return battery_schema.LoadProfile8760(
         time_index=[ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts for ts in time_index],
         load_kwh=frame["load_kwh"].tolist(),
         source=source,
     )
 
 
-def read_parquet_pv_profile(path: str | Path, source: str = "fixture") -> schema.PVProfile8760:
+def read_parquet_pv_profile(path: str | Path, source: str = "fixture") -> battery_schema.PVProfile8760:
     def loader(resolved: Path) -> pd.DataFrame:
         return pd.read_parquet(resolved)
 
@@ -74,7 +74,7 @@ def read_parquet_pv_profile(path: str | Path, source: str = "fixture") -> schema
         time_index = ts.dt.tz_convert("UTC")
     else:
         time_index = defaults.default_time_index(defaults.DEFAULT_PRICE_YEAR, "UTC")
-    return schema.PVProfile8760(
+    return battery_schema.PVProfile8760(
         time_index=[ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts for ts in time_index],
         production_kwh=frame["production_kwh"].tolist(),
         source=source,

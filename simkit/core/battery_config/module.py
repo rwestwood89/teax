@@ -6,43 +6,43 @@ from typing import Dict, Tuple
 
 import numpy as np
 
-from ...config import defaults, schema
+from ...config import battery_schema, defaults
 from ..base import ModuleBase, ModuleResult
 
 
 @dataclass(frozen=True)
 class BatteryConfigInputs:
-    load_profile: schema.LoadProfile8760
-    rate_info: schema.RateInfo
-    design_prefs: schema.DesignPrefs
+    load_profile: battery_schema.LoadProfile8760
+    rate_info: battery_schema.RateInfo
+    design_prefs: battery_schema.DesignPrefs
 
 
-class ConfigureBatteryModule(ModuleBase[BatteryConfigInputs, schema.BatteryConfig]):
+class ConfigureBatteryModule(ModuleBase[BatteryConfigInputs, battery_schema.BatteryConfig]):
     name = "configure_battery"
     version = "v0.1"
 
-    def _coerce_load(self, load_profile: schema.LoadProfile8760 | Dict[str, object]) -> schema.LoadProfile8760:
-        if isinstance(load_profile, schema.LoadProfile8760):
+    def _coerce_load(self, load_profile: battery_schema.LoadProfile8760 | Dict[str, object]) -> battery_schema.LoadProfile8760:
+        if isinstance(load_profile, battery_schema.LoadProfile8760):
             return load_profile
-        return schema.LoadProfile8760(**load_profile)
+        return battery_schema.LoadProfile8760(**load_profile)
 
-    def _coerce_rate(self, rate_info: schema.RateInfo | Dict[str, object]) -> schema.RateInfo:
-        if isinstance(rate_info, schema.RateInfo):
+    def _coerce_rate(self, rate_info: battery_schema.RateInfo | Dict[str, object]) -> battery_schema.RateInfo:
+        if isinstance(rate_info, battery_schema.RateInfo):
             return rate_info
-        return schema.RateInfo(**rate_info)
+        return battery_schema.RateInfo(**rate_info)
 
-    def _coerce_prefs(self, prefs: schema.DesignPrefs | Dict[str, object] | None) -> schema.DesignPrefs:
+    def _coerce_prefs(self, prefs: battery_schema.DesignPrefs | Dict[str, object] | None) -> battery_schema.DesignPrefs:
         if prefs is None:
             return defaults.default_design_prefs()
-        if isinstance(prefs, schema.DesignPrefs):
+        if isinstance(prefs, battery_schema.DesignPrefs):
             return prefs
-        return schema.DesignPrefs(**prefs)
+        return battery_schema.DesignPrefs(**prefs)
 
     def validate_and_fill_default(
         self,
-        load_profile: schema.LoadProfile8760 | Dict[str, object],
-        rate_info: schema.RateInfo | Dict[str, object],
-        design_prefs: schema.DesignPrefs | Dict[str, object] | None = None,
+        load_profile: battery_schema.LoadProfile8760 | Dict[str, object],
+        rate_info: battery_schema.RateInfo | Dict[str, object],
+        design_prefs: battery_schema.DesignPrefs | Dict[str, object] | None = None,
     ) -> BatteryConfigInputs:
         load = self._coerce_load(load_profile)
         rate = self._coerce_rate(rate_info)
@@ -57,7 +57,7 @@ class ConfigureBatteryModule(ModuleBase[BatteryConfigInputs, schema.BatteryConfi
 
         return BatteryConfigInputs(load, rate, prefs)
 
-    def _sizing_heuristic(self, inputs: BatteryConfigInputs) -> schema.BatteryConfig:
+    def _sizing_heuristic(self, inputs: BatteryConfigInputs) -> battery_schema.BatteryConfig:
         prefs = inputs.design_prefs
         load_array = np.array(inputs.load_profile.load_kwh)
 
@@ -76,7 +76,7 @@ class ConfigureBatteryModule(ModuleBase[BatteryConfigInputs, schema.BatteryConfi
         soc_min = prefs.min_soc if prefs.min_soc is not None else defaults.DEFAULT_SOC_MIN
         soc_max = prefs.max_soc if prefs.max_soc is not None else defaults.DEFAULT_SOC_MAX
 
-        return schema.BatteryConfig(
+        return battery_schema.BatteryConfig(
             capacity_kwh=round(capacity_kwh, 2),
             power_kw=round(power_kw, 2),
             charge_kw_max=round(charge_kw_max, 2),
@@ -92,10 +92,10 @@ class ConfigureBatteryModule(ModuleBase[BatteryConfigInputs, schema.BatteryConfi
 
     def run(
         self,
-        load_profile: schema.LoadProfile8760 | Dict[str, object],
-        rate_info: schema.RateInfo | Dict[str, object],
-        design_prefs: schema.DesignPrefs | Dict[str, object] | None = None,
-    ) -> ModuleResult[schema.BatteryConfig]:
+        load_profile: battery_schema.LoadProfile8760 | Dict[str, object],
+        rate_info: battery_schema.RateInfo | Dict[str, object],
+        design_prefs: battery_schema.DesignPrefs | Dict[str, object] | None = None,
+    ) -> ModuleResult[battery_schema.BatteryConfig]:
         inputs = self.validate_and_fill_default(load_profile, rate_info, design_prefs)
         config = self._sizing_heuristic(inputs)
         return ModuleResult(config, notes="Heuristic battery sizing complete")

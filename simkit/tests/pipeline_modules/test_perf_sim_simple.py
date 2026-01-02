@@ -3,13 +3,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from simkit.config import defaults, schema
+from simkit.config import battery_schema, defaults
 from simkit.core.perf_sim_simple import SimplePerformanceSimModule
 
 
 def test_validate_rejects_time_mismatch(load_profile_flat, rate_info_synth):
     module = SimplePerformanceSimModule()
-    pv_profile = schema.PVProfile8760(
+    pv_profile = battery_schema.PVProfile8760(
         time_index=defaults.default_time_index(2024, "UTC"),
         production_kwh=[0.0] * 8760,
         source="pv",
@@ -42,8 +42,8 @@ def test_run_rejects_invalid_inputs(load_profile_flat, rate_info_synth):
         module.run(bad_battery, load_profile_flat, None, rate_info_synth)
 
 
-def _sample_battery_config() -> schema.BatteryConfig:
-    return schema.BatteryConfig(
+def _sample_battery_config() -> battery_schema.BatteryConfig:
+    return battery_schema.BatteryConfig(
         capacity_kwh=120.0,
         power_kw=60.0,
         charge_kw_max=60.0,

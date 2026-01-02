@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Mapping
 
-from ...config import schema, time_utils
+from ...config import battery_schema, schema, time_utils
 from ..base import ModuleBase, ModuleResult
 from .dynamics import DynamicsBridge, StubDynamicsBridge
 from .forecast import MockForecastComponent
@@ -15,10 +15,10 @@ from .guidance import GuidanceComponent
 @dataclass(frozen=True)
 class SynchronousSimInputs:
     time_grid: schema.SyncTimeGrid
-    initial_state: schema.BatteryState
+    initial_state: battery_schema.BatteryState
     actual_pricing: schema.PriceTrajectory
     forecast_config: schema.MockForecastConfig
-    guidance_config: schema.GuidanceConfig
+    guidance_config: battery_schema.GuidanceConfig
     dynamic_sim_config: schema.DynamicSimConfig
     dynamics_bridge: DynamicsBridge
 
@@ -35,18 +35,18 @@ class SynchronousSimModule(
         self,
         *,
         time_grid: schema.SyncTimeGrid | Mapping[str, object],
-        initial_state: schema.BatteryState | Mapping[str, object],
+        initial_state: battery_schema.BatteryState | Mapping[str, object],
         price_trajectory: schema.PriceTrajectory | Mapping[str, object],
         forecast_config: schema.MockForecastConfig | Mapping[str, object],
-        guidance_config: schema.GuidanceConfig | Mapping[str, object],
+        guidance_config: battery_schema.GuidanceConfig | Mapping[str, object],
         dynamics_config: schema.DynamicSimConfig | Mapping[str, object],
         dynamics_override: DynamicsBridge | None = None,
     ) -> SynchronousSimInputs:
         grid = self._coerce_model(time_grid, schema.SyncTimeGrid)
-        state = self._coerce_model(initial_state, schema.BatteryState)
+        state = self._coerce_model(initial_state, battery_schema.BatteryState)
         pricing = self._coerce_price_trajectory(price_trajectory)
         forecast = self._coerce_model(forecast_config, schema.MockForecastConfig)
-        guidance = self._coerce_model(guidance_config, schema.GuidanceConfig)
+        guidance = self._coerce_model(guidance_config, battery_schema.GuidanceConfig)
         dynamics = self._coerce_model(dynamics_config, schema.DynamicSimConfig)
 
         inner_loop = self._get_dynamics_loop(grid)
@@ -70,10 +70,10 @@ class SynchronousSimModule(
         self,
         *,
         time_grid: schema.SyncTimeGrid | Mapping[str, object],
-        initial_state: schema.BatteryState | Mapping[str, object],
+        initial_state: battery_schema.BatteryState | Mapping[str, object],
         price_trajectory: schema.PriceTrajectory | Mapping[str, object],
         forecast_config: schema.MockForecastConfig | Mapping[str, object],
-        guidance_config: schema.GuidanceConfig | Mapping[str, object],
+        guidance_config: battery_schema.GuidanceConfig | Mapping[str, object],
         dynamics_config: schema.DynamicSimConfig | Mapping[str, object],
         dynamics_override: DynamicsBridge | None = None,
     ) -> ModuleResult[Dict[str, schema.StrictBaseModel]]:
@@ -100,13 +100,13 @@ class SynchronousSimModule(
 
         forecasts: list[schema.MockForecastPoint] = []
         guidances: list[schema.SyncGuidance] = []
-        telemetry_frames: list[schema.SyncTelemetryFrame] = []
+        telemetry_frames: list[battery_schema.SyncTelemetryFrame] = []
 
         current_state = inputs.initial_state
         for idx, step in enumerate(inputs.time_grid.outer_steps):
             inner_index = self._build_inner_index(step, dynamics_loop)
             if idx == 0:
-                init_payload = schema.DynamicsInitInput(
+                init_payload = battery_schema.DynamicsInitInput(
                     outer_step=step,
                     state=current_state,
                     inner_index=inner_index,
@@ -151,10 +151,10 @@ class SynchronousSimModule(
             telemetry_frames.append(telemetry)
             current_state = bridge.current_state
 
-        bundle = schema.SyncSimOutputs(
+        bundle = battery_schema.SyncSimOutputs(
             forecasts=schema.MockForecastSeries(series=tuple(forecasts)),
             guidances=schema.SyncGuidanceSeries(series=tuple(guidances)),
-            telemetry=schema.SyncTelemetrySeries(frames=tuple(telemetry_frames)),
+            telemetry=battery_schema.SyncTelemetrySeries(frames=tuple(telemetry_frames)),
         )
         result_payload: Dict[str, schema.StrictBaseModel] = {
             "synchronous_sim": bundle,

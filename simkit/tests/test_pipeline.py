@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from simkit.config import schema
+from simkit.config import battery_schema
 from simkit.core.pipeline import execute_pipeline
 from simkit.io.output_router import create_default_router
 
@@ -91,23 +91,25 @@ def test_execute_pipeline_in_memory_mode(geography_us_ca):
 
     # Validate that outputs are real Pydantic model instances with actual data
     rate_info = outputs["rate_info"]
-    assert isinstance(rate_info, schema.RateInfo)
+    assert isinstance(rate_info, battery_schema.RateInfo)
     assert rate_info.currency == geography_us_ca.currency
     assert len(rate_info.energy_price_usd_per_kwh) == 8760
 
     battery_config = outputs["battery_config"]
-    assert isinstance(battery_config, schema.BatteryConfig)
+    assert isinstance(battery_config, battery_schema.BatteryConfig)
     assert battery_config.capacity_kwh > 0
 
     cost_breakdown = outputs["cost_breakdown"]
-    assert isinstance(cost_breakdown, schema.CostBreakdown)
+    assert isinstance(cost_breakdown, battery_schema.CostBreakdown)
     assert cost_breakdown.currency == "USD"
 
     telemetry = outputs["telemetry"]
-    assert isinstance(telemetry, schema.BatteryTelemetry8760)
+    assert isinstance(telemetry, battery_schema.BatteryTelemetry8760)
     assert len(telemetry.soc_kwh) == 8760
 
     financial_results = outputs["financial_results"]
+    # FinancialResults is a generic type
+    from simkit.config import schema
     assert isinstance(financial_results, schema.FinancialResults)
     assert financial_results.currency == "USD"
 

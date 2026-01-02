@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 from zoneinfo import ZoneInfo
 
-from . import schema
+from . import battery_schema, schema
 
 DEFAULT_TIMEZONE_BY_REGION: Dict[str, str] = {
     "US_CA": "America/Los_Angeles",
@@ -63,8 +63,8 @@ def default_time_index(year: int, timezone: str) -> List[datetime]:
     return [start + timedelta(hours=offset) for offset in range(8760)]
 
 
-def default_design_prefs() -> schema.DesignPrefs:
-    return schema.DesignPrefs(
+def default_design_prefs() -> battery_schema.DesignPrefs:
+    return battery_schema.DesignPrefs(
         target_peak_shaving_hours=4.0,
         max_c_rate=0.5,
         min_soc=DEFAULT_SOC_MIN,

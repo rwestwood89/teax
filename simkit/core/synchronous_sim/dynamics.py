@@ -3,18 +3,18 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from ...config import schema
+from ...config import battery_schema, schema
 
 
 class DynamicsBridge(Protocol):
     """Interface for pluggable synchronous dynamics implementations."""
 
-    def initialize(self, config: schema.DynamicSimConfig, init: schema.DynamicsInitInput) -> None: ...
+    def initialize(self, config: schema.DynamicSimConfig, init: battery_schema.DynamicsInitInput) -> None: ...
 
-    def step(self, payload: schema.DynamicsStepInput) -> schema.SyncTelemetryFrame: ...
+    def step(self, payload: schema.DynamicsStepInput) -> battery_schema.SyncTelemetryFrame: ...
 
     @property
-    def current_state(self) -> schema.BatteryState: ...
+    def current_state(self) -> battery_schema.BatteryState: ...
 
 
 class StubDynamicsBridge:
@@ -23,12 +23,12 @@ class StubDynamicsBridge:
     def __init__(self, config: schema.DynamicSimConfig) -> None:
         self._config = config
         self._fail_at = config.fail_at_outer_step
-        self._state: schema.BatteryState | None = None
+        self._state: battery_schema.BatteryState | None = None
 
-    def initialize(self, config: schema.DynamicSimConfig, init: schema.DynamicsInitInput) -> None:
+    def initialize(self, config: schema.DynamicSimConfig, init: battery_schema.DynamicsInitInput) -> None:
         self._state = init.state
 
-    def step(self, payload: schema.DynamicsStepInput) -> schema.SyncTelemetryFrame:
+    def step(self, payload: schema.DynamicsStepInput) -> battery_schema.SyncTelemetryFrame:
         if self._state is None:
             raise RuntimeError("StubDynamicsBridge.initialize must be called before step")
         if self._fail_at is not None and payload.outer_step.index == self._fail_at:
@@ -59,7 +59,7 @@ class StubDynamicsBridge:
                 charge_series.append(0.0)
                 discharge_series.append(abs(setpoint))
 
-        frame = schema.SyncTelemetryFrame(
+        frame = battery_schema.SyncTelemetryFrame(
             outer_index=payload.outer_step.index,
             timestamp=payload.outer_step.start,
             inner_times=inner_times,
@@ -68,7 +68,7 @@ class StubDynamicsBridge:
             discharge_in_kw=tuple(discharge_series),
         )
 
-        self._state = schema.BatteryState(
+        self._state = battery_schema.BatteryState(
             timestamp=payload.outer_step.end,
             state_of_charge_kwh=soc_values[-1],
             nominal_capacity_kwh=capacity,
@@ -81,7 +81,7 @@ class StubDynamicsBridge:
         return frame
 
     @property
-    def current_state(self) -> schema.BatteryState:
+    def current_state(self) -> battery_schema.BatteryState:
         if self._state is None:
             raise RuntimeError("StubDynamicsBridge has not been initialized")
         return self._state

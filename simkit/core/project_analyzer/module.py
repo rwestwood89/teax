@@ -6,31 +6,31 @@ from typing import List, Dict
 
 import numpy as np
 
-from ...config import defaults, schema
+from ...config import battery_schema, defaults, schema
 from ..base import ModuleBase, ModuleResult
 
 
 @dataclass(frozen=True)
 class AnalyzerInputs:
-    rate_info: schema.RateInfo
-    telemetry: schema.BatteryTelemetry8760
+    rate_info: battery_schema.RateInfo
+    telemetry: battery_schema.BatteryTelemetry8760
     financial_params: schema.FinancialParams
-    cost_breakdown: schema.CostBreakdown | None
+    cost_breakdown: battery_schema.CostBreakdown | None
 
 
 class ProjectAnalyzerModule(ModuleBase[AnalyzerInputs, schema.FinancialResults]):
     name = "project_analyzer"
     version = "v0.1"
 
-    def _coerce_rate(self, rate: schema.RateInfo | Dict[str, object]) -> schema.RateInfo:
-        if isinstance(rate, schema.RateInfo):
+    def _coerce_rate(self, rate: battery_schema.RateInfo | Dict[str, object]) -> battery_schema.RateInfo:
+        if isinstance(rate, battery_schema.RateInfo):
             return rate
-        return schema.RateInfo(**rate)
+        return battery_schema.RateInfo(**rate)
 
-    def _coerce_telemetry(self, telemetry: schema.BatteryTelemetry8760 | Dict[str, object]) -> schema.BatteryTelemetry8760:
-        if isinstance(telemetry, schema.BatteryTelemetry8760):
+    def _coerce_telemetry(self, telemetry: battery_schema.BatteryTelemetry8760 | Dict[str, object]) -> battery_schema.BatteryTelemetry8760:
+        if isinstance(telemetry, battery_schema.BatteryTelemetry8760):
             return telemetry
-        return schema.BatteryTelemetry8760(**telemetry)
+        return battery_schema.BatteryTelemetry8760(**telemetry)
 
     def _coerce_financial(self, params: schema.FinancialParams | Dict[str, object] | None) -> schema.FinancialParams:
         if params is None:
@@ -39,17 +39,17 @@ class ProjectAnalyzerModule(ModuleBase[AnalyzerInputs, schema.FinancialResults])
             return params
         return schema.FinancialParams(**params)
 
-    def _coerce_cost(self, cost: schema.CostBreakdown | Dict[str, object] | None) -> schema.CostBreakdown | None:
-        if cost is None or isinstance(cost, schema.CostBreakdown):
+    def _coerce_cost(self, cost: battery_schema.CostBreakdown | Dict[str, object] | None) -> battery_schema.CostBreakdown | None:
+        if cost is None or isinstance(cost, battery_schema.CostBreakdown):
             return cost
-        return schema.CostBreakdown(**cost)
+        return battery_schema.CostBreakdown(**cost)
 
     def validate_and_fill_default(
         self,
-        rate_info: schema.RateInfo | Dict[str, object],
-        telemetry: schema.BatteryTelemetry8760 | Dict[str, object],
+        rate_info: battery_schema.RateInfo | Dict[str, object],
+        telemetry: battery_schema.BatteryTelemetry8760 | Dict[str, object],
         financial_params: schema.FinancialParams | Dict[str, object] | None = None,
-        cost_breakdown: schema.CostBreakdown | Dict[str, object] | None = None,
+        cost_breakdown: battery_schema.CostBreakdown | Dict[str, object] | None = None,
     ) -> AnalyzerInputs:
         rate = self._coerce_rate(rate_info)
         telem = self._coerce_telemetry(telemetry)
@@ -60,7 +60,7 @@ class ProjectAnalyzerModule(ModuleBase[AnalyzerInputs, schema.FinancialResults])
             raise ValueError("Rate info must include pricing data")
         return AnalyzerInputs(rate, telem, params, cost)
 
-    def _hourly_prices(self, rate_info: schema.RateInfo) -> np.ndarray:
+    def _hourly_prices(self, rate_info: battery_schema.RateInfo) -> np.ndarray:
         if rate_info.energy_price_usd_per_kwh is not None:
             return np.array(rate_info.energy_price_usd_per_kwh)
         assert rate_info.tou_periods is not None and rate_info.tou_mapping_hourly is not None
@@ -165,10 +165,10 @@ class ProjectAnalyzerModule(ModuleBase[AnalyzerInputs, schema.FinancialResults])
 
     def run(
         self,
-        rate_info: schema.RateInfo | Dict[str, object],
-        telemetry: schema.BatteryTelemetry8760 | Dict[str, object],
+        rate_info: battery_schema.RateInfo | Dict[str, object],
+        telemetry: battery_schema.BatteryTelemetry8760 | Dict[str, object],
         financial_params: schema.FinancialParams | Dict[str, object] | None = None,
-        cost_breakdown: schema.CostBreakdown | Dict[str, object] | None = None,
+        cost_breakdown: battery_schema.CostBreakdown | Dict[str, object] | None = None,
     ) -> ModuleResult[schema.FinancialResults]:
         inputs = self.validate_and_fill_default(rate_info, telemetry, financial_params, cost_breakdown)
         params = inputs.financial_params

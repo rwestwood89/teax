@@ -83,7 +83,7 @@ def test_field_reference_parsing_in_yaml():
 
 def test_field_reference_validation_error_message_quality():
     """Verify that validation errors for field references are helpful."""
-    from simkit.config.schema import Geography
+    from simkit.config.battery_schema import Geography
     from simkit.core.pipeline_validator import PipelineValidator
     from simkit.config.pipeline_schema import (
         PipelineChannelBinding,
@@ -92,6 +92,9 @@ def test_field_reference_validation_error_message_quality():
         ChannelSource,
     )
     from simkit.io.output_router import create_default_router
+
+    # Build schema type registry that includes Geography from battery_schema
+    schema_type_registry = {"Geography": Geography}
 
     # Create a spec that references a non-existent field on Geography
     spec = PipelineSpecification(
@@ -145,7 +148,7 @@ def test_field_reference_validation_error_message_quality():
     )
 
     registry = PipelineModuleRegistry.from_static_modules()
-    validator = PipelineValidator(registry, create_default_router())
+    validator = PipelineValidator(registry, create_default_router(), schema_type_registry)
 
     # Validation should fail with helpful error message
     with pytest.raises(PipelineValidationError) as exc_info:
@@ -185,7 +188,7 @@ def test_runtime_field_extraction_with_execution_context():
         PipelineExecutionContext,
     )
     from simkit.config.pipeline_schema import PipelineChannelBinding, ChannelSource
-    from simkit.config.schema import Geography
+    from simkit.config.battery_schema import Geography
 
     # Create execution context
     registry = PipelineModuleRegistry.from_static_modules()

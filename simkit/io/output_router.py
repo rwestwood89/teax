@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, MutableMapping
 
-from ..config import environment, schema
+from ..config import battery_schema, environment, schema
 from ..config.pipeline_schema import PipelineChannelBinding
 from . import writers
 
@@ -255,11 +255,8 @@ def create_default_router(*, in_memory: bool = False) -> OutputRouter:
                   Default: False.
     """
     handlers: MutableMapping[str, WriteHandler] = {
-        schema.RateInfo.__name__: WriteHandler(fn=writers.write_json_model, extension=".json"),
-        schema.BatteryConfig.__name__: WriteHandler(fn=writers.write_json_model, extension=".json"),
-        schema.CostBreakdown.__name__: WriteHandler(fn=writers.write_json_model, extension=".json"),
+        # Generic types from schema module
         schema.FinancialResults.__name__: WriteHandler(fn=writers.write_json_model, extension=".json"),
-        schema.BatteryTelemetry8760.__name__: WriteHandler(fn=writers.write_parquet_telemetry, extension=".parquet"),
         schema.MockForecastSeries.__name__: WriteHandler(
             fn=writers.write_mock_forecast_series,
             extension=".json",
@@ -268,7 +265,12 @@ def create_default_router(*, in_memory: bool = False) -> OutputRouter:
             fn=writers.write_sync_guidance_series,
             extension=".json",
         ),
-        schema.SyncTelemetrySeries.__name__: WriteHandler(
+        # Battery-specific types from battery_schema module
+        battery_schema.RateInfo.__name__: WriteHandler(fn=writers.write_json_model, extension=".json"),
+        battery_schema.BatteryConfig.__name__: WriteHandler(fn=writers.write_json_model, extension=".json"),
+        battery_schema.CostBreakdown.__name__: WriteHandler(fn=writers.write_json_model, extension=".json"),
+        battery_schema.BatteryTelemetry8760.__name__: WriteHandler(fn=writers.write_parquet_telemetry, extension=".parquet"),
+        battery_schema.SyncTelemetrySeries.__name__: WriteHandler(
             fn=writers.write_sync_telemetry_series,
             extension=".parquet",
         ),

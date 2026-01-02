@@ -140,32 +140,35 @@ class TestBuildSchemaTypeRegistry:
           Internal synchronous sim types (not standalone artifacts)
         - DesignPrefs: Optional module input, not loaded from EntryPoint
         """
-        from simkit.config import schema
+        from simkit.config import battery_schema, schema
         import inspect
 
         registry = _build_schema_type_registry()
 
         # Define expected user-facing schemas (must match _build_schema_type_registry)
         # This list should be updated when new user-facing schemas are added
+        # Note: Battery-specific types are from battery_schema, generic types from schema
         expected_user_facing_schemas = [
-            schema.Geography,
+            # Battery-specific types (from battery_schema)
+            battery_schema.Geography,
+            battery_schema.LoadProfile8760,
+            battery_schema.PVProfile8760,
+            battery_schema.RateInfo,
+            battery_schema.BatteryConfig,
+            battery_schema.BatteryTelemetry8760,
+            battery_schema.CostBreakdown,
+            battery_schema.BatteryState,
+            battery_schema.GuidanceConfig,
+            battery_schema.SyncTelemetrySeries,
+            # Generic types (from schema)
             schema.FinancialParams,
-            schema.LoadProfile8760,
-            schema.PVProfile8760,
-            schema.RateInfo,
-            schema.BatteryConfig,
-            schema.BatteryTelemetry8760,
-            schema.CostBreakdown,
             schema.FinancialResults,
             schema.SyncTimeGrid,
-            schema.BatteryState,
             schema.PriceTrajectory,
             schema.MockForecastConfig,
-            schema.GuidanceConfig,
             schema.DynamicSimConfig,
             schema.MockForecastSeries,
             schema.SyncGuidanceSeries,
-            schema.SyncTelemetrySeries,
             # Add new user-facing schemas here as they are created
         ]
 
@@ -190,12 +193,15 @@ class TestBuildSchemaTypeRegistry:
 
         # Optional: Warn about unregistered StrictBaseModel subclasses
         # This helps catch schemas that should be registered but aren't
-        all_schema_classes = [
-            obj for name, obj in inspect.getmembers(schema, inspect.isclass)
-            if (issubclass(obj, schema.StrictBaseModel)
-                and obj is not schema.StrictBaseModel
-                and not name.startswith('_'))
-        ]
+        # Check both schema and battery_schema modules
+        all_schema_classes = []
+        for mod in [schema, battery_schema]:
+            all_schema_classes.extend([
+                obj for name, obj in inspect.getmembers(mod, inspect.isclass)
+                if (issubclass(obj, schema.StrictBaseModel)
+                    and obj is not schema.StrictBaseModel
+                    and not name.startswith('_'))
+            ])
 
         unregistered_schemas = [
             cls for cls in all_schema_classes
@@ -254,9 +260,9 @@ class TestBuildEntryLoaders:
         assert loaders is not _BUILTIN_ENTRY_LOADERS
 
         # Check key built-in loaders present
-        from simkit.config import schema
-        assert schema.Geography in loaders
-        assert schema.LoadProfile8760 in loaders
+        from simkit.config import battery_schema, schema
+        assert battery_schema.Geography in loaders
+        assert battery_schema.LoadProfile8760 in loaders
         assert schema.PriceTrajectory in loaders
 
     def test_registers_custom_type_loader(self):

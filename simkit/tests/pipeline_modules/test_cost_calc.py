@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from simkit.config import schema
+from simkit.config import battery_schema
 from simkit.core.cost_calc import CostCalculatorModule
 
 
 def test_validate_rejects_non_us(geography_us_ca, load_profile_flat, rate_info_synth, design_prefs_default):
     module = CostCalculatorModule()
-    battery = schema.BatteryConfig(
+    battery = battery_schema.BatteryConfig(
         capacity_kwh=100.0,
         power_kw=50.0,
         charge_kw_max=50.0,
@@ -28,7 +28,7 @@ def test_validate_rejects_non_us(geography_us_ca, load_profile_flat, rate_info_s
 
 def test_run_produces_consistent_totals(geography_us_ca):
     module = CostCalculatorModule()
-    battery = schema.BatteryConfig(
+    battery = battery_schema.BatteryConfig(
         capacity_kwh=120.0,
         power_kw=60.0,
         charge_kw_max=60.0,
@@ -49,7 +49,7 @@ def test_run_produces_consistent_totals(geography_us_ca):
 
 def test_run_rejects_invalid_geo(geography_us_ca):
     module = CostCalculatorModule()
-    battery = schema.BatteryConfig(
+    battery = battery_schema.BatteryConfig(
         capacity_kwh=120.0,
         power_kw=60.0,
         charge_kw_max=60.0,

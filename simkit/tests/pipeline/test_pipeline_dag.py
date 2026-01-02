@@ -13,7 +13,7 @@ from simkit.config.pipeline_schema import (
     PipelineModuleSpec,
     PipelineSpecification,
 )
-from simkit.config import schema
+from simkit.config import battery_schema
 from simkit.core.pipeline_registry import ModuleDescriptor, PipelineModuleRegistry
 from simkit.core.pipeline_validator import PipelineValidationError, PipelineValidator
 from simkit.core.base import ModuleBase
@@ -213,9 +213,9 @@ def test_validator_rejects_self_dependency(tmp_path: Path):
         ModuleDescriptor(
             module_type="Echo",
             factory=lambda: _StubModule(),
-            required_inputs={"payload": schema.Geography},
+            required_inputs={"payload": battery_schema.Geography},
             optional_inputs={},
-            outputs={"payload": schema.Geography},
+            outputs={"payload": battery_schema.Geography},
             version="v0",
         ),
     )
@@ -256,9 +256,9 @@ def test_validator_rejects_cycle(tmp_path: Path):
         ModuleDescriptor(
             module_type="StubA",
             factory=lambda: _StubModule(),
-            required_inputs={"foo": schema.Geography, "baz": schema.Geography},
+            required_inputs={"foo": battery_schema.Geography, "baz": battery_schema.Geography},
             optional_inputs={},
-            outputs={"bar": schema.Geography},
+            outputs={"bar": battery_schema.Geography},
             version="v0",
         ),
     )
@@ -267,9 +267,9 @@ def test_validator_rejects_cycle(tmp_path: Path):
         ModuleDescriptor(
             module_type="StubB",
             factory=lambda: _StubModule(),
-            required_inputs={"bar": schema.Geography},
+            required_inputs={"bar": battery_schema.Geography},
             optional_inputs={},
-            outputs={"baz": schema.Geography, "payload": schema.Geography},
+            outputs={"baz": battery_schema.Geography, "payload": battery_schema.Geography},
             version="v0",
         ),
     )

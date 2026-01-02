@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, Mapping
 
 from pydantic import BaseModel
 
-from ..config import schema
+from ..config import battery_schema, schema
 from ..config.schema import MultiOutput
 from ..config.environment import loadenv, resolve_input_dir
 from ..config.pipeline_schema import (
@@ -342,11 +342,16 @@ def _resolve_schema_type(
             )
         return type_obj
     else:
-        # Backward compatibility: fall back to built-in schema module
-        try:
-            return getattr(schema, type_name)
-        except AttributeError as exc:  # pragma: no cover - defensive guard
-            raise ValueError(f"Unknown schema type '{type_name}'") from exc
+        # Backward compatibility: fall back to built-in schema and battery_schema modules
+        # First try generic schema module
+        type_obj = getattr(schema, type_name, None)
+        if type_obj is not None:
+            return type_obj
+        # Then try battery-specific schema module
+        type_obj = getattr(battery_schema, type_name, None)
+        if type_obj is not None:
+            return type_obj
+        raise ValueError(f"Unknown schema type '{type_name}'")
 
 
 def _resolve_input(binding: PipelineChannelBinding, context: PipelineExecutionContext) -> Any:
@@ -446,26 +451,30 @@ def _build_schema_type_registry(
 
     # Build registry starting with built-in schemas
     # Manual enumeration follows existing pattern in create_default_router()
+    # Generic types from schema module
     registry: dict[str, type] = {
-        schema.Geography.__name__: schema.Geography,
         schema.FinancialParams.__name__: schema.FinancialParams,
-        schema.LoadProfile8760.__name__: schema.LoadProfile8760,
-        schema.PVProfile8760.__name__: schema.PVProfile8760,
-        schema.RateInfo.__name__: schema.RateInfo,
-        schema.BatteryConfig.__name__: schema.BatteryConfig,
-        schema.BatteryTelemetry8760.__name__: schema.BatteryTelemetry8760,
-        schema.CostBreakdown.__name__: schema.CostBreakdown,
         schema.FinancialResults.__name__: schema.FinancialResults,
         schema.SyncTimeGrid.__name__: schema.SyncTimeGrid,
-        schema.BatteryState.__name__: schema.BatteryState,
         schema.PriceTrajectory.__name__: schema.PriceTrajectory,
         schema.MockForecastConfig.__name__: schema.MockForecastConfig,
-        schema.GuidanceConfig.__name__: schema.GuidanceConfig,
         schema.DynamicSimConfig.__name__: schema.DynamicSimConfig,
         schema.MockForecastSeries.__name__: schema.MockForecastSeries,
         schema.SyncGuidanceSeries.__name__: schema.SyncGuidanceSeries,
-        schema.SyncTelemetrySeries.__name__: schema.SyncTelemetrySeries,
     }
+    # Battery-specific types from battery_schema module
+    registry.update({
+        battery_schema.Geography.__name__: battery_schema.Geography,
+        battery_schema.LoadProfile8760.__name__: battery_schema.LoadProfile8760,
+        battery_schema.PVProfile8760.__name__: battery_schema.PVProfile8760,
+        battery_schema.RateInfo.__name__: battery_schema.RateInfo,
+        battery_schema.BatteryConfig.__name__: battery_schema.BatteryConfig,
+        battery_schema.BatteryTelemetry8760.__name__: battery_schema.BatteryTelemetry8760,
+        battery_schema.CostBreakdown.__name__: battery_schema.CostBreakdown,
+        battery_schema.BatteryState.__name__: battery_schema.BatteryState,
+        battery_schema.GuidanceConfig.__name__: battery_schema.GuidanceConfig,
+        battery_schema.SyncTelemetrySeries.__name__: battery_schema.SyncTelemetrySeries,
+    })
 
     # Track seen names (includes built-ins)
     seen_names = set(registry.keys())
@@ -557,15 +566,15 @@ def _build_entry_loaders(
     return loaders
 
 
-def _load_geography(path: Path) -> schema.Geography:
-    return readers.read_json_model(path, schema.Geography)
+def _load_geography(path: Path) -> battery_schema.Geography:
+    return readers.read_json_model(path, battery_schema.Geography)
 
 
 def _load_financial_params(path: Path) -> schema.FinancialParams:
     return readers.read_json_model(path, schema.FinancialParams)
 
 
-def _load_load_profile(path: Path) -> schema.LoadProfile8760:
+def _load_load_profile(path: Path) -> battery_schema.LoadProfile8760:
     return readers.read_parquet_load_profile(path, source="pipeline_entry")
 
 
@@ -576,14 +585,16 @@ def _load_load_profile(path: Path) -> schema.LoadProfile8760:
 #
 # For custom schema types, use _build_entry_loaders() instead of modifying this dict.
 _BUILTIN_ENTRY_LOADERS: Dict[type[BaseModel], Any] = {
-    schema.Geography: _load_geography,
+    # Generic types from schema module
     schema.FinancialParams: _load_financial_params,
-    schema.LoadProfile8760: _load_load_profile,
     schema.SyncTimeGrid: lambda path: readers.read_json_model(path, schema.SyncTimeGrid),
-    schema.BatteryState: lambda path: readers.read_json_model(path, schema.BatteryState),
     schema.MockForecastConfig: lambda path: readers.read_json_model(path, schema.MockForecastConfig),
-    schema.GuidanceConfig: lambda path: readers.read_json_model(path, schema.GuidanceConfig),
     schema.DynamicSimConfig: lambda path: readers.read_json_model(path, schema.DynamicSimConfig),
+    # Battery-specific types from battery_schema module
+    battery_schema.Geography: _load_geography,
+    battery_schema.LoadProfile8760: _load_load_profile,
+    battery_schema.BatteryState: lambda path: readers.read_json_model(path, battery_schema.BatteryState),
+    battery_schema.GuidanceConfig: lambda path: readers.read_json_model(path, battery_schema.GuidanceConfig),
 }
 
 
@@ -612,4 +623,5 @@ def _load_price_trajectory(path: Path) -> schema.PriceTrajectory:
     return readers.read_json_model(path, schema.PriceTrajectory)
 
 
+# PriceTrajectory is a generic type
 _BUILTIN_ENTRY_LOADERS[schema.PriceTrajectory] = _load_price_trajectory

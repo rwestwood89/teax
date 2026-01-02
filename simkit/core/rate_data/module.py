@@ -5,26 +5,26 @@ from typing import Dict
 
 import numpy as np
 
-from ...config import defaults, schema
+from ...config import battery_schema, defaults
 from ..base import ModuleBase, ModuleResult
 
 
-class RateDataModule(ModuleBase[schema.Geography, schema.RateInfo]):
+class RateDataModule(ModuleBase[battery_schema.Geography, battery_schema.RateInfo]):
     name = "rate_data"
     version = "v0.1"
 
-    def _coerce(self, geography: schema.Geography | Dict[str, object]) -> schema.Geography:
-        if isinstance(geography, schema.Geography):
+    def _coerce(self, geography: battery_schema.Geography | Dict[str, object]) -> battery_schema.Geography:
+        if isinstance(geography, battery_schema.Geography):
             return geography
-        return schema.Geography(**geography)
+        return battery_schema.Geography(**geography)
 
-    def validate_and_fill_default(self, geography: schema.Geography | Dict[str, object]) -> schema.Geography:
+    def validate_and_fill_default(self, geography: battery_schema.Geography | Dict[str, object]) -> battery_schema.Geography:
         geo = self._coerce(geography)
         if geo.country not in {"US"}:
             raise ValueError("Unsupported country for demo")
         timezone = geo.timezone or defaults.infer_timezone(geo.country, geo.region)
         currency = geo.currency or defaults.infer_currency(geo.country)
-        return schema.Geography(
+        return battery_schema.Geography(
             country=geo.country,
             region=geo.region,
             utility=geo.utility,
@@ -32,7 +32,7 @@ class RateDataModule(ModuleBase[schema.Geography, schema.RateInfo]):
             currency=currency,
         )
 
-    def _synthetic_prices(self, timezone: str) -> schema.RateInfo:
+    def _synthetic_prices(self, timezone: str) -> battery_schema.RateInfo:
         base_rate = 0.15
         peak_rate = 0.27
         shoulder_rate = 0.19
@@ -52,7 +52,7 @@ class RateDataModule(ModuleBase[schema.Geography, schema.RateInfo]):
         }
         tou_mapping = np.where(peak_mask, "peak", np.where(shoulder_mask, "shoulder", "off_peak"))
 
-        return schema.RateInfo(
+        return battery_schema.RateInfo(
             energy_price_usd_per_kwh=price_array.tolist(),
             tou_periods=tou_periods,
             tou_mapping_hourly=tou_mapping.tolist(),
@@ -65,7 +65,7 @@ class RateDataModule(ModuleBase[schema.Geography, schema.RateInfo]):
             escalation_rules={"energy": defaults.DEFAULT_ESCALATION_ENERGY},
         )
 
-    def run(self, geography: schema.Geography | Dict[str, object]) -> ModuleResult[schema.RateInfo]:
+    def run(self, geography: battery_schema.Geography | Dict[str, object]) -> ModuleResult[battery_schema.RateInfo]:
         geo_validated = self.validate_and_fill_default(geography)
         rate_info = self._synthetic_prices(geo_validated.timezone or "UTC")
         rate_info = rate_info.model_copy(update={"currency": geo_validated.currency})

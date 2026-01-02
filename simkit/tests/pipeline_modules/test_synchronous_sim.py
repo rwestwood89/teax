@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from simkit.config import schema
+from simkit.config import battery_schema, schema
 from simkit.core.synchronous_sim import SynchronousSimModule
 
 _FIXTURE_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "synchronous_sim"
@@ -32,10 +32,10 @@ def _build_price_trajectory() -> schema.PriceTrajectory:
 
 def _build_inputs(dynamic_config_name: str = "dynamic_sim_config.json") -> dict:
     time_grid = schema.SyncTimeGrid(**_load_json("time_grid.json"))
-    initial_state = schema.BatteryState(**_load_json("initial_state.json"))
+    initial_state = battery_schema.BatteryState(**_load_json("initial_state.json"))
     price_trajectory = _build_price_trajectory()
     forecast_config = schema.MockForecastConfig(**_load_json("forecast_config.json"))
-    guidance_config = schema.GuidanceConfig(**_load_json("guidance_config.json"))
+    guidance_config = battery_schema.GuidanceConfig(**_load_json("guidance_config.json"))
     dynamics_config = schema.DynamicSimConfig(**_load_json(dynamic_config_name))
     return {
         "time_grid": time_grid,
@@ -54,7 +54,7 @@ def test_module_loop_happy_path():
 
     outputs = result.data
     bundle = outputs["synchronous_sim"]
-    assert isinstance(bundle, schema.SyncSimOutputs)
+    assert isinstance(bundle, battery_schema.SyncSimOutputs)
     assert len(outputs["telemetry"].frames) == len(inputs["time_grid"].outer_steps)
     assert outputs["guidances"].series[0].setpoint_kw == pytest.approx(0.0)
     assert outputs["forecasts"].series[0].metadata.currency == "USD"

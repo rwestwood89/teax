@@ -3,20 +3,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ...config import schema
+from ...config import battery_schema, schema
 
 
 @dataclass
 class GuidanceComponent:
     """Simple heuristic guidance component obeying SOC bounds and ramp limits."""
 
-    config: schema.GuidanceConfig
+    config: battery_schema.GuidanceConfig
 
     def __post_init__(self) -> None:
         self._capacity_kwh: float | None = None
         self._previous_setpoint: float = 0.0
 
-    def initialize(self, initial_state: schema.BatteryState) -> None:
+    def initialize(self, initial_state: battery_schema.BatteryState) -> None:
         self._capacity_kwh = initial_state.nominal_capacity_kwh
         self._previous_setpoint = 0.0
 
@@ -24,7 +24,7 @@ class GuidanceComponent:
         self,
         outer_step: schema.SyncOuterStep,
         forecast_point: schema.MockForecastPoint,
-        current_state: schema.BatteryState,
+        current_state: battery_schema.BatteryState,
     ) -> schema.SyncGuidance:
         if self._capacity_kwh is None:
             raise RuntimeError("GuidanceComponent.initialize must be invoked before step")

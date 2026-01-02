@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable
 
 import pandas as pd
 
-from ..config import schema
+from ..config import battery_schema, schema
 
 
 def write_json_model(model: schema.StrictBaseModel, path: str | Path) -> Path:
@@ -31,7 +31,7 @@ def write_json_payload(payload: Dict[str, Any] | schema.StrictBaseModel | Any, p
     return resolved
 
 
-def write_parquet_telemetry(telemetry: schema.BatteryTelemetry8760, path: str | Path) -> Path:
+def write_parquet_telemetry(telemetry: battery_schema.BatteryTelemetry8760, path: str | Path) -> Path:
     resolved = Path(path)
     resolved.parent.mkdir(parents=True, exist_ok=True)
     frame = pd.DataFrame(
@@ -76,7 +76,7 @@ def write_sync_guidance_series(
 
 
 def write_sync_telemetry_series(
-    series: schema.SyncTelemetrySeries, path: str | Path
+    series: battery_schema.SyncTelemetrySeries, path: str | Path
 ) -> Path:
     resolved = Path(path)
     resolved.parent.mkdir(parents=True, exist_ok=True)
@@ -86,7 +86,7 @@ def write_sync_telemetry_series(
 
 
 def _telemetry_frames_to_dataframe(
-    frames: Iterable[schema.SyncTelemetryFrame],
+    frames: Iterable[battery_schema.SyncTelemetryFrame],
 ) -> pd.DataFrame:
     rows: list[Dict[str, Any]] = []
     for frame in frames:

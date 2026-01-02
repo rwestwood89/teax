@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import pandas as pd
 
-from simkit.config import schema
+from simkit.config import battery_schema, schema
 from simkit.config.pipeline_schema import ChannelSource, PipelineChannelBinding
 from simkit.io.output_router import (
     OutputRouter,
@@ -35,7 +35,7 @@ def exit_payload() -> dict[str, schema.StrictBaseModel]:
 
 
 @pytest.fixture
-def sync_outputs() -> schema.SyncSimOutputs:
+def sync_outputs() -> battery_schema.SyncSimOutputs:
     return fixture_builders.sample_sync_outputs()
 
 
@@ -58,7 +58,7 @@ def test_output_router_writes_artifacts_and_manifest(tmp_path: Path, exit_bindin
 
     manifest_data = json.loads(result.manifest_path.read_text(encoding="utf-8"))
     telemetry_record = next(item for item in manifest_data["artifacts"] if item["channel"] == "telemetry")
-    assert telemetry_record["type_name"] == schema.BatteryTelemetry8760.__name__
+    assert telemetry_record["type_name"] == battery_schema.BatteryTelemetry8760.__name__
     assert telemetry_record["relative_path"] == "telemetry.parquet"
     assert telemetry_record["produced"] is True
     assert manifest_data["run_name"] == "demo-linear"
@@ -95,13 +95,13 @@ def test_output_router_rejects_duplicate_filenames(tmp_path: Path):
     router = create_default_router()
     bindings = {
         "first": PipelineChannelBinding(
-            type_name=schema.RateInfo.__name__,
+            type_name=battery_schema.RateInfo.__name__,
             channel_name="first",
             source=ChannelSource.MODULE,
             destination_filename="duplicate.json",
         ),
         "second": PipelineChannelBinding(
-            type_name=schema.RateInfo.__name__,
+            type_name=battery_schema.RateInfo.__name__,
             channel_name="second",
             source=ChannelSource.MODULE,
             destination_filename="duplicate.json",
@@ -118,11 +118,11 @@ def test_output_router_rejects_duplicate_filenames(tmp_path: Path):
 
 def test_output_router_extension_check(tmp_path: Path):
     router = OutputRouter(
-        {schema.RateInfo.__name__: WriteHandler(fn=writers.write_json_model, extension=".json")}
+        {battery_schema.RateInfo.__name__: WriteHandler(fn=writers.write_json_model, extension=".json")}
     )
     bindings = {
         "rate_info": PipelineChannelBinding(
-            type_name=schema.RateInfo.__name__,
+            type_name=battery_schema.RateInfo.__name__,
             channel_name="rate_info",
             source=ChannelSource.MODULE,
             destination_filename="rate_info.txt",
@@ -138,7 +138,7 @@ def test_output_router_records_missing_channel(tmp_path: Path):
     router = create_default_router()
     bindings = {
         "rate_info": PipelineChannelBinding(
-            type_name=schema.RateInfo.__name__,
+            type_name=battery_schema.RateInfo.__name__,
             channel_name="rate_info",
             source=ChannelSource.MODULE,
             destination_filename="rate_info.json",
@@ -154,7 +154,7 @@ def test_output_router_records_missing_channel(tmp_path: Path):
     assert not (result.run_dir / "rate_info.json").exists()
 
 
-def test_output_router_handles_synchronous_sim(tmp_path: Path, sync_outputs: schema.SyncSimOutputs):
+def test_output_router_handles_synchronous_sim(tmp_path: Path, sync_outputs: battery_schema.SyncSimOutputs):
     router = create_default_router()
     bindings = {
         "forecasts": PipelineChannelBinding(
@@ -170,7 +170,7 @@ def test_output_router_handles_synchronous_sim(tmp_path: Path, sync_outputs: sch
             destination_filename="guidances.json",
         ),
         "telemetry": PipelineChannelBinding(
-            type_name=schema.SyncTelemetrySeries.__name__,
+            type_name=battery_schema.SyncTelemetrySeries.__name__,
             channel_name="telemetry",
             source=ChannelSource.MODULE,
             destination_filename="telemetry.parquet",
@@ -193,7 +193,7 @@ def test_output_router_handles_synchronous_sim(tmp_path: Path, sync_outputs: sch
     recorded_types = {artifact.type_name for artifact in result.manifest.artifacts}
     assert schema.MockForecastSeries.__name__ in recorded_types
     assert schema.SyncGuidanceSeries.__name__ in recorded_types
-    assert schema.SyncTelemetrySeries.__name__ in recorded_types
+    assert battery_schema.SyncTelemetrySeries.__name__ in recorded_types
 
 
 def test_create_output_router_with_json_schemas_includes_builtins():

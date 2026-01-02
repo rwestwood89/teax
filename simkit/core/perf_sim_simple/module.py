@@ -6,52 +6,52 @@ from typing import Dict
 
 import numpy as np
 
-from ...config import defaults, schema
+from ...config import battery_schema, defaults
 from ..base import ModuleBase, ModuleResult
 
 
 @dataclass(frozen=True)
 class PerformanceInputs:
-    battery: schema.BatteryConfig
-    load_profile: schema.LoadProfile8760
-    pv_profile: schema.PVProfile8760 | None
-    rate_info: schema.RateInfo
+    battery: battery_schema.BatteryConfig
+    load_profile: battery_schema.LoadProfile8760
+    pv_profile: battery_schema.PVProfile8760 | None
+    rate_info: battery_schema.RateInfo
 
 
 class SimplePerformanceSimModule(
-    ModuleBase[PerformanceInputs, schema.BatteryTelemetry8760]
+    ModuleBase[PerformanceInputs, battery_schema.BatteryTelemetry8760]
 ):
     name = "simple_performance_sim"
     version = "v0.1"
 
-    def _coerce_battery(self, config: schema.BatteryConfig | Dict[str, object]) -> schema.BatteryConfig:
-        if isinstance(config, schema.BatteryConfig):
+    def _coerce_battery(self, config: battery_schema.BatteryConfig | Dict[str, object]) -> battery_schema.BatteryConfig:
+        if isinstance(config, battery_schema.BatteryConfig):
             return config
-        return schema.BatteryConfig(**config)
+        return battery_schema.BatteryConfig(**config)
 
-    def _coerce_load(self, load: schema.LoadProfile8760 | Dict[str, object]) -> schema.LoadProfile8760:
-        if isinstance(load, schema.LoadProfile8760):
+    def _coerce_load(self, load: battery_schema.LoadProfile8760 | Dict[str, object]) -> battery_schema.LoadProfile8760:
+        if isinstance(load, battery_schema.LoadProfile8760):
             return load
-        return schema.LoadProfile8760(**load)
+        return battery_schema.LoadProfile8760(**load)
 
-    def _coerce_pv(self, pv: schema.PVProfile8760 | Dict[str, object] | None) -> schema.PVProfile8760 | None:
+    def _coerce_pv(self, pv: battery_schema.PVProfile8760 | Dict[str, object] | None) -> battery_schema.PVProfile8760 | None:
         if pv is None:
             return None
-        if isinstance(pv, schema.PVProfile8760):
+        if isinstance(pv, battery_schema.PVProfile8760):
             return pv
-        return schema.PVProfile8760(**pv)
+        return battery_schema.PVProfile8760(**pv)
 
-    def _coerce_rate(self, rate: schema.RateInfo | Dict[str, object]) -> schema.RateInfo:
-        if isinstance(rate, schema.RateInfo):
+    def _coerce_rate(self, rate: battery_schema.RateInfo | Dict[str, object]) -> battery_schema.RateInfo:
+        if isinstance(rate, battery_schema.RateInfo):
             return rate
-        return schema.RateInfo(**rate)
+        return battery_schema.RateInfo(**rate)
 
     def validate_and_fill_default(
         self,
-        battery: schema.BatteryConfig | Dict[str, object],
-        load_profile: schema.LoadProfile8760 | Dict[str, object],
-        pv_profile: schema.PVProfile8760 | Dict[str, object] | None,
-        rate_info: schema.RateInfo | Dict[str, object],
+        battery: battery_schema.BatteryConfig | Dict[str, object],
+        load_profile: battery_schema.LoadProfile8760 | Dict[str, object],
+        pv_profile: battery_schema.PVProfile8760 | Dict[str, object] | None,
+        rate_info: battery_schema.RateInfo | Dict[str, object],
     ) -> PerformanceInputs:
         battery_config = self._coerce_battery(battery)
         load = self._coerce_load(load_profile)
@@ -73,7 +73,7 @@ class SimplePerformanceSimModule(
         assert rate.tou_periods is not None and rate.tou_mapping_hourly is not None
         return np.array([rate.tou_periods[label] for label in rate.tou_mapping_hourly])
 
-    def _simulate(self, inputs: PerformanceInputs) -> schema.BatteryTelemetry8760:
+    def _simulate(self, inputs: PerformanceInputs) -> battery_schema.BatteryTelemetry8760:
         battery = inputs.battery
         load = np.array(inputs.load_profile.load_kwh)
         pv = (
@@ -127,7 +127,7 @@ class SimplePerformanceSimModule(
                 hits["soc_max"] += 1
             soc_series[hour] = soc
 
-        return schema.BatteryTelemetry8760(
+        return battery_schema.BatteryTelemetry8760(
             charge_in_kwh=charge_series.tolist(),
             discharge_out_kwh=discharge_series.tolist(),
             soc_kwh=soc_series.tolist(),
@@ -137,11 +137,11 @@ class SimplePerformanceSimModule(
 
     def run(
         self,
-        battery: schema.BatteryConfig | Dict[str, object],
-        load_profile: schema.LoadProfile8760 | Dict[str, object],
-        pv_profile: schema.PVProfile8760 | Dict[str, object] | None,
-        rate_info: schema.RateInfo | Dict[str, object],
-    ) -> ModuleResult[schema.BatteryTelemetry8760]:
+        battery: battery_schema.BatteryConfig | Dict[str, object],
+        load_profile: battery_schema.LoadProfile8760 | Dict[str, object],
+        pv_profile: battery_schema.PVProfile8760 | Dict[str, object] | None,
+        rate_info: battery_schema.RateInfo | Dict[str, object],
+    ) -> ModuleResult[battery_schema.BatteryTelemetry8760]:
         inputs = self.validate_and_fill_default(battery, load_profile, pv_profile, rate_info)
         telemetry = self._simulate(inputs)
         return ModuleResult(telemetry, notes="Generated heuristic telemetry")

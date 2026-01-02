@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from simkit.config import schema
+from simkit.config import battery_schema
 from simkit.core.rate_data import RateDataModule
 
 
@@ -15,7 +15,7 @@ def test_validate_rejects_unsupported_country(geography_us_ca):
 
 def test_validate_fills_missing_fields():
     module = RateDataModule()
-    geo = schema.Geography(country="US", region="CA", utility=None, timezone=None, currency=None)
+    geo = battery_schema.Geography(country="US", region="CA", utility=None, timezone=None, currency=None)
     validated = module.validate_and_fill_default(geo)
     assert validated.timezone == "America/Los_Angeles"
     assert validated.currency == "USD"
@@ -24,7 +24,7 @@ def test_validate_fills_missing_fields():
 def test_run_returns_hourly_rate(geography_us_ca):
     module = RateDataModule()
     result = module.run(geography_us_ca).data
-    assert isinstance(result, schema.RateInfo)
+    assert isinstance(result, battery_schema.RateInfo)
     assert len(result.energy_price_usd_per_kwh) == 8760
     assert result.currency == geography_us_ca.currency
 

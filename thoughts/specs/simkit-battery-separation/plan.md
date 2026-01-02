@@ -1,8 +1,8 @@
 # Simkit/Battery Demo Separation - Implementation Plan
 
 **Document Type:** Implementation Plan
-**Version:** v1.1
-**Status:** In Progress (Phase 1 Complete)
+**Version:** v1.2
+**Status:** In Progress (Phase 2 Complete)
 **Owner:** Reid Westwood
 **Last Updated:** 2026-01-02
 **Related Docs:**
@@ -304,76 +304,102 @@ def test_battery_schemas_in_separate_file():
 #### 1. Create Battery Schema File
 **File:** `simkit/config/battery_schema.py` (NEW)
 
-- [ ] Add file header and imports
-- [ ] Move `Geography` (lines 105-111)
-- [ ] Move `LoadProfile8760` (lines 113-132) with validators
-- [ ] Move `PVProfile8760` (lines 134-153) with validators
-- [ ] Move `RateInfo` (lines 155-180) with validators
-- [ ] Move `DesignPrefs` (lines 182-195) with validator
-- [ ] Move `BatteryConfig` (lines 197-210)
-- [ ] Move `CostLineItem` (lines 212-219)
-- [ ] Move `CostBreakdown` (lines 221-229)
-- [ ] Move `BatteryTelemetry8760` (lines 231-245) with validator
-- [ ] Move `BatteryState` (lines 542-565) with validator
-- [ ] Move `GuidanceConfig` (lines 622-642) with validator
-- [ ] Move `DynamicsInitInput` (lines 680-684)
-- [ ] Move `SyncTelemetryFrame` (lines 692-715) with validator
-- [ ] Move `SyncTelemetrySeries` (lines 717-723)
-- [ ] Move `SyncSimOutputs` (lines 737-746) with validator
-- [ ] Import generic types from `schema.py` as needed (StrictBaseModel, MultiOutput, TimeSpan, etc.)
+- [x] Add file header and imports
+- [x] Move `Geography` (lines 105-111)
+- [x] Move `LoadProfile8760` (lines 113-132) with validators
+- [x] Move `PVProfile8760` (lines 134-153) with validators
+- [x] Move `RateInfo` (lines 155-180) with validators
+- [x] Move `DesignPrefs` (lines 182-195) with validator
+- [x] Move `BatteryConfig` (lines 197-210)
+- [x] Move `CostLineItem` (lines 212-219)
+- [x] Move `CostBreakdown` (lines 221-229)
+- [x] Move `BatteryTelemetry8760` (lines 231-245) with validator
+- [x] Move `BatteryState` (lines 542-565) with validator
+- [x] Move `GuidanceConfig` (lines 622-642) with validator
+- [x] Move `DynamicsInitInput` (lines 680-684)
+- [x] Move `SyncTelemetryFrame` (lines 692-715) with validator
+- [x] Move `SyncTelemetrySeries` (lines 717-723)
+- [x] Move `SyncSimOutputs` (lines 737-746) with validator
+- [x] Import generic types from `schema.py` as needed (StrictBaseModel, MultiOutput, TimeSpan, etc.)
 
 #### 2. Clean Up Generic Schema File
 **File:** `simkit/config/schema.py`
 
-- [ ] Remove all battery-specific types listed above
-- [ ] Keep: `StrictBaseModel`, `MultiOutput`
-- [ ] Keep: `TimeSpan`, `SyncOuterStep`, `InnerLoopConfig`, `SyncTimeGrid`
-- [ ] Keep: `PriceTrajectory`, `PriceTrajectoryWindow`
-- [ ] Keep: `FinancialParams`, `CashflowEntry`, `LedgerEntry`, `FinancialResults`
-- [ ] Keep: `Provenance`, `PipelineRunMetadata`, `RunArtifactRecord`, `RunManifest`
-- [ ] Keep: `MockForecastMetadata`, `MockForecastConfig`, `MockForecastPoint`, `MockForecastSeries`
-- [ ] Keep: `GuidanceMetadata`, `SyncGuidance`, `SyncGuidanceSeries`
-- [ ] Keep: `DynamicSimConfig`, `DynamicsStepInput`
-- [ ] Keep: `ensure_outer_indices_match()` function
-- [ ] Verify no circular imports
+- [x] Remove all battery-specific types listed above
+- [x] Keep: `StrictBaseModel`, `MultiOutput`
+- [x] Keep: `TimeSpan`, `SyncOuterStep`, `InnerLoopConfig`, `SyncTimeGrid`
+- [x] Keep: `PriceTrajectory`, `PriceTrajectoryWindow`
+- [x] Keep: `FinancialParams`, `CashflowEntry`, `LedgerEntry`, `FinancialResults`
+- [x] Keep: `Provenance`, `PipelineRunMetadata`, `RunArtifactRecord`, `RunManifest`
+- [x] Keep: `MockForecastMetadata`, `MockForecastConfig`, `MockForecastPoint`, `MockForecastSeries`
+- [x] Keep: `GuidanceMetadata`, `SyncGuidance`, `SyncGuidanceSeries`
+- [x] Keep: `DynamicSimConfig`, `DynamicsStepInput`
+- [x] Keep: `ensure_outer_indices_match()` function
+- [x] Verify no circular imports
+- [x] ~~Add backward-compatible re-exports from battery_schema~~ **REMOVED per user request**
 
 #### 3. Update Battery Module Imports
 **Files:** All files in `simkit/core/battery_config/`, `simkit/core/cost_calc/`, `simkit/core/perf_sim_simple/`, `simkit/core/project_analyzer/`, `simkit/core/synchronous_sim/`, `simkit/core/rate_data/`
 
-- [ ] Update `from ..config import schema` → `from ..config import battery_schema`
-- [ ] Or update individual imports to use `battery_schema.BatteryConfig` etc.
+- [x] Updated all imports to use `from ...config import battery_schema`
 
 #### 4. Update Pipeline Executor
 **File:** `simkit/core/pipeline_executor.py`
 
-- [ ] Update `_build_schema_type_registry()` to import battery schemas from `battery_schema`
-- [ ] Update `_DEFAULT_ENTRY_LOADERS` to import from `battery_schema`
+- [x] Updated imports and added temporary fallbacks (to be cleaned in Phase 5)
 
 #### 5. Update Output Router
 **File:** `simkit/io/output_router.py`
 
-- [ ] Update `create_default_router()` to import battery schemas from `battery_schema`
+- [x] Updated imports to use `battery_schema`
 
 #### 6. Update Test Imports
 **Files:** All test files that import battery schemas
 
-- [ ] `simkit/tests/conftest.py` - update schema imports
-- [ ] `simkit/tests/fixtures/__init__.py` - update schema imports
-- [ ] `simkit/tests/pipeline_modules/*.py` - update schema imports
-- [ ] `simkit/tests/core/test_custom_schema_registration.py` - update imports
-- [ ] `simkit/tests/io/test_output_router.py` - update imports
+- [x] Updated all test imports to use `battery_schema` directly
 
 ### Success Criteria
 
 #### Automated Verification:
-- [ ] `pytest simkit/tests/` passes (all tests)
-- [ ] `python -c "from simkit.config.schema import StrictBaseModel, MultiOutput"` works
-- [ ] `python -c "from simkit.config.battery_schema import BatteryConfig, BatteryState"` works
+- [x] `pytest simkit/tests/` passes (all 185 tests)
+- [x] `python -c "from simkit.config.schema import StrictBaseModel, MultiOutput"` works
+- [x] `python -c "from simkit.config.battery_schema import BatteryConfig, BatteryState"` works
 
 #### Manual Verification:
-- [ ] `schema.py` contains only generic types (~300 lines)
-- [ ] `battery_schema.py` contains all battery types (~450 lines)
-- [ ] No circular import errors
+- [x] `schema.py` contains generic types only (no re-exports, no battery types)
+- [x] `battery_schema.py` contains all battery types (~270 lines)
+- [x] No circular import errors
+- [x] All imports updated to use `battery_schema` directly
+
+## Implementation Notes - Phase 2
+**Completed:** 2026-01-02
+**Changes Made:**
+- Created `simkit/config/battery_schema.py` with 16 battery-specific types
+- Removed all battery types from `simkit/config/schema.py` (no re-exports)
+- Updated ALL imports throughout codebase to use `battery_schema` directly:
+  - All battery modules (rate_data, battery_config, cost_calc, perf_sim_simple, project_analyzer, synchronous_sim)
+  - Pipeline infrastructure (pipeline_executor.py, pipeline_registry.py)
+  - I/O layer (readers.py, writers.py, output_router.py)
+  - Config (defaults.py)
+  - All test files
+
+**Temporary Fallbacks Added (to be removed in Phase 5):**
+- `_resolve_schema_type()` checks both `schema` and `battery_schema` modules
+- `_build_schema_type_registry()` includes battery types
+- `_BUILTIN_ENTRY_LOADERS` includes battery loaders
+- `create_default_router()` includes battery type handlers
+- `read_parquet_load_profile()` / `read_parquet_pv_profile()` remain in readers.py
+- `write_parquet_telemetry()` / `write_sync_telemetry_series()` remain in writers.py
+
+**Design Notes:**
+- NO re-exports per explicit user requirement ("no backward compatibility")
+- Clean separation: battery types only accessible via `from simkit.config import battery_schema`
+- SyncTelemetrySeries uses `@property` instead of `@computed_field` to avoid circular import issues
+
+**Deviations from Original Plan:**
+- Original plan suggested re-exports for backward compatibility - rejected by user
+- Instead, updated all imports directly and added temporary fallbacks in executor/router
+- These fallbacks are explicitly tracked for removal in Phase 5
 
 ---
 
@@ -755,7 +781,16 @@ __all__ = [
 ## Phase 5: Clean Core Framework
 
 ### Overview
-Remove all battery coupling from teax-simkit. Delete `from_static_modules()`, remove battery schemas from hardcoded registries, clean up exports.
+Remove **ALL** battery coupling from teax-simkit. This phase is critical - after completion, `grep -r "battery" packages/teax-simkit/` should return nothing except comments/docs.
+
+### Temporary Fallbacks Introduced in Phase 2 (to be removed here)
+The following were added as temporary measures to keep tests passing during Phase 2:
+1. `_resolve_schema_type()` falls back to `battery_schema` module
+2. `_build_schema_type_registry()` includes battery types
+3. `_BUILTIN_ENTRY_LOADERS` includes battery loaders
+4. `read_parquet_load_profile()` returns `battery_schema.LoadProfile8760`
+5. `read_parquet_pv_profile()` returns `battery_schema.PVProfile8760`
+6. `create_default_router()` has battery type handlers
 
 ### Test Stencil
 ```python
@@ -795,6 +830,17 @@ def test_registry_has_no_from_static_modules():
     from simkit.core.pipeline_registry import PipelineModuleRegistry
 
     assert not hasattr(PipelineModuleRegistry, "from_static_modules")
+
+
+def test_no_battery_imports_in_framework():
+    """Verify no battery_schema imports in framework code."""
+    import subprocess
+    result = subprocess.run(
+        ["grep", "-r", "battery_schema", "packages/teax-simkit/simkit/"],
+        capture_output=True, text=True
+    )
+    # Should find nothing (empty stdout)
+    assert result.stdout == "", f"Found battery_schema imports:\n{result.stdout}"
 ```
 
 ### Changes Required
@@ -835,68 +881,101 @@ __all__ = [
 #### 2. Remove from_static_modules()
 **File:** `packages/teax-simkit/simkit/core/pipeline_registry.py`
 
-- [ ] Delete `from_static_modules()` method (lines 46-148)
-- [ ] Remove battery module imports (lines 11-16)
-- [ ] Remove `from ..config import schema` if only used for battery types
+- [ ] Delete `from_static_modules()` method entirely
+- [ ] Remove `from ..config import battery_schema` import
+- [ ] Remove all battery module imports
 
-#### 3. Clean Pipeline Executor
+#### 3. Clean Pipeline Executor (CRITICAL - has temporary fallbacks)
 **File:** `packages/teax-simkit/simkit/core/pipeline_executor.py`
 
-- [ ] Remove battery schema imports
-- [ ] Update `_build_schema_type_registry()` to only include generic types
-- [ ] Update `_DEFAULT_ENTRY_LOADERS` to only include generic loaders
-- [ ] Remove hardcoded battery schema references
+- [ ] Remove `from ..config import battery_schema` import
+- [ ] Remove battery types from `_build_schema_type_registry()`:
+  - Remove: Geography, LoadProfile8760, PVProfile8760, RateInfo, BatteryConfig, BatteryTelemetry8760, CostBreakdown, BatteryState, GuidanceConfig, SyncTelemetrySeries
+  - Keep only: FinancialParams, PriceTrajectory, SyncTimeGrid, and other generic types
+- [ ] Remove battery loaders from `_BUILTIN_ENTRY_LOADERS`:
+  - Remove: Geography, LoadProfile8760, BatteryState, GuidanceConfig loaders
+  - Keep only: generic type loaders
+- [ ] Remove `_load_geography()` helper function
+- [ ] Remove `_load_load_profile()` helper function
+- [ ] **Remove battery_schema fallback from `_resolve_schema_type()`**:
 
-Before (lines 449-468):
+Before:
 ```python
-registry = {
-    schema.Geography.__name__: schema.Geography,
-    schema.BatteryConfig.__name__: schema.BatteryConfig,
-    # ... more battery types
-}
+else:
+    # Backward compatibility: fall back to built-in schema and battery_schema modules
+    type_obj = getattr(schema, type_name, None)
+    if type_obj is not None:
+        return type_obj
+    type_obj = getattr(battery_schema, type_name, None)  # REMOVE THIS
+    if type_obj is not None:
+        return type_obj
+    raise ValueError(f"Unknown schema type '{type_name}'")
 ```
 
 After:
 ```python
-registry = {
-    schema.FinancialParams.__name__: schema.FinancialParams,
-    schema.PriceTrajectory.__name__: schema.PriceTrajectory,
-    schema.SyncTimeGrid.__name__: schema.SyncTimeGrid,
-    # ... only generic types
-}
+else:
+    # Fall back to built-in schema module only
+    type_obj = getattr(schema, type_name, None)
+    if type_obj is not None:
+        return type_obj
+    raise ValueError(f"Unknown schema type '{type_name}'")
 ```
 
-#### 4. Clean Output Router
+#### 4. Clean Output Router (has temporary fallbacks)
 **File:** `packages/teax-simkit/simkit/io/output_router.py`
 
-- [ ] Remove battery schema imports
-- [ ] Update `create_default_router()` to only include generic handlers
-- [ ] Remove handlers for: `BatteryConfig`, `CostBreakdown`, `BatteryTelemetry8760`
+- [ ] Remove `from ..config import battery_schema` import
+- [ ] Remove battery handlers from `create_default_router()`:
+  - Remove: RateInfo, BatteryConfig, CostBreakdown, BatteryTelemetry8760, SyncTelemetrySeries handlers
+  - Keep only: generic type handlers (FinancialResults, Provenance, etc.)
 
-#### 5. Clean Defaults File
-**File:** `packages/teax-simkit/simkit/config/defaults.py`
+#### 5. Clean Readers (has battery-specific functions)
+**File:** `packages/teax-simkit/simkit/io/readers.py`
 
-- [ ] Remove battery-specific defaults (already moved in Phase 4)
-- [ ] Remove `default_design_prefs()` function
-- [ ] Keep generic financial defaults
+- [ ] Remove `from ..config import battery_schema` import
+- [ ] **Move `read_parquet_load_profile()` to battery_tea package** (returns battery_schema.LoadProfile8760)
+- [ ] **Move `read_parquet_pv_profile()` to battery_tea package** (returns battery_schema.PVProfile8760)
+- [ ] Keep only generic readers: `read_json_model()`, `read_yaml_config()`, `read_pipeline_spec()`
 
-#### 6. Clean Writers
+#### 6. Clean Writers (has battery-specific functions)
 **File:** `packages/teax-simkit/simkit/io/writers.py`
 
-- [ ] Review `write_parquet_telemetry()` - keep if generic, update docstring
-- [ ] Remove any battery-specific type hints
+- [ ] Remove `from ..config import battery_schema` import
+- [ ] **Move `write_parquet_telemetry()` to battery_tea package** (takes battery_schema.BatteryTelemetry8760)
+- [ ] **Move `write_sync_telemetry_series()` to battery_tea package** (takes battery_schema.SyncTelemetrySeries)
+- [ ] **Move `_telemetry_frames_to_dataframe()` to battery_tea package** (helper for above)
+- [ ] Keep only generic writers: `write_json_model()`, `write_json_payload()`, `write_provenance()`
+
+#### 7. Clean Defaults File
+**File:** `packages/teax-simkit/simkit/config/defaults.py`
+
+- [ ] Remove `from . import battery_schema` import
+- [ ] **Move `default_design_prefs()` to battery_tea package** (returns battery_schema.DesignPrefs)
+- [ ] Keep only generic defaults: DEFAULT_DISCOUNT_RATE, DEFAULT_ANALYSIS_YEARS, etc.
+
+#### 8. Delete battery_schema.py from framework
+**File:** `packages/teax-simkit/simkit/config/battery_schema.py`
+
+- [ ] Delete this file entirely (already moved to battery_tea/schemas.py in Phase 4)
 
 ### Success Criteria
 
 #### Automated Verification:
 - [ ] `pytest packages/teax-simkit/simkit/tests/` passes
 - [ ] `pytest packages/teax-simkit/simkit/tests/test_no_battery_deps.py` passes
+- [ ] `grep -r "battery_schema" packages/teax-simkit/` returns nothing
 - [ ] `grep -r "BatteryConfig" packages/teax-simkit/` returns nothing
 - [ ] `grep -r "from_static_modules" packages/teax-simkit/` returns nothing
+- [ ] `grep -r "LoadProfile8760" packages/teax-simkit/` returns nothing
+- [ ] `grep -r "Geography" packages/teax-simkit/` returns nothing (except generic geo concepts)
 
 #### Manual Verification:
 - [ ] `simkit/core/__init__.py` has no battery imports
 - [ ] `simkit/config/schema.py` has no battery types
+- [ ] `simkit/config/battery_schema.py` does not exist
+- [ ] `simkit/io/readers.py` has no battery-specific readers
+- [ ] `simkit/io/writers.py` has no battery-specific writers
 - [ ] `PipelineModuleRegistry` has no `from_static_modules()` method
 
 ---
