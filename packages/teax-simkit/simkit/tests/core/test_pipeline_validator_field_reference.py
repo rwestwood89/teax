@@ -14,16 +14,16 @@ from simkit.core.base import ModuleBase, ModuleResult
 from simkit.io.output_router import OutputRouter
 
 
-# Test schema models
-class TestBlanketConfig(StrictBaseModel):
+# Sample schema models for testing (prefixed with "Sample" to avoid pytest collection warnings)
+class SampleBlanketConfig(StrictBaseModel):
     material: str
     thickness_m: float
 
 
-class TestFusionParams(StrictBaseModel):
+class SampleFusionParams(StrictBaseModel):
     p_fusion: float
-    blanket_config: TestBlanketConfig
-    optional_blanket: TestBlanketConfig | None = None
+    blanket_config: SampleBlanketConfig
+    optional_blanket: SampleBlanketConfig | None = None
     _private_field: str = "secret"
 
     @computed_field
@@ -32,33 +32,33 @@ class TestFusionParams(StrictBaseModel):
         return self.p_fusion * 0.4
 
 
-class TestOutput(StrictBaseModel):
+class SampleOutput(StrictBaseModel):
     result: float
 
 
 # Test modules
-class TestModuleWithBlanket(ModuleBase[TestBlanketConfig, TestOutput]):
+class TestModuleWithBlanket(ModuleBase[SampleBlanketConfig, SampleOutput]):
     name = "test_blanket_module"
     version = "v1.0"
 
-    def validate_and_fill_default(self, **kwargs) -> TestBlanketConfig:
-        return TestBlanketConfig(**kwargs)
+    def validate_and_fill_default(self, **kwargs) -> SampleBlanketConfig:
+        return SampleBlanketConfig(**kwargs)
 
-    def run(self, **kwargs) -> ModuleResult[TestOutput]:
-        return ModuleResult(data=TestOutput(result=1.0))
+    def run(self, **kwargs) -> ModuleResult[SampleOutput]:
+        return ModuleResult(data=SampleOutput(result=1.0))
 
 
-class TestModuleProducingFusionParams(ModuleBase[TestBlanketConfig, TestFusionParams]):
+class TestModuleProducingFusionParams(ModuleBase[SampleBlanketConfig, SampleFusionParams]):
     name = "test_fusion_producer"
     version = "v1.0"
 
-    def validate_and_fill_default(self, **kwargs) -> TestBlanketConfig:
-        return TestBlanketConfig(**kwargs)
+    def validate_and_fill_default(self, **kwargs) -> SampleBlanketConfig:
+        return SampleBlanketConfig(**kwargs)
 
-    def run(self, **kwargs) -> ModuleResult[TestFusionParams]:
-        blanket = TestBlanketConfig(material="steel", thickness_m=0.5)
+    def run(self, **kwargs) -> ModuleResult[SampleFusionParams]:
+        blanket = SampleBlanketConfig(material="steel", thickness_m=0.5)
         return ModuleResult(
-            data=TestFusionParams(p_fusion=100.0, blanket_config=blanket)
+            data=SampleFusionParams(p_fusion=100.0, blanket_config=blanket)
         )
 
 
@@ -70,9 +70,9 @@ def test_output_router():
         pass
 
     type_handlers = {
-        "TestBlanketConfig": dummy_handler,
-        "TestFusionParams": dummy_handler,
-        "TestOutput": dummy_handler,
+        "SampleBlanketConfig": dummy_handler,
+        "SampleFusionParams": dummy_handler,
+        "SampleOutput": dummy_handler,
     }
     router = OutputRouter(type_handlers=type_handlers, in_memory=True)
     return router
@@ -92,9 +92,9 @@ def test_registry():
         ModuleDescriptor(
             module_type="TestModuleWithBlanket",
             factory=_factory(TestModuleWithBlanket),
-            required_inputs={"blanket_config": TestBlanketConfig},
+            required_inputs={"blanket_config": SampleBlanketConfig},
             optional_inputs={},
-            outputs={"output": TestOutput},
+            outputs={"output": SampleOutput},
             version="v1.0",
         ),
     )
@@ -103,9 +103,9 @@ def test_registry():
         ModuleDescriptor(
             module_type="TestModuleProducingFusionParams",
             factory=_factory(TestModuleProducingFusionParams),
-            required_inputs={"blanket_config": TestBlanketConfig},
+            required_inputs={"blanket_config": SampleBlanketConfig},
             optional_inputs={},
-            outputs={"fusion_params": TestFusionParams},
+            outputs={"fusion_params": SampleFusionParams},
             version="v1.0",
         ),
     )
@@ -126,7 +126,7 @@ def create_spec_with_field_reference(
             inputs={},
             outputs={
                 "blanket_input": PipelineChannelBinding(
-                    type_name="TestBlanketConfig",
+                    type_name="SampleBlanketConfig",
                     channel_name="blanket_input",
                     source=ChannelSource.ENTRY,
                 )
@@ -137,7 +137,7 @@ def create_spec_with_field_reference(
             module_type="TestModuleProducingFusionParams",
             inputs={
                 "blanket_config": PipelineChannelBinding(
-                    type_name="TestBlanketConfig",
+                    type_name="SampleBlanketConfig",
                     channel_name="blanket_input",
                     source=ChannelSource.MODULE,
                 )
@@ -163,7 +163,7 @@ def create_spec_with_field_reference(
             },
             outputs={
                 "output": PipelineChannelBinding(
-                    type_name="TestOutput",
+                    type_name="SampleOutput",
                     channel_name="output",
                     source=ChannelSource.MODULE,
                 )
@@ -175,7 +175,7 @@ def create_spec_with_field_reference(
             inputs={},
             outputs={
                 "output": PipelineChannelBinding(
-                    type_name="TestOutput",
+                    type_name="SampleOutput",
                     channel_name="output",
                     source=ChannelSource.MODULE,
                     destination_filename="output.json",
@@ -190,9 +190,9 @@ def test_validate_field_exists(test_registry, test_output_router):
     """Validation passes when field exists in parent type."""
     spec = create_spec_with_field_reference(
         parent_channel="fusion_params",
-        parent_type="TestFusionParams",
+        parent_type="SampleFusionParams",
         field_path="blanket_config",
-        expected_type="TestBlanketConfig",
+        expected_type="SampleBlanketConfig",
     )
 
     validator = PipelineValidator(test_registry, test_output_router)
@@ -204,9 +204,9 @@ def test_validate_field_not_exists(test_registry, test_output_router):
     """Validation fails when field doesn't exist, lists available fields."""
     spec = create_spec_with_field_reference(
         parent_channel="fusion_params",
-        parent_type="TestFusionParams",
+        parent_type="SampleFusionParams",
         field_path="missing_field",
-        expected_type="TestBlanketConfig",
+        expected_type="SampleBlanketConfig",
     )
 
     validator = PipelineValidator(test_registry, test_output_router)
@@ -220,17 +220,17 @@ def test_validate_field_not_exists(test_registry, test_output_router):
 
 def test_validate_type_mismatch(test_registry, test_output_router):
     """Validation fails when field type doesn't match binding declaration."""
-    # Create a spec where we claim blanket_config is TestOutput (wrong type)
+    # Create a spec where we claim blanket_config is SampleOutput (wrong type)
     spec = create_spec_with_field_reference(
         parent_channel="fusion_params",
-        parent_type="TestFusionParams",
+        parent_type="SampleFusionParams",
         field_path="blanket_config",
-        expected_type="TestOutput",  # Wrong type!
+        expected_type="SampleOutput",  # Wrong type!
     )
 
     validator = PipelineValidator(test_registry, test_output_router)
     # The standard type assertion catches the mismatch before field reference validation
-    with pytest.raises(PipelineValidationError, match="expects type TestBlanketConfig"):
+    with pytest.raises(PipelineValidationError, match="expects type SampleBlanketConfig"):
         validator.validate(spec)
 
 
@@ -238,9 +238,9 @@ def test_validate_optional_field_allowed(test_registry, test_output_router):
     """Validation passes for Optional fields (runtime will check None)."""
     spec = create_spec_with_field_reference(
         parent_channel="fusion_params",
-        parent_type="TestFusionParams",
+        parent_type="SampleFusionParams",
         field_path="optional_blanket",
-        expected_type="TestBlanketConfig",
+        expected_type="SampleBlanketConfig",
     )
 
     validator = PipelineValidator(test_registry, test_output_router)
@@ -252,7 +252,7 @@ def test_validate_private_field_rejected(test_registry, test_output_router):
     """Validation fails for private fields (leading underscore)."""
     spec = create_spec_with_field_reference(
         parent_channel="fusion_params",
-        parent_type="TestFusionParams",
+        parent_type="SampleFusionParams",
         field_path="_private_field",
         expected_type="str",
     )
@@ -266,7 +266,7 @@ def test_validate_computed_field_rejected(test_registry, test_output_router):
     """Validation fails for computed fields in Phase 1."""
     spec = create_spec_with_field_reference(
         parent_channel="fusion_params",
-        parent_type="TestFusionParams",
+        parent_type="SampleFusionParams",
         field_path="p_electric",  # @computed_field
         expected_type="float",
     )
@@ -286,7 +286,7 @@ def test_build_channel_type_map(test_registry, test_output_router):
             inputs={},
             outputs={
                 "blanket": PipelineChannelBinding(
-                    type_name="TestBlanketConfig",
+                    type_name="SampleBlanketConfig",
                     channel_name="blanket",
                     source=ChannelSource.ENTRY,
                 )
@@ -297,14 +297,14 @@ def test_build_channel_type_map(test_registry, test_output_router):
             module_type="TestModuleProducingFusionParams",
             inputs={
                 "blanket_config": PipelineChannelBinding(
-                    type_name="TestBlanketConfig",
+                    type_name="SampleBlanketConfig",
                     channel_name="blanket",
                     source=ChannelSource.MODULE,
                 )
             },
             outputs={
                 "fusion_params": PipelineChannelBinding(
-                    type_name="TestFusionParams",
+                    type_name="SampleFusionParams",
                     channel_name="fusion_params_out",
                     source=ChannelSource.MODULE,
                 )
@@ -316,7 +316,7 @@ def test_build_channel_type_map(test_registry, test_output_router):
             inputs={},
             outputs={
                 "fusion_params": PipelineChannelBinding(
-                    type_name="TestFusionParams",
+                    type_name="SampleFusionParams",
                     channel_name="fusion_params_out",
                     source=ChannelSource.MODULE,
                     destination_filename="fusion_params.json",
@@ -330,4 +330,4 @@ def test_build_channel_type_map(test_registry, test_output_router):
     channel_types = validator._build_channel_type_map(spec)
 
     # Verify regular module outputs tracked as type objects
-    assert channel_types.get("fusion_params_out") == TestFusionParams
+    assert channel_types.get("fusion_params_out") == SampleFusionParams

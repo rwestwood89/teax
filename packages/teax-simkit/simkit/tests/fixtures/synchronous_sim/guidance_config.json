@@ -1,7 +1,0 @@
-{
-  "strategy": "hold_zero",
-  "target_soc_min": 0.25,
-  "target_soc_max": 0.85,
-  "ramp_limit_kw_per_step": 40.0,
-  "setpoint_increment_kw": 5.0
-}

@@ -1,7 +1,0 @@
-{
-  "name": "mock_forecast",
-  "seed": 12345,
-  "noise_std_dev": 0.0,
-  "lookahead": {"raw": "1H"},
-  "window_span": {"raw": "2H"}
-}
