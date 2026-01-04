@@ -4,24 +4,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-TEAx Simulation Environment (simkit) is a modular battery techno-economic analysis (TEA) framework. The system follows a functional module pattern where each module has typed inputs/outputs, validation, and can be composed into pipelines via YAML configuration.
+TEAx Simulation Environment (simkit) is a **generic simulation pipeline framework** for building techno-economic analysis (TEA) systems. The framework provides:
+
+- **teax-simkit** (`packages/teax-simkit/`): Core framework with typed modules, pipeline execution, and YAML configuration
+- **battery-tea-demo** (`packages/battery-tea-demo/`): Example implementation demonstrating battery storage TEA
+
+The system follows a functional module pattern where each module has typed inputs/outputs, validation, and can be composed into pipelines via YAML configuration.
 
 ## Build & Development Commands
 
 ```bash
-# Create virtual environment and install package
+# Create virtual environment and install packages
 python -m venv .venv && source .venv/bin/activate
+
+# Install both packages for development
+pip install -e packages/teax-simkit[dev]
+pip install -e packages/battery-tea-demo[dev]
+
+# Or install from root (workspace mode)
 pip install -e .[dev]
 
-# Run all tests
+# Run all tests (from root)
 pytest
 
-# Run specific test or test pattern
-pytest simkit/tests/test_pipeline.py -k happy_path
-pytest simkit/tests/pipeline_modules/test_rate_data.py
+# Run framework tests only
+pytest packages/teax-simkit/
 
-# Run single test file
-pytest simkit/tests/core/test_pipeline_executor.py
+# Run battery demo tests only
+pytest packages/battery-tea-demo/
+
+# Run specific test file
+pytest packages/teax-simkit/simkit/tests/core/test_pipeline_executor.py
 ```
 
 ## Core Architecture
@@ -107,13 +120,16 @@ All data models in `simkit/config/schema.py` extend `StrictBaseModel`:
 - Strict validation with units explicit (e.g., `"kWh"`, `"USD"`)
 - Arrays are length-validated (e.g., 8760 for hourly profiles)
 
-Key model families:
-- **Geography, LoadProfile8760, PVProfile8760, RateInfo**: Input data
-- **BatteryConfig, BatteryTelemetry8760**: Battery system specifications and simulation results
-- **CostBreakdown, FinancialResults**: Economic analysis outputs
-- **SyncTimeGrid, BatteryState, PriceTrajectory**: Synchronous simulation inputs
+**Framework types** (in `simkit/config/schema.py`):
+- **StrictBaseModel, MultiOutput**: Base types for custom schemas
+- **TimeSpan, SyncTimeGrid, PriceTrajectory**: Time-series and simulation inputs
+- **FinancialParams, FinancialResults**: Economic analysis
 - **Provenance, PipelineRunMetadata, RunManifest**: Pipeline execution metadata
-- **MultiOutput**: Base class for modules with multiple typed outputs (see Multi-Output Modules above)
+
+**Battery demo types** (in `battery_tea/schemas.py` - example implementation):
+- **Geography, LoadProfile8760, RateInfo**: Input data
+- **BatteryConfig, BatteryTelemetry8760, BatteryState**: Battery specifications and simulation
+- **CostBreakdown**: Cost analysis outputs
 
 ### Pipeline Execution Modes
 
@@ -152,8 +168,8 @@ Pipeline spec references in `inputs` support:
 
 Call modules step-by-step, optionally substituting manual artifacts:
 ```python
-# Load module and fixtures
-from simkit.core.rate_data import RateDataModule
+# Example using battery-tea-demo modules
+from battery_tea.modules import RateDataModule
 module = RateDataModule()
 
 # Validate and run
@@ -162,28 +178,39 @@ result = module.run(inputs)
 rate_info = result.data
 ```
 
-See `notebooks/manual_mode_demo.ipynb` for example.
+See `packages/battery-tea-demo/notebooks/manual_mode_demo.ipynb` for example.
 
 ### Module Registry & Custom Modules
 
-**Built-in modules** (registered in `PipelineModuleRegistry.from_static_modules()`):
+The core framework provides no built-in modules. Domain-specific modules are provided by external packages like `battery-tea-demo`.
+
+**Battery demo modules** (in `battery_tea.modules`):
 - `RateData`: Geography → RateInfo
 - `ConfigureBattery`: LoadProfile + RateInfo → BatteryConfig
-- `SimplePerformanceSim`: BatteryConfig + LoadProfile → BatteryTelemetry (rule-based, no physics)
-- `SynchronousSim`: Time-stepped simulation with forecasting/guidance/dynamics components
+- `SimplePerformanceSim`: BatteryConfig + LoadProfile → BatteryTelemetry (rule-based)
+- `SynchronousSim`: Time-stepped simulation with forecasting/guidance/dynamics
 - `CostCalculator`: BatteryConfig + Geography → CostBreakdown
 - `ProjectAnalyzer`: RateInfo + Telemetry → FinancialResults
 
-**Custom modules** can be registered via `simkit/core/registry_builder.py`:
+**Custom modules** are registered via `simkit/core/registry_builder.py`:
 ```python
 from simkit.core.registry_builder import create_registry
 from simkit.core.pipeline import execute_pipeline
 
 # Define module class inheriting ModuleBase[InputModel, OutputModel]
-registry = create_registry([MyCustomModule], include_builtins=True)
+registry = create_registry([MyCustomModule])
 
 # Pass registry to pipeline
 result = execute_pipeline("spec.yaml", "outputs/", registry=registry)
+```
+
+**Using battery-tea-demo modules:**
+```python
+from battery_tea import create_battery_registry
+from simkit.core.pipeline import execute_pipeline
+
+registry = create_battery_registry()
+result = execute_pipeline("battery_pipeline.yaml", "outputs/", registry=registry)
 ```
 
 Module introspection (`simkit/core/module_introspector.py`) automatically extracts input/output schemas from type hints.
@@ -201,48 +228,64 @@ Entry/Exit points:
 ## Directory Structure
 
 ```
-simkit/
-  core/              # Module implementations and pipeline orchestration
-    rate_data/       # RateData module
-    battery_config/  # ConfigureBattery module
-    cost_calc/       # CostCalculator module
-    perf_sim_simple/ # SimplePerformanceSim module (rule-based)
-    synchronous_sim/ # SynchronousSim module (time-stepped physics)
-    project_analyzer/# ProjectAnalyzer module
-    base.py          # ModuleBase interface
-    pipeline.py      # execute_pipeline entrypoint
-    pipeline_executor.py     # SerialPipelineExecutor
-    pipeline_registry.py     # PipelineModuleRegistry
-    registry_builder.py      # create_registry for custom modules
-    module_introspector.py   # Auto-extract module metadata
-  config/
-    schema.py        # Pydantic data models (Geography, RateInfo, BatteryConfig, etc.)
-    defaults.py      # Default values and unit constants
-    flags.py         # Feature flags (minimal)
-    pipeline_schema.py # YAML spec structure
-    environment.py   # Environment variable handling (PYRONDO_INPUT_DIR)
-  io/
-    readers.py       # Load JSON/Parquet/YAML fixtures
-    writers.py       # Persist outputs
-    output_router.py # Route outputs to directories
-    adapters/        # External data source stubs
-  tests/
-    pipeline_modules/  # Module unit tests (test_rate_data.py, etc.)
-    core/              # Pipeline/executor tests
-    fixtures/          # Small JSON/Parquet test inputs
-      pipeline_configs/  # Example YAML pipeline specs
-    conftest.py        # Pytest fixtures (geography, load profiles, rate info)
-notebooks/           # Jupyter demos (manual_mode_demo.ipynb)
-thoughts/            # Design docs, plans, notes
-  designs/
-  plans/
+teax/
+├── packages/
+│   ├── teax-simkit/                 # Core framework (pip-installable)
+│   │   ├── simkit/
+│   │   │   ├── core/                # Pipeline orchestration
+│   │   │   │   ├── base.py          # ModuleBase interface
+│   │   │   │   ├── pipeline.py      # execute_pipeline entrypoint
+│   │   │   │   ├── pipeline_executor.py
+│   │   │   │   ├── pipeline_registry.py
+│   │   │   │   ├── registry_builder.py
+│   │   │   │   └── module_introspector.py
+│   │   │   ├── config/
+│   │   │   │   ├── schema.py        # Generic Pydantic models
+│   │   │   │   ├── defaults.py      # Default values
+│   │   │   │   ├── pipeline_schema.py
+│   │   │   │   └── environment.py
+│   │   │   ├── io/
+│   │   │   │   ├── readers.py       # Load JSON/YAML
+│   │   │   │   ├── writers.py       # Persist outputs
+│   │   │   │   └── output_router.py
+│   │   │   └── tests/               # Framework tests
+│   │   └── pyproject.toml
+│   │
+│   └── battery-tea-demo/            # Example implementation
+│       ├── battery_tea/
+│       │   ├── schemas.py           # Battery-specific models
+│       │   ├── defaults.py          # Battery defaults
+│       │   ├── registry.py          # create_battery_registry()
+│       │   ├── io.py                # Battery I/O (Parquet readers/writers)
+│       │   ├── modules/             # Battery modules
+│       │   │   ├── rate_data/
+│       │   │   ├── battery_config/
+│       │   │   ├── cost_calc/
+│       │   │   ├── perf_sim_simple/
+│       │   │   ├── project_analyzer/
+│       │   │   └── synchronous_sim/
+│       │   └── tests/               # Battery module tests
+│       │       └── fixtures/        # Test data
+│       ├── notebooks/               # Jupyter demos
+│       └── pyproject.toml
+│
+├── thoughts/                        # Design docs, plans, notes
+├── CLAUDE.md
+├── README.md
+└── pyproject.toml                   # Workspace root
 ```
 
 ## Testing Guidelines
 
-- Tests mirror package structure: `simkit/tests/pipeline_modules/test_*.py` for each module
-- Fixtures in `simkit/tests/fixtures/`: `geography_us_ca_pge.json`, `load_profile_toy_8760.parquet`, etc.
-- Reusable pytest fixtures in `conftest.py`
+**Framework tests** (`packages/teax-simkit/simkit/tests/`):
+- Core pipeline, executor, validator, registry tests
+- Generic fixtures for framework testing
+- No battery dependencies
+
+**Battery demo tests** (`packages/battery-tea-demo/battery_tea/tests/`):
+- Module tests in `tests/modules/test_*.py`
+- Fixtures in `tests/fixtures/`: `geography_us_ca_pge.json`, `load_profile_toy_8760.parquet`, etc.
+- Integration tests in `tests/test_integration.py`
 
 For each module, test:
 1. **`validate_and_fill_default`**:
@@ -252,9 +295,9 @@ For each module, test:
 
 2. **`run`**:
    - Invalid/incomplete input raises error (defensive check)
-   - Valid input produces correct types and invariants (e.g., telemetry SOC within bounds, no energy creation)
+   - Valid input produces correct types and invariants
 
-Run tests before PRs: `pytest`
+Run tests before PRs: `pytest` (runs both packages from root)
 
 ## Coding Conventions
 
@@ -282,14 +325,34 @@ Run tests before PRs: `pytest`
 
 ## Custom Module Development Pattern
 
-When adding new modules:
-1. Define input/output Pydantic models in `simkit/config/schema.py`
-2. Create module class in `simkit/core/<module_name>/module.py`
-3. Implement `ModuleBase[InputModel, OutputModel]` with `validate_and_fill_default` + `run`
-4. Add tests in `simkit/tests/pipeline_modules/test_<module_name>.py`
-5. Register in `PipelineModuleRegistry.from_static_modules()` or use `create_registry([YourModule])`
+When adding new modules to your own package:
+1. Define input/output Pydantic models in your package's `schemas.py`
+2. Create module class inheriting from `ModuleBase[InputModel, OutputModel]`
+3. Implement `validate_and_fill_default` + `run` methods
+4. Add tests for your module
+5. Create a registry function using `create_registry([YourModule])`
 
-External packages (e.g., `fusion_simkit`) should provide a `create_<package>_registry()` function that calls `create_registry([...module_classes])`.
+**Example package structure** (see `battery-tea-demo` for reference):
+```
+my_domain_package/
+├── schemas.py           # Domain-specific Pydantic models
+├── defaults.py          # Domain-specific defaults
+├── registry.py          # create_my_domain_registry() function
+├── modules/
+│   └── my_module/
+│       └── module.py
+└── tests/
+```
+
+External packages should provide a `create_<package>_registry()` function:
+```python
+# In my_package/registry.py
+from simkit.core.registry_builder import create_registry
+from .modules import MyModule1, MyModule2
+
+def create_my_package_registry():
+    return create_registry([MyModule1, MyModule2])
+```
 
 ## Custom Schema Development Pattern
 

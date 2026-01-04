@@ -17,12 +17,18 @@
 7. [Custom Module Registration](#custom-module-registration)
 8. [Debugging Guide](#debugging-guide)
 9. [API Reference](#api-reference)
+10. [Migration Guide](#migration-guide)
 
 ---
 
 ## Overview
 
-**TEAx (Techno-Economic Analysis framework)** is a modular, type-safe pipeline system for battery energy storage simulations. The framework enables users to:
+**TEAx (Techno-Economic Analysis framework)** is a modular, type-safe pipeline system for building simulation frameworks. The repository contains two packages:
+
+- **teax-simkit** (`packages/teax-simkit/`): Core framework for building typed pipeline systems
+- **battery-tea-demo** (`packages/battery-tea-demo/`): Example implementation for battery energy storage TEA
+
+The framework enables users to:
 
 - **Define pipelines** via declarative YAML specifications
 - **Compose modules** into directed acyclic graphs (DAGs) with typed channels
@@ -45,14 +51,18 @@
 ### Installation
 
 ```bash
-# Using uv (recommended - project includes uv.lock)
-uv sync
+# Install core framework
+pip install -e packages/teax-simkit
 
-# Or using pip (alternative)
-pip install -e .
+# Install battery demo (includes teax-simkit dependency)
+pip install -e packages/battery-tea-demo
+
+# Or install both for development
+pip install -e packages/teax-simkit[dev]
+pip install -e packages/battery-tea-demo[dev]
 ```
 
-### Minimal Example
+### Minimal Example (using battery-tea-demo)
 
 **1. Create a pipeline specification (`demo.yaml`):**
 
@@ -82,9 +92,20 @@ modules:
 **2. Execute the pipeline:**
 
 ```python
+from battery_tea import create_battery_registry
+from battery_tea.schemas import Geography, RateInfo
 from simkit.core.pipeline import execute_pipeline
 
-result = execute_pipeline("demo.yaml", output_dir="outputs/")
+# Create registry with battery modules
+registry = create_battery_registry()
+
+# Execute pipeline with custom registry and schemas
+result = execute_pipeline(
+    "demo.yaml",
+    output_dir="outputs/",
+    registry=registry,
+    custom_schema_types=[Geography, RateInfo],
+)
 print(result.outputs)  # {'rate_info': RateInfo(...)}
 print(result.manifest)  # RunManifest with file locations
 print(result.provenance)  # Provenance with config hash and module versions
@@ -136,8 +157,10 @@ entry_point:
   module_type: EntryPoint
   inputs:
     geo: Geography ../data/geography.json           # JSON -> Geography model
-    load: LoadProfile8760 ../data/load.parquet      # Parquet -> LoadProfile8760
+    load: LoadProfile8760 ../data/load.parquet      # Parquet -> LoadProfile8760 (battery-tea-demo)
 ```
+
+**Note:** Custom types like `Geography` and `LoadProfile8760` must be registered via `custom_schema_types` parameter.
 
 **Path Resolution:**
 1. Try relative to YAML file location
@@ -152,10 +175,12 @@ exit_point:
   module_type: ExitPoint
   outputs:
     rate_info: RateInfo rate_info.json              # Serialize to JSON
-    telemetry: BatteryTelemetry8760 telemetry.parquet  # Serialize to Parquet
+    telemetry: BatteryTelemetry8760 telemetry.json  # Serialize to JSON
 ```
 
 Outputs are written to: `<output_dir>/<run_name>/<timestamp>/<filename>`
+
+**Note:** By default, all types serialize to JSON. For specialized formats (Parquet), use custom output handlers.
 
 ### Field Referencing
 
@@ -467,17 +492,22 @@ split:
 
 The `EntryPoint` module loads data files using type-specific readers.
 
-**Key File:** `simkit/io/readers.py` - All file loading functions
+**Key File:** `simkit/io/readers.py` - Core file loading functions
 
-**Supported formats:**
+**Core formats (teax-simkit):**
 
 | File Type | Loader Function | Model Type |
 |-----------|-----------------|------------|
 | JSON | `read_json_model()` | Any `BaseModel` subclass |
+
+**Battery demo formats (battery_tea.io):**
+
+| File Type | Loader Function | Model Type |
+|-----------|-----------------|------------|
 | Parquet (load) | `read_parquet_load_profile()` | `LoadProfile8760` |
 | Parquet (PV) | `read_parquet_pv_profile()` | `PVProfile8760` |
 
-**Entry loader registry:** `simkit/core/pipeline_executor.py:164-307` - EntryPoint loading and path resolution
+**Entry loader registry:** `simkit/core/pipeline_executor.py` - EntryPoint loading and path resolution
 
 **Adding custom loaders:**
 
@@ -504,14 +534,18 @@ The `ExitPoint` module serializes outputs using the `OutputRouter`.
 
 **Key File:** `simkit/io/output_router.py` - Handles output serialization
 
-**Output handlers:**
+**Core output handlers (teax-simkit):**
 
 | Model Type | Serialization | Extension |
 |------------|---------------|-----------|
 | Any `BaseModel` | JSON | `.json` |
-| `LoadProfile8760` | Parquet | `.parquet` |
-| `PVProfile8760` | Parquet | `.parquet` |
+
+**Battery demo handlers (battery_tea.io):**
+
+| Model Type | Serialization | Extension |
+|------------|---------------|-----------|
 | `BatteryTelemetry8760` | Parquet | `.parquet` |
+| `SyncTelemetrySeries` | Parquet | `.parquet` |
 
 **Directory structure:**
 ```
@@ -620,13 +654,20 @@ registry = create_registry([MyModule1, MyModule2])
 result = execute_pipeline("pipeline.yaml", "outputs/", registry=registry)
 ```
 
-### Including Built-in Modules
+### Using Domain-Specific Modules
+
+The core framework has no built-in modules. Use domain packages like `battery-tea-demo`:
 
 ```python
-# Mix custom modules with TEAx built-ins
-registry = create_registry(
-    [MyModule1, MyModule2],
-    include_builtins=True  # Adds RateData, ConfigureBattery, etc.
+# Use battery demo modules
+from battery_tea import create_battery_registry
+from battery_tea.schemas import Geography, RateInfo
+
+registry = create_battery_registry()
+result = execute_pipeline(
+    "pipeline.yaml",
+    registry=registry,
+    custom_schema_types=[Geography, RateInfo],
 )
 ```
 
@@ -644,26 +685,30 @@ registry = create_registry(
 
 ### External Package Pattern
 
-External packages should provide a convenience function:
+External packages should provide a convenience function (see `battery-tea-demo` for a complete example):
 
 ```python
-# In fusion_simkit/__init__.py
+# In my_domain/__init__.py
 from simkit.core.registry_builder import create_registry
-from .modules import AlphaNeutronSplitModule, BlanketThermalModule
+from .modules import MyModule1, MyModule2
+from .schemas import MySchema1, MySchema2
 
-def create_fusion_registry(include_builtins: bool = True):
-    """Create registry with all fusion physics modules."""
-    return create_registry(
-        [AlphaNeutronSplitModule, BlanketThermalModule, ...],
-        include_builtins=include_builtins
-    )
+def create_my_domain_registry():
+    """Create registry with all domain modules."""
+    return create_registry([MyModule1, MyModule2])
 
 # Users import and use
-from fusion_simkit import create_fusion_registry
+from my_domain import create_my_domain_registry
+from my_domain.schemas import MySchema1, MySchema2
 from simkit.core.pipeline import execute_pipeline
 
-registry = create_fusion_registry()
-result = execute_pipeline("fusion_pipeline.yaml", "outputs/", registry=registry)
+registry = create_my_domain_registry()
+result = execute_pipeline(
+    "my_pipeline.yaml",
+    "outputs/",
+    registry=registry,
+    custom_schema_types=[MySchema1, MySchema2],
+)
 ```
 
 ### Requirements for Auto-Registration
@@ -887,12 +932,11 @@ result = execute_pipeline(
 
 #### `create_registry()`
 
-**Location:** `simkit/core/registry_builder.py:9-128`
+**Location:** `simkit/core/registry_builder.py`
 
 ```python
 def create_registry(
     modules: List[Type[ModuleBase]],
-    include_builtins: bool = False,
     module_type_override: Dict[Type[ModuleBase], str] | None = None,
 ) -> PipelineModuleRegistry:
     """Create PipelineModuleRegistry from module classes via introspection."""
@@ -900,7 +944,6 @@ def create_registry(
 
 **Parameters:**
 - `modules`: List of `ModuleBase` subclasses to register
-- `include_builtins`: Include TEAx built-in modules
 - `module_type_override`: Map module classes to custom names
 
 **Returns:** `PipelineModuleRegistry` ready for pipeline execution
@@ -995,21 +1038,77 @@ Every execution tracks:
 
 The system supports **multiple usage modes**:
 
-1. **Built-in modules only** - Zero configuration, use TEAx battery modules
+1. **Domain packages** - Use pre-built packages like `battery-tea-demo`
 2. **Custom modules with auto-registration** - `create_registry([YourModule])`
-3. **Mixed built-ins + custom** - `create_registry([...], include_builtins=True)`
-4. **Manual registration** - Direct `ModuleDescriptor` creation (advanced)
+3. **Manual registration** - Direct `ModuleDescriptor` creation (advanced)
 
 ---
 
 ## Additional Resources
 
 - **Design Docs:** `thoughts/designs/generalized_teax_type_system_design.md`
-- **Field Referencing:** `thoughts/specs/field_referencing_spec.md`, `thoughts/specs/field_referencing/2025-11-22-design.md`
-- **Custom Module Registration:** `thoughts/specs/custom-module-package-registration/plan.md`
+- **Field Referencing:** `thoughts/specs/field_referencing_spec.md`
 - **Project Instructions:** `CLAUDE.md` (developer-focused)
-- **Example Pipeline:** `simkit/tests/fixtures/pipeline_configs/demo_linear_alt.yaml`
-- **Module Examples:** `simkit/core/rate_data/module.py`, `simkit/core/cost_calc/module.py`
+- **Example Pipeline:** `packages/battery-tea-demo/battery_tea/tests/fixtures/pipeline_configs/demo_linear_alt.yaml`
+- **Module Examples:** `packages/battery-tea-demo/battery_tea/modules/` (rate_data, cost_calc, etc.)
+
+---
+
+## Migration Guide
+
+This section documents the changes made when separating the codebase into `teax-simkit` (core framework) and `battery-tea-demo` (example implementation).
+
+### Import Changes
+
+| Old Import | New Import |
+|------------|------------|
+| `from simkit.config.schema import BatteryConfig` | `from battery_tea.schemas import BatteryConfig` |
+| `from simkit.config.schema import BatteryState` | `from battery_tea.schemas import BatteryState` |
+| `from simkit.config.schema import Geography` | `from battery_tea.schemas import Geography` |
+| `from simkit.config.schema import LoadProfile8760` | `from battery_tea.schemas import LoadProfile8760` |
+| `from simkit.config.schema import RateInfo` | `from battery_tea.schemas import RateInfo` |
+| `from simkit.config.battery_schema import *` | `from battery_tea.schemas import *` |
+| `from simkit.core.battery_config import ConfigureBatteryModule` | `from battery_tea.modules import ConfigureBatteryModule` |
+| `from simkit.core.rate_data import RateDataModule` | `from battery_tea.modules import RateDataModule` |
+| `from simkit.core import ConfigureBatteryModule` | `from battery_tea.modules import ConfigureBatteryModule` |
+| `from simkit.io.readers import read_parquet_load_profile` | `from battery_tea.io import read_parquet_load_profile` |
+| `from simkit.io.writers import write_parquet_telemetry` | `from battery_tea.io import write_parquet_telemetry` |
+
+### Registry Changes
+
+| Old Pattern | New Pattern |
+|-------------|-------------|
+| `PipelineModuleRegistry.from_static_modules()` | `from battery_tea import create_battery_registry; create_battery_registry()` |
+| `create_registry([...], include_builtins=True)` | `create_registry([...])` (no builtins exist) |
+
+### Pipeline YAML Changes
+
+Pipeline YAML files that use battery modules need to pass the battery registry:
+
+```python
+from battery_tea import create_battery_registry
+from battery_tea.schemas import Geography, RateInfo, LoadProfile8760
+from simkit.core.pipeline import execute_pipeline
+
+result = execute_pipeline(
+    "my_pipeline.yaml",
+    output_dir="outputs/",
+    registry=create_battery_registry(),
+    custom_schema_types=[Geography, RateInfo, LoadProfile8760],
+)
+```
+
+### Directory Structure Changes
+
+| Old Location | New Location |
+|--------------|--------------|
+| `simkit/` | `packages/teax-simkit/simkit/` |
+| `simkit/core/rate_data/` | `packages/battery-tea-demo/battery_tea/modules/rate_data/` |
+| `simkit/core/battery_config/` | `packages/battery-tea-demo/battery_tea/modules/battery_config/` |
+| `simkit/config/battery_schema.py` | `packages/battery-tea-demo/battery_tea/schemas.py` |
+| `simkit/config/defaults.py` (battery parts) | `packages/battery-tea-demo/battery_tea/defaults.py` |
+| `simkit/tests/fixtures/` (battery fixtures) | `packages/battery-tea-demo/battery_tea/tests/fixtures/` |
+| `notebooks/` | `packages/battery-tea-demo/notebooks/` |
 
 ---
 
@@ -1017,10 +1116,10 @@ The system supports **multiple usage modes**:
 
 For issues or questions:
 - GitHub Issues: https://github.com/anthropics/claude-code/issues
-- Source Code: `/home/reid/teax/simkit/`
+- Source Code: `packages/teax-simkit/` (core), `packages/battery-tea-demo/` (example)
 
 ---
 
-**Last Updated:** 2025-12-19
+**Last Updated:** 2026-01-04
 **TEAx Version:** 0.1.0
 **Python Requirement:** 3.10+
