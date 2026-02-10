@@ -81,7 +81,7 @@ class MultiOutput(StrictBaseModel):
         - thoughts/research/input_output_asymmetry_analysis.md
     """
 
-    def to_channel_dict(self) -> Dict[str, BaseModel]:
+    def to_channel_dict(self) -> Dict[str, Any]:
         """Convert multi-output fields to channel routing dict.
 
         Returns:

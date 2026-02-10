@@ -62,11 +62,37 @@ class ToyAdderModule(ModuleBase[RootModel[float], RootModel[float]]):
         return ModuleResult(data=RootModel[float](validated.root + 22.0))
 
 
+class ToyPrimitiveMultiOutput(MultiOutput):
+    """Container with a bare float field for primitive ExitPoint testing."""
+
+    doubled_value: float
+
+
 class ToyMultiOutput(MultiOutput):
     """Container for multiple outputs from ToyMultiOutputModule."""
 
     doubled: ToyOutput
     tripled: ToyOutput
+
+
+class ToyPrimitiveOutputModule(ModuleBase[ToyInput, ToyPrimitiveMultiOutput]):
+    """Doubles input and outputs bare float via MultiOutput extraction.
+
+    Used to test primitive ExitPoint types. The MultiOutput's to_channel_dict()
+    extracts the bare float value, placing it directly in the channel.
+    """
+
+    name = "ToyPrimitiveOutput"
+    version = "v1.0"
+
+    def validate_and_fill_default(self, value: float) -> ToyInput:
+        return ToyInput(value=value)
+
+    def run(self, value: float) -> ModuleResult[ToyPrimitiveMultiOutput]:
+        validated = self.validate_and_fill_default(value)
+        return ModuleResult(
+            data=ToyPrimitiveMultiOutput(doubled_value=validated.value * 2.0)
+        )
 
 
 class ToyMultiOutputModule(ModuleBase[ToyInput, ToyMultiOutput]):

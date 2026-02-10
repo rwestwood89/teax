@@ -160,7 +160,7 @@ entry_point:
     load: LoadProfile8760 ../data/load.parquet      # Parquet -> LoadProfile8760 (battery-tea-demo)
 ```
 
-**Note:** Custom types like `Geography` and `LoadProfile8760` must be registered via `custom_schema_types` parameter.
+**Note:** Custom types like `Geography` and `LoadProfile8760` must be registered via `custom_schema_types` parameter. Bare primitives (`float`, `int`, `str`, `bool`) are built-in and require no registration.
 
 **Path Resolution:**
 1. Try relative to YAML file location
@@ -174,13 +174,18 @@ Declares which channels to persist as pipeline outputs. Must appear exactly once
 exit_point:
   module_type: ExitPoint
   outputs:
-    rate_info: RateInfo rate_info.json              # Serialize to JSON
-    telemetry: BatteryTelemetry8760 telemetry.json  # Serialize to JSON
+    rate_info: RateInfo rate_info.json              # Serialize Pydantic model to JSON
+    telemetry: BatteryTelemetry8760 telemetry.json  # Serialize Pydantic model to JSON
+    efficiency: float efficiency.json               # Serialize bare primitive to JSON
 ```
 
 Outputs are written to: `<output_dir>/<run_name>/<timestamp>/<filename>`
 
-**Note:** By default, all types serialize to JSON. For specialized formats (Parquet), use custom output handlers.
+**Supported ExitPoint types:**
+- Any Pydantic `BaseModel` with a registered write handler
+- Bare primitives: `float`, `int`, `str`, `bool` (built-in, no registration required)
+
+**Note:** Bare primitives are serialized as raw JSON values (e.g., `42.0`, `"hello"`, `true`), consistent with `RootModel[T].model_dump(mode="json")` output. For specialized formats (Parquet), use custom output handlers.
 
 ### Field Referencing
 
@@ -499,6 +504,7 @@ The `EntryPoint` module loads data files using type-specific readers.
 | File Type | Loader Function | Model Type |
 |-----------|-----------------|------------|
 | JSON | `read_json_model()` | Any `BaseModel` subclass |
+| JSON | `_load_json_primitive()` | `float`, `int`, `str`, `bool` |
 
 **Battery demo formats (battery_tea.io):**
 
@@ -539,6 +545,7 @@ The `ExitPoint` module serializes outputs using the `OutputRouter`.
 | Model Type | Serialization | Extension |
 |------------|---------------|-----------|
 | Any `BaseModel` | JSON | `.json` |
+| `float`, `int`, `str`, `bool` | JSON (raw value) | `.json` |
 
 **Battery demo handlers (battery_tea.io):**
 

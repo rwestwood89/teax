@@ -313,11 +313,20 @@ class SerialPipelineExecutor:
 # ----------------------------------------------------------------------
 # Helper functions
 
+# Single source of truth for primitive type mapping. Referenced by both
+# _build_schema_type_registry() and _resolve_schema_type() fallback.
+_PRIMITIVE_TYPES: dict[str, type] = {
+    "float": float,
+    "int": int,
+    "str": str,
+    "bool": bool,
+}
+
 
 def _resolve_schema_type(
     type_name: str | None,
     type_registry: dict[str, type] | None = None,
-) -> type[schema.StrictBaseModel]:
+) -> type:
     """Resolve type name string to type object using registry.
 
     Args:
@@ -349,6 +358,10 @@ def _resolve_schema_type(
         type_obj = getattr(schema, type_name, None)
         if type_obj is not None:
             return type_obj
+        # Check primitive types (uses same _PRIMITIVE_TYPES constant as registry builder)
+        primitive = _PRIMITIVE_TYPES.get(type_name)
+        if primitive is not None:
+            return primitive
         raise ValueError(f"Unknown schema type '{type_name}'")
 
 
@@ -457,6 +470,7 @@ def _build_schema_type_registry(
         schema.DynamicSimConfig.__name__: schema.DynamicSimConfig,
         schema.MockForecastSeries.__name__: schema.MockForecastSeries,
         schema.SyncGuidanceSeries.__name__: schema.SyncGuidanceSeries,
+        **_PRIMITIVE_TYPES,
     }
 
     # Track seen names (includes built-ins)
@@ -561,7 +575,7 @@ def _load_financial_params(path: Path) -> schema.FinancialParams:
 # For custom schema types, use _build_entry_loaders() instead of modifying this dict.
 # Domain-specific packages (e.g., battery_tea) should register their own loaders
 # via custom_schema_types parameter in execute_pipeline().
-_BUILTIN_ENTRY_LOADERS: Dict[type[BaseModel], Any] = {
+_BUILTIN_ENTRY_LOADERS: Dict[type, Any] = {
     schema.FinancialParams: _load_financial_params,
     schema.SyncTimeGrid: lambda path: readers.read_json_model(path, schema.SyncTimeGrid),
     schema.MockForecastConfig: lambda path: readers.read_json_model(path, schema.MockForecastConfig),
@@ -596,3 +610,20 @@ def _load_price_trajectory(path: Path) -> schema.PriceTrajectory:
 
 # PriceTrajectory is a generic type
 _BUILTIN_ENTRY_LOADERS[schema.PriceTrajectory] = _load_price_trajectory
+
+
+def _load_json_primitive(path: Path, expected_type: type) -> float | int | str | bool:
+    """Load a bare primitive from a JSON file with type checking."""
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if type(value) is not expected_type:
+        raise TypeError(
+            f"Expected {expected_type.__name__} from '{path}', "
+            f"got {type(value).__name__}: {value!r}"
+        )
+    return value
+
+
+_BUILTIN_ENTRY_LOADERS[float] = lambda path: _load_json_primitive(path, float)
+_BUILTIN_ENTRY_LOADERS[int] = lambda path: _load_json_primitive(path, int)
+_BUILTIN_ENTRY_LOADERS[str] = lambda path: _load_json_primitive(path, str)
+_BUILTIN_ENTRY_LOADERS[bool] = lambda path: _load_json_primitive(path, bool)

@@ -5,6 +5,7 @@ ensuring the core framework can be tested in isolation.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,7 @@ from simkit.tests.core.toy_modules import (
     ToyInput,
     ToyMultiOutputModule,
     ToyOutput,
+    ToyPrimitiveOutputModule,
 )
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -28,7 +30,7 @@ PIPELINE_CONFIGS_DIR = FIXTURES_DIR / "pipeline_configs"
 @pytest.fixture
 def toy_registry():
     """Create registry with only ToyModules."""
-    return create_registry([ToyDoublerModule, ToyAdderModule, ToyMultiOutputModule])
+    return create_registry([ToyDoublerModule, ToyAdderModule, ToyMultiOutputModule, ToyPrimitiveOutputModule])
 
 
 @pytest.fixture
@@ -49,6 +51,7 @@ class TestToyModuleRegistry:
         assert toy_registry.has("ToyDoublerModule")
         assert toy_registry.has("ToyAdderModule")
         assert toy_registry.has("ToyMultiOutputModule")
+        assert toy_registry.has("ToyPrimitiveOutputModule")
 
     def test_registry_has_no_battery_modules(self, toy_registry):
         """Verify registry does NOT contain battery modules."""
@@ -173,3 +176,49 @@ class TestToyPipelineExecution:
         # Note: battery_tea may be loaded at pytest collection time
         # The key point is ToyModule tests don't REQUIRE it
         assert toy_registry.has("ToyDoublerModule")
+
+
+class TestToyPipelinePrimitiveExit:
+    """E2E tests for primitive ExitPoint types (bare float/int/str/bool)."""
+
+    def test_toy_pipeline_with_primitive_exit_type(self, toy_registry, tmp_path):
+        """Pipeline with bare float ExitPoint writes correct JSON."""
+        spec_path = PIPELINE_CONFIGS_DIR / "toy_linear_primitive_exit.yaml"
+        router = create_output_router_with_json_schemas(
+            ["RootModel[float]"],
+            include_builtins=True,
+        )
+        result = execute_pipeline(
+            spec_path=str(spec_path),
+            output_dir=str(tmp_path),
+            registry=toy_registry,
+            custom_schema_types=[ToyInput],
+            output_router=router,
+        )
+        assert "doubled_value" in result.outputs
+        assert result.outputs["doubled_value"] == 20.0  # bare float, not RootModel
+
+        output_dir = Path(result.manifest.base_output_dir) / result.manifest.run_directory
+        written = json.loads((output_dir / "doubled_value.json").read_text())
+        assert written == 20.0
+
+    def test_toy_pipeline_with_primitive_exit_in_memory(self, toy_registry):
+        """In-memory mode with bare float ExitPoint validates correctly."""
+        spec_path = PIPELINE_CONFIGS_DIR / "toy_linear_primitive_exit.yaml"
+        router = create_output_router_with_json_schemas(
+            ["RootModel[float]"],
+            include_builtins=True,
+            in_memory=True,
+        )
+        result = execute_pipeline(
+            spec_path=str(spec_path),
+            output_dir=None,
+            registry=toy_registry,
+            custom_schema_types=[ToyInput],
+            output_router=router,
+        )
+        assert result.manifest is not None
+        float_artifact = next(
+            a for a in result.manifest.artifacts if a.type_name == "float"
+        )
+        assert float_artifact.produced is True

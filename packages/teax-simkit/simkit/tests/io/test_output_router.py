@@ -336,3 +336,126 @@ def test_create_default_router_supports_in_memory():
     # Should succeed without writing files
     assert result.manifest.short_id == "mem"
     assert not result.run_dir.exists()
+
+
+# --------------------------------------------------------------------------
+# Primitive type support tests
+# --------------------------------------------------------------------------
+
+
+def test_write_json_primitive_float(tmp_path: Path):
+    """write_json_primitive serializes a bare float to raw JSON."""
+    path = tmp_path / "value.json"
+    writers.write_json_primitive(42.0, path)
+    assert json.loads(path.read_text()) == 42.0
+
+
+def test_write_json_primitive_int(tmp_path: Path):
+    """write_json_primitive serializes a bare int to raw JSON."""
+    path = tmp_path / "value.json"
+    writers.write_json_primitive(7, path)
+    assert json.loads(path.read_text()) == 7
+
+
+def test_write_json_primitive_str(tmp_path: Path):
+    """write_json_primitive serializes a bare str to raw JSON."""
+    path = tmp_path / "value.json"
+    writers.write_json_primitive("hello", path)
+    assert json.loads(path.read_text()) == "hello"
+
+
+def test_write_json_primitive_bool(tmp_path: Path):
+    """write_json_primitive serializes a bare bool to raw JSON."""
+    path = tmp_path / "value.json"
+    writers.write_json_primitive(True, path)
+    assert json.loads(path.read_text()) is True
+
+
+def test_default_router_has_primitive_handlers():
+    """Default router recognizes float, int, str, bool as valid types."""
+    router = create_default_router()
+    for type_name in ("float", "int", "str", "bool"):
+        assert router.has_handler(type_name), f"Missing handler for '{type_name}'"
+
+
+def test_output_router_writes_primitive_float(tmp_path: Path):
+    """OutputRouter.write_outputs() writes a bare float via primitive handler."""
+    router = create_default_router()
+    bindings = {
+        "result": PipelineChannelBinding(
+            type_name="float",
+            channel_name="result",
+            source=ChannelSource.MODULE,
+            destination_filename="result.json",
+        )
+    }
+    values = {"result": 42.0}
+    result = router.write_outputs(
+        bindings, values, base_output_dir=tmp_path, run_name="test",
+    )
+    written = json.loads((result.run_dir / "result.json").read_text())
+    assert written == 42.0
+
+
+def test_output_router_writes_primitive_int(tmp_path: Path):
+    """OutputRouter.write_outputs() writes a bare int via primitive handler."""
+    router = create_default_router()
+    bindings = {
+        "result": PipelineChannelBinding(
+            type_name="int",
+            channel_name="result",
+            source=ChannelSource.MODULE,
+            destination_filename="result.json",
+        )
+    }
+    values = {"result": 7}
+    result = router.write_outputs(
+        bindings, values, base_output_dir=tmp_path, run_name="test",
+    )
+    written = json.loads((result.run_dir / "result.json").read_text())
+    assert written == 7
+
+
+def test_output_router_writes_primitive_str(tmp_path: Path):
+    """OutputRouter.write_outputs() writes a bare str via primitive handler."""
+    router = create_default_router()
+    bindings = {
+        "result": PipelineChannelBinding(
+            type_name="str",
+            channel_name="result",
+            source=ChannelSource.MODULE,
+            destination_filename="result.json",
+        )
+    }
+    values = {"result": "hello"}
+    result = router.write_outputs(
+        bindings, values, base_output_dir=tmp_path, run_name="test",
+    )
+    written = json.loads((result.run_dir / "result.json").read_text())
+    assert written == "hello"
+
+
+def test_output_router_writes_primitive_bool(tmp_path: Path):
+    """OutputRouter.write_outputs() writes a bare bool via primitive handler."""
+    router = create_default_router()
+    bindings = {
+        "result": PipelineChannelBinding(
+            type_name="bool",
+            channel_name="result",
+            source=ChannelSource.MODULE,
+            destination_filename="result.json",
+        )
+    }
+    values = {"result": True}
+    result = router.write_outputs(
+        bindings, values, base_output_dir=tmp_path, run_name="test",
+    )
+    written = json.loads((result.run_dir / "result.json").read_text())
+    assert written is True
+
+
+def test_write_json_primitive_rejects_non_primitive(tmp_path: Path):
+    """write_json_primitive raises TypeError on non-primitive input."""
+    path = tmp_path / "bad.json"
+    with pytest.raises(TypeError, match="write_json_primitive expects"):
+        writers.write_json_primitive({"key": "value"}, path)

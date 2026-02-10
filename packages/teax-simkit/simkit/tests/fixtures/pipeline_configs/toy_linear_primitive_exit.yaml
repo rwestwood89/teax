@@ -1,0 +1,23 @@
+# Toy pipeline for testing primitive ExitPoint types.
+# Uses ToyPrimitiveOutputModule (MultiOutput with bare float field) to produce
+# a bare float channel, then ExitPoint writes it as "float" type.
+metadata:
+  run_description: Primitive ExitPoint type test pipeline
+
+modules:
+  entry:
+    module_type: EntryPoint
+    inputs:
+      input_value: ToyInput ../toy_input.json
+
+  doubler:
+    module_type: ToyPrimitiveOutputModule
+    inputs:
+      value: float input_value.value
+    outputs:
+      doubled_value: float doubled_value
+
+  exit:
+    module_type: ExitPoint
+    outputs:
+      doubled_value: float doubled_value.json

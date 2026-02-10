@@ -127,10 +127,13 @@ class PipelineValidator:
                                 continue
                         else:
                             # Backward compatibility: fall back to built-in schema module
-                            try:
-                                type_obj = getattr(schema, binding.type_name)
-                            except AttributeError:
-                                # Type not in schema module - skip (will error later if needed)
+                            type_obj = getattr(schema, binding.type_name, None)
+                            if type_obj is None:
+                                # Check primitive types (lazy import avoids circular dependency)
+                                from .pipeline_executor import _PRIMITIVE_TYPES
+                                type_obj = _PRIMITIVE_TYPES.get(binding.type_name)
+                            if type_obj is None:
+                                # Type not found anywhere - skip (will error later if needed)
                                 continue
 
                         channel_types[binding.channel_name] = type_obj

@@ -23,6 +23,8 @@ from simkit.core.pipeline_executor import (
     _build_schema_type_registry,
     _build_entry_loaders,
     _BUILTIN_ENTRY_LOADERS,
+    _resolve_schema_type,
+    _PRIMITIVE_TYPES,
 )
 from simkit.core.pipeline_validator import PipelineValidator
 from simkit.core.registry_builder import create_registry
@@ -67,8 +69,8 @@ class TestBuildSchemaTypeRegistry:
         assert "MockForecastSeries" in registry
         assert "SyncGuidanceSeries" in registry
 
-        # Should have 8 generic built-ins
-        assert len(registry) == 8
+        # Should have 8 Pydantic schemas + 4 primitives = 12 built-ins
+        assert len(registry) == 12
 
     def test_adds_custom_schema(self):
         """Custom type added to registry with correct name."""
@@ -162,12 +164,142 @@ class TestBuildSchemaTypeRegistry:
                 f"Schema '{schema_name}' registered but points to wrong type"
             )
 
-        # Verify count matches (8 generic types)
-        assert len(expected_user_facing_schemas) == 8, (
-            f"Expected 8 user-facing generic schemas, but list has "
-            f"{len(expected_user_facing_schemas)}. Update this test when "
-            f"adding/removing user-facing schemas."
+        # Verify primitive types are registered
+        for name, expected_type in [("float", float), ("int", int), ("str", str), ("bool", bool)]:
+            assert name in registry, f"Primitive type '{name}' not registered"
+            assert registry[name] is expected_type
+
+        # Verify count matches (8 Pydantic schemas + 4 primitives = 12)
+        assert len(registry) == 12, (
+            f"Expected 12 built-in registry entries (8 schemas + 4 primitives), "
+            f"got {len(registry)}. Update this test when adding/removing types."
         )
+
+
+class TestPrimitiveTypeSupport:
+    """Tests for primitive type resolution, registry, and entry loaders."""
+
+    def test_schema_registry_includes_primitives(self):
+        """Built-in registry includes float, int, str, bool."""
+        registry = _build_schema_type_registry()
+        for name, expected_type in [("float", float), ("int", int), ("str", str), ("bool", bool)]:
+            assert name in registry
+            assert registry[name] is expected_type
+
+    def test_resolve_schema_type_primitives_with_registry(self):
+        """_resolve_schema_type returns primitive types when registry is provided."""
+        registry = _build_schema_type_registry()
+        for name, expected in [("float", float), ("int", int), ("str", str), ("bool", bool)]:
+            assert _resolve_schema_type(name, registry) is expected
+
+    def test_resolve_schema_type_primitives_fallback(self):
+        """_resolve_schema_type returns primitive types via fallback (no registry)."""
+        for name, expected in [("float", float), ("int", int), ("str", str), ("bool", bool)]:
+            assert _resolve_schema_type(name, None) is expected
+
+    def test_primitive_entry_loaders_registered(self):
+        """All 4 primitive types have entry loaders in _BUILTIN_ENTRY_LOADERS."""
+        for t in (float, int, str, bool):
+            assert t in _BUILTIN_ENTRY_LOADERS, f"Missing entry loader for {t.__name__}"
+
+    def test_primitive_entry_loader_reads_float(self, tmp_path):
+        """Primitive entry loader deserializes a bare float from JSON."""
+        path = tmp_path / "value.json"
+        path.write_text("42.0")
+        result = _BUILTIN_ENTRY_LOADERS[float](path)
+        assert isinstance(result, float)
+        assert result == 42.0
+
+    def test_primitive_entry_loader_reads_int(self, tmp_path):
+        """Primitive entry loader deserializes a bare int from JSON."""
+        path = tmp_path / "value.json"
+        path.write_text("7")
+        result = _BUILTIN_ENTRY_LOADERS[int](path)
+        assert type(result) is int
+        assert result == 7
+
+    def test_primitive_entry_loader_reads_str(self, tmp_path):
+        """Primitive entry loader deserializes a bare str from JSON."""
+        path = tmp_path / "value.json"
+        path.write_text('"hello"')
+        result = _BUILTIN_ENTRY_LOADERS[str](path)
+        assert type(result) is str
+        assert result == "hello"
+
+    def test_primitive_entry_loader_reads_bool(self, tmp_path):
+        """Primitive entry loader deserializes a bare bool from JSON."""
+        path = tmp_path / "value.json"
+        path.write_text("true")
+        result = _BUILTIN_ENTRY_LOADERS[bool](path)
+        assert type(result) is bool
+        assert result is True
+
+    def test_primitive_entry_loader_rejects_bool_as_int(self, tmp_path):
+        """Primitive int loader rejects JSON true (bool is subclass of int)."""
+        path = tmp_path / "value.json"
+        path.write_text("true")
+        with pytest.raises(TypeError, match="Expected int"):
+            _BUILTIN_ENTRY_LOADERS[int](path)
+
+    def test_primitive_entry_loader_rejects_type_mismatch(self, tmp_path):
+        """Primitive entry loader raises TypeError on type mismatch."""
+        path = tmp_path / "value.json"
+        path.write_text('"hello"')  # str, not int
+        with pytest.raises(TypeError, match="Expected int"):
+            _BUILTIN_ENTRY_LOADERS[int](path)
+
+
+class TestBuildChannelTypeMapPrimitiveFallback:
+    """Tests for _build_channel_type_map primitive type resolution in PipelineValidator."""
+
+    def test_build_channel_type_map_resolves_primitives_without_registry(self):
+        """Validator's _build_channel_type_map resolves primitive types via fallback (no schema_type_registry)."""
+        from simkit.config.pipeline_schema import (
+            ChannelSource,
+            PipelineChannelBinding,
+            PipelineModuleSpec,
+            PipelineSpecification,
+        )
+
+        # Build a minimal spec with an EntryPoint that outputs a primitive type
+        entry_spec = PipelineModuleSpec(
+            key="entry",
+            module_type="EntryPoint",
+            inputs={"val": PipelineChannelBinding(
+                type_name="float",
+                channel_name="val",
+                source=ChannelSource.ENTRY,
+                artifact_path=Path("val.json"),
+            )},
+            outputs={"val": PipelineChannelBinding(
+                type_name="float",
+                channel_name="val",
+                source=ChannelSource.MODULE,
+            )},
+        )
+        exit_spec = PipelineModuleSpec(
+            key="exit",
+            module_type="ExitPoint",
+            inputs={},
+            outputs={"val": PipelineChannelBinding(
+                type_name="float",
+                channel_name="val",
+                source=ChannelSource.MODULE,
+                destination_filename="val.json",
+            )},
+        )
+        spec = PipelineSpecification(
+            modules={"entry": entry_spec, "exit": exit_spec},
+        )
+
+        # Create validator WITHOUT schema_type_registry (forces fallback path)
+        registry = PipelineModuleRegistry()
+        router = create_default_router()
+        validator = PipelineValidator(registry, router, schema_type_registry=None)
+
+        channel_types = validator._build_channel_type_map(spec)
+        assert "val" in channel_types
+        assert channel_types["val"] is float
 
 
 class TestBuildEntryLoaders:

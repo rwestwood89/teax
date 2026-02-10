@@ -120,6 +120,9 @@ All data models in `simkit/config/schema.py` extend `StrictBaseModel`:
 - Strict validation with units explicit (e.g., `"kWh"`, `"USD"`)
 - Arrays are length-validated (e.g., 8760 for hourly profiles)
 
+**Primitive types** (built-in, no registration required):
+- **float, int, str, bool**: Supported as first-class types in EntryPoint/ExitPoint and pipeline channels. Serialized as raw JSON (e.g., `42.0`, `"hello"`, `true`). Commonly produced by MultiOutput modules with bare primitive fields.
+
 **Framework types** (in `simkit/config/schema.py`):
 - **StrictBaseModel, MultiOutput**: Base types for custom schemas
 - **TimeSpan, SyncTimeGrid, PriceTrajectory**: Time-series and simulation inputs

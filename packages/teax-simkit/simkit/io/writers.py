@@ -49,6 +49,30 @@ def write_json_payload(payload: Dict[str, Any] | BaseModel | Any, path: str | Pa
     return resolved
 
 
+def write_json_primitive(value: float | int | str | bool, path: str | Path) -> Path:
+    """Write a bare Python primitive to a JSON file.
+
+    Produces raw JSON (e.g., ``42.0``, ``"hello"``, ``true``) consistent with
+    ``RootModel[T].model_dump(mode="json")`` output for the same value.
+
+    Args:
+        value: Primitive value to serialize
+        path: Path to write the JSON file
+
+    Returns:
+        Path to the written file
+    """
+    if not isinstance(value, (float, int, str, bool)):
+        raise TypeError(
+            f"write_json_primitive expects float|int|str|bool, got {type(value).__name__}"
+        )
+    resolved = Path(path)
+    resolved.parent.mkdir(parents=True, exist_ok=True)
+    with resolved.open("w", encoding="utf-8") as handle:
+        json.dump(value, handle, indent=2)
+    return resolved
+
+
 def write_provenance(metadata: Dict[str, Any], path: str | Path) -> Path:
     """Write provenance metadata to a JSON file.
 

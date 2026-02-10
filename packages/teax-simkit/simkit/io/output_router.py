@@ -269,6 +269,11 @@ def create_default_router(*, in_memory: bool = False) -> OutputRouter:
             fn=writers.write_sync_guidance_series,
             extension=".json",
         ),
+        # Bare primitive types -- enables ExitPoint serialization of float/int/str/bool
+        "float": WriteHandler(fn=writers.write_json_primitive, extension=".json"),
+        "int": WriteHandler(fn=writers.write_json_primitive, extension=".json"),
+        "str": WriteHandler(fn=writers.write_json_primitive, extension=".json"),
+        "bool": WriteHandler(fn=writers.write_json_primitive, extension=".json"),
     }
     return OutputRouter(type_handlers=handlers, in_memory=in_memory)
 
