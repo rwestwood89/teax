@@ -1,0 +1,51 @@
+{
+  "run_name": "heater_tea_results",
+  "run_directory": "heater_tea_results-3f2a9c1b",
+  "base_output_dir": "outputs",
+  "short_id": "3f2a9c1b",
+  "metadata": {
+    "config_hash": "sha256:4be1a7...",
+    "module_versions": {
+      "heater__efficiency_calc": "v0.1",
+      "heater__cost_calc": "v0.1"
+    }
+  },
+  "artifacts": [
+    {
+      "channel": "heater__efficiency_calc__efficiency",
+      "type_name": "RootModel[float]",
+      "relative_path": "efficiency.json",
+      "produced": true
+    },
+    {
+      "channel": "heater__cost_calc__lcoe_usd_mwh",
+      "type_name": "float",
+      "relative_path": "lcoe_usd_mwh.json",
+      "produced": true
+    },
+    {
+      "channel": "heater__cost_calc__unit_count",
+      "type_name": "int",
+      "relative_path": "unit_count.json",
+      "produced": true
+    },
+    {
+      "channel": "heater__cost_calc__cost_class",
+      "type_name": "str",
+      "relative_path": "cost_class.json",
+      "produced": true
+    },
+    {
+      "channel": "heater__cost_calc__viable",
+      "type_name": "bool",
+      "relative_path": "viable.json",
+      "produced": true
+    },
+    {
+      "channel": "heater__cost_calc__breakdown",
+      "type_name": "CostBreakdown",
+      "relative_path": "cost_breakdown.json",
+      "produced": true
+    }
+  ]
+}

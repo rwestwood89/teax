@@ -1,0 +1,63 @@
+# Generated Pipeline Configuration for heater_tea
+#
+# Auto-generated from SysML calc def dependency analysis
+# DO NOT EDIT - Regenerate using code generator
+#
+# UNCHANGED FROM TODAY: codegen already emits truthful channel types —
+# RootModel[T] for single-output channels, bare scalars for decomposed
+# multi-output fields. The contract change happens in TEAx, not here.
+
+metadata:
+  run_description: "Generated pipeline for heater_tea"
+  output_folder: "heater_tea_results"
+
+modules:
+  # Entry point - load inputs from JSON (domain schema: needs CUSTOM_SCHEMA_TYPES)
+  entry_heater:
+    module_type: EntryPoint
+    inputs:
+      heater_params: HeaterParams ../inputs/heater_params.json
+
+  # Single-output module: channel carries the whole RootModel[float].
+  # Binding grammar: <key>: <Type> <channel>. Input keys are the module's
+  # run() parameter names; output keys are the output model's Pydantic
+  # field names — RootModel's single field is fixed at "root" by Pydantic.
+  heater__efficiency_calc:
+    module_type: EfficiencyCalcModule
+    inputs:
+      input_power_kw: float heater_params.heater__element__input_power_kw
+      loss_fraction: float heater_params.heater__element__loss_fraction
+    outputs:
+      root: RootModel[float] heater__efficiency_calc__efficiency
+
+  # Multi-output module: each field decomposed onto its own channel,
+  # four of them bare JSON-native scalars
+  heater__cost_calc:
+    module_type: CostCalcModule
+    inputs:
+      # "<channel>.root" is field extraction: getattr(channel_value, "root")
+      # unwraps the RootModel to the bare float that run() receives.
+      efficiency: float heater__efficiency_calc__efficiency.root
+      unit_budget_usd: float heater_params.heater__site__unit_budget_usd
+    outputs:
+      lcoe_usd_mwh: float heater__cost_calc__lcoe_usd_mwh
+      unit_count: int heater__cost_calc__unit_count
+      cost_class: str heater__cost_calc__cost_class
+      viable: bool heater__cost_calc__viable
+      breakdown: CostBreakdown heater__cost_calc__breakdown
+
+  # Exit point - persist channels to JSON
+  exit_heater:
+    module_type: ExitPoint
+    outputs:
+      # DIFFERENT FROM TODAY (T-1/T-2): every line below except `breakdown`
+      # previously failed pre-run validation ("no registered write handler")
+      # unless a harness hand-built a router; the bare scalars then crashed
+      # write_json_model ('float' object has no attribute 'model_dump').
+      # Now: all five persist via TEAx's default router.
+      heater__efficiency_calc__efficiency: RootModel[float] efficiency.json  # default handler (wrapped scalar)
+      heater__cost_calc__lcoe_usd_mwh: float lcoe_usd_mwh.json               # default handler (bare float)
+      heater__cost_calc__unit_count: int unit_count.json                     # default handler (bare int)
+      heater__cost_calc__cost_class: str cost_class.json                     # default handler (bare str)
+      heater__cost_calc__viable: bool viable.json                            # default handler (bare bool)
+      heater__cost_calc__breakdown: CostBreakdown cost_breakdown.json        # domain schema: CUSTOM_SCHEMA_TYPES (unchanged)

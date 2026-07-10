@@ -1,0 +1,5 @@
+{
+  "heater__element__input_power_kw": 2.0,
+  "heater__element__loss_fraction": 0.13,
+  "heater__site__unit_budget_usd": 900.0
+}
