@@ -1,0 +1,138 @@
+# Project Management
+
+This folder contains project planning, tracking, and documentation.
+
+---
+
+## Workflow Overview
+
+### 1. Accumulating Backlog
+
+**Collecting Needs**:
+- **Research & Analysis**: Running research reports, web searches, collecting data to understand what needs to be done
+- **During Development**: Issues identified while running/writing code
+- **External PM**: Requirements from external project management systems
+
+**Creating Epics**:
+- Capture outcomes and goals
+- Note known pieces of work (details come later during decomposition)
+
+---
+
+### 2. Prioritization
+
+1. **User prioritizes** using their own methods
+2. **Update BACKLOG.md** via `/_my_status` command - reorganize, set priorities
+3. **Epic decomposition** (before or after prioritization, e.g., to estimate effort):
+   - Organize into **parts** if needed (logical groupings)
+   - Break down into **items** with numbering (e.g., `4.2` = Part 4, Item 2)
+
+---
+
+### 3. Epic Execution
+
+Iterate through items in the epic. Each item runs the standard pipeline of `/_my_*` stages.
+
+**For the canonical, current flow and when/how to use each stage, run `/_my_pipeline`** (installed
+with claude-pack). This README does not carry its own copy of the sequence — `/_my_pipeline` is the
+single source, so it can't go stale here.
+
+**As the epic progresses**: Add or insert new items as you learn more. Follow the same process for each.
+
+---
+
+### 4. Epic Cleanup
+
+1. **Check** for all completed active items
+2. **Move items** to `completed/` using `git mv`, prefixed with date stamp (e.g., `git mv .project/active/item_name .project/completed/20251223_item_name`)
+3. **Move epic** to `completed/` using `git mv` with date stamp (e.g., `git mv .project/backlog/epic_name.md .project/completed/20251223_epic_name.md`)
+4. **Update docs**: `CURRENT_WORK.md`, `BACKLOG.md`, and `completed/CHANGELOG.md`
+
+---
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `CURRENT_WORK.md` | What's active RIGHT NOW - single source of truth |
+| `backlog/BACKLOG.md` | Prioritized list of epics |
+| `backlog/epic_*.md` | Individual epic definitions |
+
+---
+
+## Folder Structure
+
+```
+.project/
+├── CURRENT_WORK.md           # Active work tracking
+├── backlog/
+│   ├── BACKLOG.md            # Prioritized epic list
+│   └── epic_*.md             # Epic definitions
+├── active/
+│   └── {item_name}/          # Work-in-progress items
+│       ├── spec.md
+│       ├── design.md
+│       └── plan.md
+├── completed/
+│   ├── {date}_{item_name}/   # Archived items
+│   └── epic_*.md             # Archived epics
+├── scripts/                  # Utility scripts (get-metadata.sh)
+├── research/                 # Deep investigations
+└── reports/                  # Status reports
+```
+
+---
+
+## Item Numbering
+
+Items within an epic use hierarchical numbering:
+- `1`, `2`, `3` - Simple sequential items
+- `4.1`, `4.2`, `4.3` - Items within Part 4
+- Parts group related items logically
+
+---
+
+## Commands
+
+### Development Workflow
+
+| Command | Purpose |
+|---------|---------|
+| `/_my_research` | Deep codebase exploration and feasibility analysis |
+| `/_my_spec` | Feature requirements definition with business goals |
+| `/_my_design` | Technical design for code implementation |
+| `/_my_plan` | Create phased implementation plan with tests |
+| `/_my_implement` | Execute approved plan with validation |
+| `/_my_quick_edit` | Fast changes that don't need full workflow |
+
+### Review & Quality
+
+| Command | Purpose |
+|---------|---------|
+| `/_my_audit` | Certify work item or epic against plan/spec/design |
+| `/_my_pre_pr` | Run quality checks before submitting a PR |
+| `/_my_design_review` | Review a design document before implementation |
+| `/_my_spec_review` | Review a spec before design |
+
+### Project Management
+
+| Command | Purpose |
+|---------|---------|
+| `/_my_status` | Project orientation, gap analysis, next steps |
+| `/_my_close` | Archive completed work items or epics |
+| `/_my_epic_plan` | Decompose shaping output into a scoped epic |
+| `/_my_project_find` | Quick lookup of project context |
+| `/_my_git_manage` | Git workflow, worktrees, conflict resolution |
+
+### Memory & Context
+
+| Command | Purpose |
+|---------|---------|
+| `/_my_capture` | Mark conversation for later memorization |
+| `/_my_memorize` | Create structured memory from capture |
+| `/_my_recall` | Search past conversations |
+| `/_my_review_compact` | Review before compaction |
+
+---
+
+**Last Updated**: Template
