@@ -29,6 +29,28 @@ the stale branch. Delta applied:
 env failures (hard-coded `/home/reid/teax`). fusion-tea workaround-free
 reproduction: 13/13 anchors, artifacts byte-identical, manifests identical modulo
 run id. `main`'s EntryPoint-loading tests remain green.
+
+### Audit round 1 (2026-07-12) — single-source finding, fixed
+
+An independent audit returned **Needs Work** on one blocker: the single-source
+requirement (step 5) was only partially delivered. Exit handlers and the entry
+registry/resolver derived from `PRIMITIVE_TYPES`, but the entry **loaders**
+(`_BUILTIN_ENTRY_LOADERS`) and the `write_json_primitive` allowlist still
+enumerated the four types independently — so adding a type to `PRIMITIVE_TYPES`
+could leave a loader or writer behind. Behavior was correct; the invariant was
+not. Fixed:
+
+- `pipeline_executor.py` — entry loaders now derived in a loop over
+  `_PRIMITIVE_TYPES` (default-bound loop var so each lambda enforces its own type).
+- `writers.py` — `write_json_primitive` allowlist and error message now derived
+  from `schema.PRIMITIVE_TYPES`.
+- Added `TestPrimitiveSingleSourceOfTruth` locking the linkage (loaders, router
+  bare+wrapped handlers, writer allowlist all track `PRIMITIVE_TYPES`), including
+  a loop-capture guard. Also closed two coverage gaps the audit noted: wrapped
+  falsy byte-identity, and explicit-`None` not-produced.
+
+Re-verified: full suite **240 passed**, same 4 env failures; fusion-tea
+reproduction still 13/13, byte-identical.
 **Trigger:** `exitpoint-persistence-contract` (July, this branch) collides with
 `exitpoint-primitive-types` (Feb, commit `5d6496a`, already on `main`). Both
 solve overlapping problems. This clone was ~5 months behind `origin`, so the

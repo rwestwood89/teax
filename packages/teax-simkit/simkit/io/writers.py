@@ -62,9 +62,10 @@ def write_json_primitive(value: float | int | str | bool, path: str | Path) -> P
     Returns:
         Path to the written file
     """
-    if not isinstance(value, (float, int, str, bool)):
+    if not isinstance(value, tuple(schema.PRIMITIVE_TYPES.values())):
+        expected = "|".join(schema.PRIMITIVE_TYPES)
         raise TypeError(
-            f"write_json_primitive expects float|int|str|bool, got {type(value).__name__}"
+            f"write_json_primitive expects {expected}, got {type(value).__name__}"
         )
     resolved = Path(path)
     resolved.parent.mkdir(parents=True, exist_ok=True)

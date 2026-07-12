@@ -620,7 +620,10 @@ def _load_json_primitive(path: Path, expected_type: type) -> float | int | str |
     return value
 
 
-_BUILTIN_ENTRY_LOADERS[float] = lambda path: _load_json_primitive(path, float)
-_BUILTIN_ENTRY_LOADERS[int] = lambda path: _load_json_primitive(path, int)
-_BUILTIN_ENTRY_LOADERS[str] = lambda path: _load_json_primitive(path, str)
-_BUILTIN_ENTRY_LOADERS[bool] = lambda path: _load_json_primitive(path, bool)
+# Entry loaders for the JSON-native scalars, derived from the single source of
+# truth so the loadable set can never diverge from the writable/resolvable set.
+# (_t default-binds the loop variable so each lambda captures its own type.)
+for _primitive_type in _PRIMITIVE_TYPES.values():
+    _BUILTIN_ENTRY_LOADERS[_primitive_type] = (
+        lambda path, _t=_primitive_type: _load_json_primitive(path, _t)
+    )

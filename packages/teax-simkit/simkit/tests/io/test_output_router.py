@@ -630,3 +630,72 @@ def test_custom_only_router_can_explicitly_register_wrapped_scalar(tmp_path: Pat
     )
 
     assert (result.run_dir / "value.json").read_text() == "1.25"
+
+
+@pytest.mark.parametrize(
+    ("bare_name", "wrapped_name", "bare_value", "wrapped_value"),
+    (
+        ("float", "RootModel[float]", 0.0, RootModel[float](0.0)),
+        ("int", "RootModel[int]", 0, RootModel[int](0)),
+        ("str", "RootModel[str]", "", RootModel[str]("")),
+        ("bool", "RootModel[bool]", False, RootModel[bool](False)),
+    ),
+)
+def test_falsy_bare_and_wrapped_scalars_are_byte_identical(
+    tmp_path: Path,
+    bare_name: str,
+    wrapped_name: str,
+    bare_value: object,
+    wrapped_value: object,
+):
+    router = create_default_router()
+    bindings = {
+        "bare": PipelineChannelBinding(
+            type_name=bare_name,
+            channel_name="bare",
+            source=ChannelSource.MODULE,
+            destination_filename="bare.json",
+        ),
+        "wrapped": PipelineChannelBinding(
+            type_name=wrapped_name,
+            channel_name="wrapped",
+            source=ChannelSource.MODULE,
+            destination_filename="wrapped.json",
+        ),
+    }
+
+    result = router.write_outputs(
+        bindings,
+        {"bare": bare_value, "wrapped": wrapped_value},
+        base_output_dir=tmp_path,
+        run_name="falsy-identity",
+    )
+
+    assert (result.run_dir / "bare.json").read_bytes() == (
+        result.run_dir / "wrapped.json"
+    ).read_bytes()
+
+
+def test_explicit_none_payload_records_not_produced(tmp_path: Path):
+    """A channel whose value is explicitly None records produced=false and writes nothing."""
+    router = create_default_router()
+    bindings = {
+        "value": PipelineChannelBinding(
+            type_name="float",
+            channel_name="value",
+            source=ChannelSource.MODULE,
+            destination_filename="value.json",
+        )
+    }
+
+    result = router.write_outputs(
+        bindings,
+        {"value": None},
+        base_output_dir=tmp_path,
+        run_name="explicit-none",
+    )
+
+    record = result.manifest.artifacts[0]
+    assert record.produced is False
+    assert record.relative_path is None
+    assert not (result.run_dir / "value.json").exists()
