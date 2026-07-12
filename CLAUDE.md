@@ -416,7 +416,7 @@ modules:
 **Automatic features provided:**
 - **EntryPoint loading**: JSON deserialization via `readers.read_json_model()`
 - **Field reference validation**: Type resolution in `PipelineValidator`
-- **ExitPoint writing**: JSON serialization via auto-created `OutputRouter`
+- **ExitPoint writing**: JSON serialization via auto-created `OutputRouter` for named schemas; the default router also persists bare `float`/`int`/`str`/`bool` and their `RootModel` wrappers with no registration
 
 ### Advanced: Custom Loaders (Future Enhancement)
 
@@ -481,7 +481,11 @@ def test_fusion_entry_loader(tmp_path):
    - Solution: Add type to `custom_schema_types` parameter
 
 4. **`PipelineValidationError: ExitPoint output type has no registered write handler`**
-   - Solution: Include type in `custom_schema_types` (auto-creates handler) or provide explicit `output_router`
+   - For a named domain model: include it in `custom_schema_types` or provide an explicit `output_router`
+   - For `float`, `int`, `str`, `bool`, or their `RootModel` wrappers: use the default router; an explicit router replaces the defaults and must register every type it needs
+
+5. **`PipelineValidationError: ExitPoint output type does not match producer channel type`**
+   - Solution: Declare the producer's actual channel type in the ExitPoint binding; bare scalars and `RootModel` wrappers are different channel shapes
 
 ### Package Integration Example
 

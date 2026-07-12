@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import RootModel
 
 from battery_tea import create_battery_registry, schemas
+from simkit.config import schema as simkit_schema
 
 
 class TestRegistryIntegration:
@@ -131,6 +133,13 @@ class TestPipelineExecution:
                 schemas.BatteryConfig,
                 schemas.BatteryTelemetry8760,
                 schemas.CostBreakdown,
+                # RootModel wrappers actually carried on the exit channels, so the
+                # default router registers write handlers for them.
+                schemas.RateInfoOutput,
+                schemas.BatteryConfigOutput,
+                schemas.BatteryTelemetry8760Output,
+                schemas.CostBreakdownOutput,
+                RootModel[simkit_schema.FinancialResults],
             ],
         )
 

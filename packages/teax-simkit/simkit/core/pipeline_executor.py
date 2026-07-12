@@ -313,14 +313,11 @@ class SerialPipelineExecutor:
 # ----------------------------------------------------------------------
 # Helper functions
 
-# Single source of truth for primitive type mapping. Referenced by both
-# _build_schema_type_registry() and _resolve_schema_type() fallback.
-_PRIMITIVE_TYPES: dict[str, type] = {
-    "float": float,
-    "int": int,
-    "str": str,
-    "bool": bool,
-}
+# Single source of truth for primitive type mapping lives in config.schema
+# (shared with the output router). Aliased privately here so the existing
+# references in _build_schema_type_registry() and _resolve_schema_type()
+# continue to read _PRIMITIVE_TYPES unchanged.
+_PRIMITIVE_TYPES: dict[str, type] = schema.PRIMITIVE_TYPES
 
 
 def _resolve_schema_type(

@@ -1,0 +1,35 @@
+# Defaults-only ExitPoint coverage for bare and wrapped scalar channels.
+metadata:
+  run_description: Scalar persistence contract
+
+modules:
+  entry:
+    module_type: EntryPoint
+    inputs:
+      input_value: ToyInput ../toy_input.json
+
+  scalars:
+    module_type: ToyScalarOutputModule
+    inputs:
+      value: float input_value.value
+    outputs:
+      floating: float floating
+      integer: int integer
+      text: str text
+      flag: bool flag
+
+  wrapped_scalar:
+    module_type: ToyDoublerModule
+    inputs:
+      value: float input_value.value
+    outputs:
+      root: RootModel[float] wrapped
+
+  exit:
+    module_type: ExitPoint
+    outputs:
+      floating: float floating.json
+      integer: int integer.json
+      text: str text.json
+      flag: bool flag.json
+      wrapped: RootModel[float] wrapped.json

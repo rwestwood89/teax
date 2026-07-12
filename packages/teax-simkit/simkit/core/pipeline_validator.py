@@ -66,7 +66,7 @@ class PipelineValidator:
             if module.is_entry:
                 continue
             if module.is_exit:
-                self._validate_exit_module(module)
+                self._validate_exit_module(module, channel_types)
                 continue
             descriptor = self._resolve_descriptor(module)
             self._validate_outputs(module, descriptor)  # Make sure 1:1 mapping for output fields and types between registry and yaml
@@ -285,7 +285,11 @@ class PipelineValidator:
             )
         return self._registry.get(module_type)
 
-    def _validate_exit_module(self, module: PipelineModuleSpec) -> None:
+    def _validate_exit_module(
+        self,
+        module: PipelineModuleSpec,
+        channel_types: Dict[str, type],
+    ) -> None:
         if not module.outputs:
             raise PipelineValidationError(
                 "ExitPoint module must declare at least one output",
@@ -329,6 +333,49 @@ class PipelineValidator:
                         "hint": "Register a handler with output_router.register_handler() or use create_output_router_with_json_schemas()"
                     },
                 )
+            # Cross-check the declared type against the producer channel's real
+            # type. With scalar handlers registered a mislabeled binding would
+            # otherwise write a falsely labelled manifest instead of failing.
+            # Channels whose producer type is unresolvable are skipped, not
+            # guessed.
+            producer_type = channel_types.get(binding.channel_name)
+            if producer_type is None:
+                continue
+            resolved_producer_type = self._unwrap_optional(producer_type)
+            producer_type_name = getattr(resolved_producer_type, "__name__", None)
+            if not isinstance(producer_type_name, str):
+                continue
+            self._validate_exit_output_type(
+                module.key,
+                field,
+                binding,
+                producer_type_name,
+            )
+
+    def _validate_exit_output_type(
+        self,
+        module_key: str,
+        field: str,
+        binding: PipelineChannelBinding,
+        producer_type_name: str,
+    ) -> None:
+        """Reject an ExitPoint declaration that conflicts with its producer type name."""
+        if binding.type_name == producer_type_name:
+            return
+
+        raise PipelineValidationError(
+            "ExitPoint output type does not match producer channel type",
+            module=module_key,
+            details={
+                "output": field,
+                "declared_type": binding.type_name,
+                "producer_type": producer_type_name,
+                "hint": (
+                    f"Declare the output as '{producer_type_name}' to match "
+                    f"channel '{binding.channel_name}'"
+                ),
+            },
+        )
 
     def _validate_outputs(self, module: PipelineModuleSpec, descriptor: ModuleDescriptor) -> None:
         expected = set(descriptor.outputs.keys())

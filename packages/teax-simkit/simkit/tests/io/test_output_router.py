@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import pytest
+from pydantic import RootModel
 
 from simkit.config import schema
 from simkit.config.pipeline_schema import ChannelSource, PipelineChannelBinding
@@ -459,3 +460,173 @@ def test_write_json_primitive_rejects_non_primitive(tmp_path: Path):
     path = tmp_path / "bad.json"
     with pytest.raises(TypeError, match="write_json_primitive expects"):
         writers.write_json_primitive({"key": "value"}, path)
+
+
+# --------------------------------------------------------------------------
+# Scalar contract: both channel shapes (bare + RootModel wrapper) and guards
+# --------------------------------------------------------------------------
+
+SCALAR_OUTPUT_CASES = (
+    ("float", 1.25, "1.25"),
+    ("int", 2, "2"),
+    ("str", "value", '"value"'),
+    ("bool", True, "true"),
+    ("RootModel[float]", RootModel[float](1.25), "1.25"),
+    ("RootModel[int]", RootModel[int](2), "2"),
+    ("RootModel[str]", RootModel[str]("value"), '"value"'),
+    ("RootModel[bool]", RootModel[bool](True), "true"),
+)
+
+
+@pytest.mark.parametrize(
+    ("scalar_type", "expected_name"),
+    (
+        (float, "RootModel[float]"),
+        (int, "RootModel[int]"),
+        (str, "RootModel[str]"),
+        (bool, "RootModel[bool]"),
+    ),
+)
+def test_scalar_root_model_names_are_stable(scalar_type: type, expected_name: str):
+    assert RootModel[scalar_type].__name__ == expected_name
+
+
+def test_default_router_writes_all_scalar_shapes_as_natural_json(tmp_path: Path):
+    router = create_default_router()
+    bindings = {}
+    values = {}
+
+    for index, (type_name, value, _) in enumerate(SCALAR_OUTPUT_CASES):
+        alias = f"scalar_{index}"
+        bindings[alias] = PipelineChannelBinding(
+            type_name=type_name,
+            channel_name=alias,
+            source=ChannelSource.MODULE,
+            destination_filename=f"{alias}.json",
+        )
+        values[alias] = value
+
+    result = router.write_outputs(
+        bindings,
+        values,
+        base_output_dir=tmp_path,
+        run_name="scalars",
+    )
+
+    for index, (_, _, expected_json) in enumerate(SCALAR_OUTPUT_CASES):
+        assert (result.run_dir / f"scalar_{index}.json").read_text() == expected_json
+
+    # Bare and RootModel-wrapped forms of the same value are byte-identical on disk.
+    for bare_index, wrapped_index in zip(range(4), range(4, 8)):
+        assert (result.run_dir / f"scalar_{bare_index}.json").read_bytes() == (
+            result.run_dir / f"scalar_{wrapped_index}.json"
+        ).read_bytes()
+
+
+@pytest.mark.parametrize(
+    ("type_name", "value"),
+    [(type_name, value) for type_name, value, _ in SCALAR_OUTPUT_CASES],
+)
+def test_default_scalar_handlers_require_json_extension(
+    tmp_path: Path,
+    type_name: str,
+    value: object,
+):
+    router = create_default_router()
+    bindings = {
+        "value": PipelineChannelBinding(
+            type_name=type_name,
+            channel_name="value",
+            source=ChannelSource.MODULE,
+            destination_filename="value.txt",
+        )
+    }
+
+    with pytest.raises(OutputRouterError, match="expected extension '.json'"):
+        router.write_outputs(bindings, {"value": value}, base_output_dir=tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("type_name", "value", "expected_json"),
+    (
+        ("float", 0.0, "0.0"),
+        ("int", 0, "0"),
+        ("str", "", '""'),
+        ("bool", False, "false"),
+    ),
+)
+def test_default_router_persists_falsy_scalars(
+    tmp_path: Path,
+    type_name: str,
+    value: object,
+    expected_json: str,
+):
+    router = create_default_router()
+    bindings = {
+        "value": PipelineChannelBinding(
+            type_name=type_name,
+            channel_name="value",
+            source=ChannelSource.MODULE,
+            destination_filename="value.json",
+        )
+    }
+
+    result = router.write_outputs(
+        bindings,
+        {"value": value},
+        base_output_dir=tmp_path,
+        run_name="falsy",
+    )
+
+    assert (result.run_dir / "value.json").read_text() == expected_json
+    assert result.manifest.artifacts[0].produced is True
+    assert result.manifest.artifacts[0].relative_path == "value.json"
+
+
+def test_custom_schema_convenience_registration_preserves_default_handlers():
+    router = create_output_router_with_json_schemas(
+        ["float", "RootModel[float]", "MockForecastSeries"],
+        include_builtins=True,
+    )
+
+    # Defaults win: bare scalar keeps the primitive writer, wrapper keeps the
+    # model writer, builtin keeps its dedicated writer.
+    assert router._type_handlers["float"].fn is writers.write_json_primitive
+    assert router._type_handlers["RootModel[float]"].fn is writers.write_json_model
+    assert (
+        router._type_handlers["MockForecastSeries"].fn
+        is writers.write_mock_forecast_series
+    )
+
+
+def test_register_handler_remains_a_deliberate_override():
+    router = create_default_router()
+    replacement = WriteHandler(fn=writers.write_json_model, extension=".custom")
+
+    router.register_handler("float", replacement)
+
+    assert router._type_handlers["float"] is replacement
+
+
+def test_custom_only_router_can_explicitly_register_wrapped_scalar(tmp_path: Path):
+    router = create_output_router_with_json_schemas(
+        ["RootModel[float]"],
+        include_builtins=False,
+    )
+    bindings = {
+        "value": PipelineChannelBinding(
+            type_name="RootModel[float]",
+            channel_name="value",
+            source=ChannelSource.MODULE,
+            destination_filename="value.json",
+        )
+    }
+
+    result = router.write_outputs(
+        bindings,
+        {"value": RootModel[float](1.25)},
+        base_output_dir=tmp_path,
+        run_name="wrapped",
+    )
+
+    assert (result.run_dir / "value.json").read_text() == "1.25"

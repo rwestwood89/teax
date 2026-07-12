@@ -1,0 +1,21 @@
+diff --git a/packages/teax-simkit/simkit/io/output_router.py b/packages/teax-simkit/simkit/io/output_router.py
+index 429c921..478eada 100644
+--- a/packages/teax-simkit/simkit/io/output_router.py
++++ b/packages/teax-simkit/simkit/io/output_router.py
+@@ -259,7 +259,16 @@ def create_default_router(*, in_memory: bool = False) -> OutputRouter:
+         type handlers via create_output_router_with_json_schemas() or by creating
+         a custom OutputRouter instance.
+     """
++    # SPIKE (exitpoint-persistence-contract): eight JSON-native default handlers
++    json_native_handler = WriteHandler(fn=writers.write_json_payload, extension=".json")
++    json_model_handler = WriteHandler(fn=writers.write_json_model, extension=".json")
+     handlers: MutableMapping[str, WriteHandler] = {
++        name: json_native_handler for name in ("float", "int", "str", "bool")
++    }
++    handlers |= {
++        f"RootModel[{name}]": json_model_handler for name in ("float", "int", "str", "bool")
++    }
++    handlers |= {
+         schema.FinancialResults.__name__: WriteHandler(fn=writers.write_json_model, extension=".json"),
+         schema.MockForecastSeries.__name__: WriteHandler(
+             fn=writers.write_mock_forecast_series,
