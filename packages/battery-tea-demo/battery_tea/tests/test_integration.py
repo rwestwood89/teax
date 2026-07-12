@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import RootModel
 
 from battery_tea import create_battery_registry, schemas
+from simkit.config import schema as simkit_schema
 
 
 class TestRegistryIntegration:
@@ -131,6 +133,11 @@ class TestPipelineExecution:
                 schemas.BatteryConfig,
                 schemas.BatteryTelemetry8760,
                 schemas.CostBreakdown,
+                schemas.RateInfoOutput,
+                schemas.BatteryConfigOutput,
+                schemas.BatteryTelemetry8760Output,
+                schemas.CostBreakdownOutput,
+                RootModel[simkit_schema.FinancialResults],
             ],
         )
 

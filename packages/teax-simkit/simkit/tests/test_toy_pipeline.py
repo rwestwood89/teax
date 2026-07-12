@@ -3,6 +3,7 @@
 These tests verify pipeline execution without any battery dependencies,
 ensuring the core framework can be tested in isolation.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,6 +21,7 @@ from simkit.tests.core.toy_modules import (
     ToyMultiOutputModule,
     ToyOutput,
 )
+from simkit.tests.core.toy_scalar_module import ToyScalarOutputModule
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 PIPELINE_CONFIGS_DIR = FIXTURES_DIR / "pipeline_configs"
@@ -28,7 +30,14 @@ PIPELINE_CONFIGS_DIR = FIXTURES_DIR / "pipeline_configs"
 @pytest.fixture
 def toy_registry():
     """Create registry with only ToyModules."""
-    return create_registry([ToyDoublerModule, ToyAdderModule, ToyMultiOutputModule])
+    return create_registry(
+        [
+            ToyDoublerModule,
+            ToyAdderModule,
+            ToyMultiOutputModule,
+            ToyScalarOutputModule,
+        ]
+    )
 
 
 @pytest.fixture
@@ -105,10 +114,26 @@ class TestToyMultiOutputModule:
         assert result.data.tripled.value == 30.0
 
 
+class TestToyScalarOutputModule:
+    """Unit tests for primitive fields in a multi-output container."""
+
+    def test_produces_all_four_supported_scalar_types(self):
+        module = ToyScalarOutputModule()
+
+        result = module.run(value=10.0)
+
+        assert result.data.floating == 2.5
+        assert result.data.integer == 10
+        assert result.data.text == "value:10"
+        assert result.data.flag is True
+
+
 class TestToyPipelineExecution:
     """E2E tests for ToyModule pipeline execution."""
 
-    def test_toy_linear_pipeline_in_memory(self, toy_registry, toy_output_router, tmp_path):
+    def test_toy_linear_pipeline_in_memory(
+        self, toy_registry, toy_output_router, tmp_path
+    ):
         """Execute toy_linear.yaml pipeline and verify outputs."""
         spec_path = PIPELINE_CONFIGS_DIR / "toy_linear.yaml"
 
@@ -128,7 +153,9 @@ class TestToyPipelineExecution:
         assert result.outputs["doubled"].root == 20.0
         assert result.outputs["added"].root == 42.0
 
-    def test_toy_pipeline_writes_output_files(self, toy_registry, toy_output_router, tmp_path):
+    def test_toy_pipeline_writes_output_files(
+        self, toy_registry, toy_output_router, tmp_path
+    ):
         """Verify pipeline writes JSON output files."""
         spec_path = PIPELINE_CONFIGS_DIR / "toy_linear.yaml"
 
@@ -141,7 +168,9 @@ class TestToyPipelineExecution:
         )
 
         # Check output files were created - use manifest.run_directory for the output path
-        output_dir = Path(result.manifest.base_output_dir) / result.manifest.run_directory
+        output_dir = (
+            Path(result.manifest.base_output_dir) / result.manifest.run_directory
+        )
         assert (output_dir / "doubled.json").exists()
         assert (output_dir / "added.json").exists()
 
@@ -173,3 +202,37 @@ class TestToyPipelineExecution:
         # Note: battery_tea may be loaded at pytest collection time
         # The key point is ToyModule tests don't REQUIRE it
         assert toy_registry.has("ToyDoublerModule")
+
+    def test_defaults_only_router_persists_bare_and_wrapped_scalars(
+        self,
+        toy_registry,
+        tmp_path,
+    ):
+        spec_path = PIPELINE_CONFIGS_DIR / "toy_scalar_outputs.yaml"
+
+        result = execute_pipeline(
+            spec_path=spec_path,
+            output_dir=tmp_path,
+            registry=toy_registry,
+            custom_schema_types=[ToyInput, RootModel[float]],
+        )
+
+        run_dir = Path(result.manifest.base_output_dir) / result.manifest.run_directory
+        expected_artifacts = {
+            "floating.json": "2.5",
+            "integer.json": "10",
+            "text.json": '"value:10"',
+            "flag.json": "true",
+            "wrapped.json": "20.0",
+        }
+        for filename, expected_json in expected_artifacts.items():
+            assert (run_dir / filename).read_text() == expected_json
+
+        assert {artifact.channel for artifact in result.manifest.artifacts} == {
+            "floating",
+            "integer",
+            "text",
+            "flag",
+            "wrapped",
+        }
+        assert all(artifact.produced for artifact in result.manifest.artifacts)

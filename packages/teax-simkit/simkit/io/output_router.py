@@ -1,4 +1,5 @@
 """Output routing infrastructure for ExitPoint artifacts."""
+
 from __future__ import annotations
 
 import uuid
@@ -9,6 +10,8 @@ from typing import Any, Callable, Dict, Mapping, MutableMapping
 from ..config import environment, schema
 from ..config.pipeline_schema import PipelineChannelBinding
 from . import writers
+
+_DEFAULT_SCALAR_TYPE_NAMES = ("float", "int", "str", "bool")
 
 
 class OutputRouterError(Exception):
@@ -76,8 +79,12 @@ class OutputRouter:
             )
 
         # Normal mode: validate and write to disk
-        resolution = environment.resolve_output_dir(preferred=base_output_dir, run_name=run_name)
-        run_dir, short_id = self._prepare_run_directory(resolution.base_dir, resolution.run_name)
+        resolution = environment.resolve_output_dir(
+            preferred=base_output_dir, run_name=run_name
+        )
+        run_dir, short_id = self._prepare_run_directory(
+            resolution.base_dir, resolution.run_name
+        )
 
         artifacts: list[schema.RunArtifactRecord] = []
         used_filenames: set[str] = set()
@@ -85,14 +92,20 @@ class OutputRouter:
         for alias, binding in exit_bindings.items():
             destination = binding.destination_filename
             if not destination:
-                raise OutputRouterError(f"ExitPoint binding '{alias}' is missing a destination filename")
+                raise OutputRouterError(
+                    f"ExitPoint binding '{alias}' is missing a destination filename"
+                )
             if destination in used_filenames:
-                raise OutputRouterError(f"Destination filename '{destination}' declared more than once")
+                raise OutputRouterError(
+                    f"Destination filename '{destination}' declared more than once"
+                )
             used_filenames.add(destination)
 
             type_name = binding.type_name
             if type_name is None:
-                raise OutputRouterError(f"ExitPoint binding '{alias}' is missing a type declaration")
+                raise OutputRouterError(
+                    f"ExitPoint binding '{alias}' is missing a type declaration"
+                )
 
             handler = self._type_handlers.get(type_name)
             if handler is None:
@@ -149,7 +162,9 @@ class OutputRouter:
         manifest_path = run_dir / "manifest.json"
         self._manifest_writer(manifest, manifest_path)
 
-        return OutputRouterResult(run_dir=run_dir, manifest=manifest, manifest_path=manifest_path)
+        return OutputRouterResult(
+            run_dir=run_dir, manifest=manifest, manifest_path=manifest_path
+        )
 
     def _collect_outputs_in_memory(
         self,
@@ -171,14 +186,20 @@ class OutputRouter:
         for alias, binding in exit_bindings.items():
             destination = binding.destination_filename
             if not destination:
-                raise OutputRouterError(f"ExitPoint binding '{alias}' is missing a destination filename")
+                raise OutputRouterError(
+                    f"ExitPoint binding '{alias}' is missing a destination filename"
+                )
             if destination in used_filenames:
-                raise OutputRouterError(f"Destination filename '{destination}' declared more than once")
+                raise OutputRouterError(
+                    f"Destination filename '{destination}' declared more than once"
+                )
             used_filenames.add(destination)
 
             type_name = binding.type_name
             if type_name is None:
-                raise OutputRouterError(f"ExitPoint binding '{alias}' is missing a type declaration")
+                raise OutputRouterError(
+                    f"ExitPoint binding '{alias}' is missing a type declaration"
+                )
 
             handler = self._type_handlers.get(type_name)
             if handler is None:
@@ -260,7 +281,23 @@ def create_default_router(*, in_memory: bool = False) -> OutputRouter:
         a custom OutputRouter instance.
     """
     handlers: MutableMapping[str, WriteHandler] = {
-        schema.FinancialResults.__name__: WriteHandler(fn=writers.write_json_model, extension=".json"),
+        **{
+            type_name: WriteHandler(
+                fn=writers.write_json_payload,
+                extension=".json",
+            )
+            for type_name in _DEFAULT_SCALAR_TYPE_NAMES
+        },
+        **{
+            f"RootModel[{type_name}]": WriteHandler(
+                fn=writers.write_json_model,
+                extension=".json",
+            )
+            for type_name in _DEFAULT_SCALAR_TYPE_NAMES
+        },
+        schema.FinancialResults.__name__: WriteHandler(
+            fn=writers.write_json_model, extension=".json"
+        ),
         schema.MockForecastSeries.__name__: WriteHandler(
             fn=writers.write_mock_forecast_series,
             extension=".json",
@@ -283,7 +320,9 @@ def create_output_router_with_json_schemas(
 
     This is a convenience function for external packages that want to register
     custom Pydantic schema types for ExitPoint persistence. All custom types
-    will use the standard JSON writer.
+    will use the standard JSON writer. When built-ins are included, an existing
+    default handler wins over a custom name collision; use register_handler()
+    for a deliberate override.
 
     Args:
         custom_schema_types: List of schema type names to register with JSON handlers.
@@ -324,7 +363,9 @@ def create_output_router_with_json_schemas(
     """
     # Check for duplicates
     if len(custom_schema_types) != len(set(custom_schema_types)):
-        duplicates = [t for t in custom_schema_types if custom_schema_types.count(t) > 1]
+        duplicates = [
+            t for t in custom_schema_types if custom_schema_types.count(t) > 1
+        ]
         raise ValueError(
             f"Duplicate schema types in custom_schema_types: {set(duplicates)}"
         )
@@ -338,6 +379,7 @@ def create_output_router_with_json_schemas(
     # Register custom types with JSON handler
     json_handler = WriteHandler(fn=writers.write_json_model, extension=".json")
     for type_name in custom_schema_types:
-        router.register_handler(type_name, json_handler)
+        if not router.has_handler(type_name):
+            router.register_handler(type_name, json_handler)
 
     return router

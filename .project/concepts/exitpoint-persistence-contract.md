@@ -65,7 +65,13 @@ generated packages running with no hand-written glue.
 1. **The boundary is closed over the interior.** Any shape the framework's
    own machinery can manufacture on a channel is a shape its default output
    path can persist; if the interior's shape set ever expands again, the
-   boundary contract is revisited in the same change.
+   boundary contract is revisited in the same change. One honesty note: the
+   interior's shape set is convention, not enforcement — the introspector
+   accepts whatever annotation a `MultiOutput` field carries
+   (`module_introspector.py:155-171`), so a `list[float]` field lands on a
+   channel today and still cannot exit. This contract closes the boundary
+   over the shapes codegen emits and the docs sanction. A `list`/`dict`
+   follow-up is plausible and would extend this same mechanism, not replace it.
 2. **Serialization knowledge lives with whoever defines the type.** The
    framework defines what channels may carry, so it owns writing JSON-native
    values. A domain package defines its named schemas, so it declares them.
@@ -194,12 +200,32 @@ T-1 validation failure, then T-2 `model_dump()` crash if forced past.
   produced/not-produced check is `payload is None`, not truthiness.
 - **Declared name vs. payload mismatch.** The router trusts the declared name
   and never inspects payloads — true for models today, true for primitives
-  after. Pre-existing looseness, explicitly unchanged.
+  after. ~~Pre-existing looseness, explicitly unchanged.~~ **Superseded at
+  design review (C1, owner-approved):** widening the handler set turns loud
+  scalar mislabels into silently mislabelled artifacts, so the design adds a
+  pre-run cross-check of each exit binding's declared type against its
+  producer channel's resolvable type (unresolvable producers are skipped).
+  The router itself still never inspects payloads.
 - **Custom-only routers.** `include_builtins=False` or a hand-built
   `OutputRouter` has no primitive handlers. Intentional (explicit replaces
   default), but the docs must say so — here "primitives just work" is false.
 - **Non-JSON-native scalars** (`bytes`, `Decimal`): not registered; validation
   fails with the existing actionable error, per Principle 3.
+- **`None` is the un-persistable JSON-native value.** The router treats
+  `payload is None` as "channel not produced" (`output_router.py:107`), so an
+  `Optional[float]` field that is legitimately `None` records
+  `produced: false` in the manifest instead of writing `null`. Pre-existing
+  semantics, kept — but it is a named exception to "every framework-produced
+  channel value persists," and the docs must state it.
+- **Reserved names can be shadowed.** Nothing stops a custom schema class
+  whose `__name__` is literally `float` (legal Python); via the auto-router
+  path it would silently override the primitive handler with
+  `write_json_model` and resurrect the T-2 crash. Spec-stage decision: reject
+  custom schema types whose names collide with the eight reserved names.
+- **The boundary is closed at exit only.** A bare-scalar JSON input still
+  cannot load at the EntryPoint (a non-goal here); the docs should name the
+  asymmetry in one line so nobody reads "primitives just work" as covering
+  entry.
 
 ## Vocabulary
 
@@ -221,22 +247,39 @@ T-1 validation failure, then T-2 `model_dump()` crash if forced past.
   workaround from `run_anchors.py` and reproduces anchor outputs using a
   *generated* package — a hand-written fixture would not prove the boundary
   is closed (backlog ticket's validation note).
+  **Already demonstrated by the 2026-07-10 spike** (see Next-Stage Handoff):
+  with the eight-handler edit alone and the workaround deleted, all 13
+  fusion-tea anchor checks pass and artifacts are byte-identical. The
+  remaining acceptance work is committing the change and landing the
+  workaround deletion in fusion-tea, not proving feasibility.
 
 ## Next-Stage Handoff
 
 **Settled here:** the contract statement, the eight default names, handler
 choice (`write_json_payload` / `write_json_model`), ownership split, and that
 explicit routers / `include_builtins=False` exclude primitives.
+**Sufficiency is spike-confirmed** (2026-07-10): with the eight-handler edit
+alone and the router workaround deleted, all 13 fusion-tea anchor checks pass,
+persisted artifacts are byte-identical to the workaround run, falsy scalars
+persist, and the teax suite has zero new failures. T-1 reproduced exactly as
+described before the edit. Full log and reproduction:
+`.project/active/spike-exitpoint-default-primitives/findings.md`.
 
 **Spec detail still needed:** exact test list; doc edits
 (`docs/rootmodel-and-primitives.md` gains an ExitPoint section; `CLAUDE.md`
-error table updated); whether `JSON_NATIVE_TYPE_NAMES` is public API.
+error table updated; docs state the `None`/`Optional` exception and the
+exit-only asymmetry); whether `JSON_NATIVE_TYPE_NAMES` is public API; whether
+custom schema names colliding with the eight reserved names are rejected
+(recommended) or allowed to override.
 
-**First risk to de-risk:** the fusion-tea anchor reproduction — run it first,
-`/_my_spike`-style: generated package + defaults-only router, diff anchors.
 **Follow-up (separate sysml-codegen ticket):** with wrapped names
 default-registered, `_collect_exit_point_primitive_types()` and generated
-`primitives.py` exit plumbing become removable.
+`primitives.py` exit plumbing become removable. **Scope it to exit-only:**
+`CUSTOM_SCHEMA_TYPES` also feeds entry loaders and field-reference resolution
+(`pipeline_validator.py:117-136`) — this contract replaces only the exit-router
+role, and the spike did not test the removal. If codegen ever emits a
+`RootModel`-typed entry artifact, the wrappers become load-bearing again on
+the entry side.
 
 ## Summary
 

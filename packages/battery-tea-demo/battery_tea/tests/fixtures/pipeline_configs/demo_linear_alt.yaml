@@ -51,8 +51,8 @@ modules:
   exit_point:
     module_type: ExitPoint
     outputs:
-      rate_info: RateInfo rate_info.root.json
-      battery_config: BatteryConfig battery_config.root.json
-      cost_breakdown: CostBreakdown cost_breakdown.root.json
-      telemetry: BatteryTelemetry8760 telemetry.root.json
-      financial_results: FinancialResults financial_results.root.json
+      rate_info: RootModel[RateInfo] rate_info.root.json
+      battery_config: RootModel[BatteryConfig] battery_config.root.json
+      cost_breakdown: RootModel[CostBreakdown] cost_breakdown.root.json
+      telemetry: RootModel[BatteryTelemetry8760] telemetry.root.json
+      financial_results: RootModel[FinancialResults] financial_results.root.json

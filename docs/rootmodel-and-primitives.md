@@ -269,6 +269,46 @@ registry.register("MyModule", ModuleDescriptor(
 registry = create_registry([MyModule])  # Handles this automatically
 ```
 
+## Persisting Results at the ExitPoint
+
+The default output router writes these channel types to JSON without consumer registration:
+
+- Bare `float`, `int`, `str`, and `bool` values from multi-output modules.
+- `RootModel[float]`, `RootModel[int]`, `RootModel[str]`, and `RootModel[bool]` values from single-output modules.
+
+Both forms use the natural JSON representation. For example, a bare `float` and a
+`RootModel[float]` containing `1.25` both produce a file containing `1.25`.
+
+Declare the shape that is actually stored on the channel:
+
+```yaml
+exit:
+  module_type: ExitPoint
+  outputs:
+    efficiency: float efficiency.json
+    total_power: RootModel[float] total_power.json
+```
+
+ExitPoint validation compares each declared type with the producer's resolvable channel
+type. A bare/wrapped mismatch, or a declaration such as `bool` for a `float` channel,
+fails before any module runs.
+
+Named domain models still need `custom_schema_types` so TEAx can register their JSON
+writer. Other payloads and formats need an explicit `OutputRouter` handler.
+
+The boundary has these limits:
+
+- Passing an explicit `output_router` replaces the default router. That router owns its
+  complete handler set.
+- `create_output_router_with_json_schemas(..., include_builtins=False)` does not add the
+  scalar handlers automatically. `register_handler()` is the deliberate override API.
+- `None` means the channel was not produced. The manifest records `produced: false`, and
+  TEAx does not write JSON `null`. Other falsy scalar values are written normally.
+- `list`, `dict`, `bytes`, `Decimal`, and other unregistered values are not default
+  outputs.
+- This contract is ExitPoint-only. EntryPoint cannot load a bare scalar artifact by
+  default.
+
 ## Best Practices
 
 1. **Prefer auto-introspection** - Use `create_registry([YourModule])`

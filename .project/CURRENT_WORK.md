@@ -1,29 +1,40 @@
 # Current Work
 
-**Last Updated**: [DATE]
+**Last Updated**: 2026-07-11
 
 ---
 
 ## Active Work
 
-### [Item/Epic Name]
+### ExitPoint persistence contract for JSON-native values
 
-**Status**: [Not Started | In Progress | Blocked | In Review]
-**Epic**: [Link to epic in backlog/ if applicable]
-**Started**: [DATE]
+**Status**: Certified (2026-07-12) — pre-PR fusion-tea verification pending
+**Epic**: none (from `.project/backlog/teax-primitive-output-contract.md`)
+**Started**: 2026-07-10
 
-**Objective**: [One sentence describing what this accomplishes]
+**Objective**: Make TEAx's default output path persist bare and wrapped
+JSON-native scalars so generated packages run with no hand-built router.
 
-**Current Phase**: [Which phase of the plan]
+**Current Phase**: Implementation complete
 
 **Tasks**:
-- [ ] Task 1
-- [ ] Task 2
-- [ ] Task 3
+- [x] Concept (`.project/concepts/exitpoint-persistence-contract.md`) + example
+- [x] Spike: fusion-tea anchor reproduction with defaults-only router —
+      confirmed (`.project/active/spike-exitpoint-default-primitives/findings.md`)
+- [x] Spec (`.project/active/exitpoint-persistence-contract/spec.md`)
+- [x] Design + review resolved (`design.md` rev 2, `design-review.md`) —
+      C1 folded in (exit type cross-check), M5 resolved by spec amendment
+- [x] Implement → docs (`docs/rootmodel-and-primitives.md`, `CLAUDE.md`)
+- [x] Audit implementation against the spec (`audit.md` — Certify)
+- [ ] Pre-PR: rerun the fusion-tea workaround-free anchor reproduction
 
-**Blockers**: [None | Description of blockers]
+**Validation**: 201 functional tests pass. Full suite: 208 passed, 4 known
+hard-coded-path failures in `test_no_battery_deps.py` (`/home/reid/teax` does
+not exist in this checkout).
 
-**Location**: `.project/active/[item_name]/`
+**Blockers**: None
+
+**Location**: `.project/active/exitpoint-persistence-contract/`
 
 ---
 
@@ -38,9 +49,9 @@
 
 ## Up Next
 
-1. [Next priority item from backlog]
-2. [Following item]
-3. [Future consideration]
+1. Run `$my-audit` for `exitpoint-persistence-contract`.
+2. Run `$my-pre-pr`, including the fusion-tea reproduction from the spike.
+3. Close the work item after certification.
 
 ---
 

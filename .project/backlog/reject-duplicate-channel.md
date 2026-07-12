@@ -1,11 +1,4 @@
-# TEAx Backlog
-
-Rolling backlog for small tickets. Larger designs get their own file under
-`.project/backlog/` or `.project/concepts/`.
-
----
-
-## Ticket: Reject Duplicate Channel Producers in Pipeline Validation
+# Ticket: Reject Duplicate Channel Producers in Pipeline Validation
 
 **Created:** 2026-07-10
 **Priority:** Medium (silent-wrong-answer class, but requires a config error to trigger)

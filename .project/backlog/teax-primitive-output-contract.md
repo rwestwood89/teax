@@ -3,7 +3,7 @@
 **Created:** 2026-07-10 09:31 PDT
 **Priority:** High
 **Type:** Design / Bug
-**Status:** Open
+**Status:** Certified (audit 2026-07-12) — pre-PR fusion-tea verification pending
 
 ## Overview
 

@@ -1,4 +1,5 @@
 """Validation utilities tying pipeline specs to registry metadata."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -21,7 +22,12 @@ if TYPE_CHECKING:
 class PipelineValidationError(Exception):
     """Raised when a pipeline specification fails validation."""
 
-    def __init__(self, message: str, module: str | None = None, details: Dict[str, object] | None = None):
+    def __init__(
+        self,
+        message: str,
+        module: str | None = None,
+        details: Dict[str, object] | None = None,
+    ):
         super().__init__(message)
         self.module = module
         self.details = details or {}
@@ -66,11 +72,15 @@ class PipelineValidator:
             if module.is_entry:
                 continue
             if module.is_exit:
-                self._validate_exit_module(module)
+                self._validate_exit_module(module, channel_types)
                 continue
             descriptor = self._resolve_descriptor(module)
-            self._validate_outputs(module, descriptor)  # Make sure 1:1 mapping for output fields and types between registry and yaml
-            self._validate_inputs(module, descriptor, channel_types)  # NEW: pass channel_types
+            self._validate_outputs(
+                module, descriptor
+            )  # Make sure 1:1 mapping for output fields and types between registry and yaml
+            self._validate_inputs(
+                module, descriptor, channel_types
+            )  # NEW: pass channel_types
         try:
             graph = self._builder.build(spec)
         except PipelineGraphError as exc:
@@ -174,7 +184,10 @@ class PipelineValidator:
 
         # Handle both typing.Union and types.UnionType (Python 3.10+)
         is_union = False
-        if hasattr(type_annotation, "__origin__") and type_annotation.__origin__ is typing.Union:
+        if (
+            hasattr(type_annotation, "__origin__")
+            and type_annotation.__origin__ is typing.Union
+        ):
             is_union = True
         elif isinstance(type_annotation, types.UnionType):
             is_union = True
@@ -235,7 +248,9 @@ class PipelineValidator:
 
         # 3. Check field exists in parent type
         if binding.field_path not in parent_channel_type.model_fields:
-            available_fields = ", ".join(sorted(parent_channel_type.model_fields.keys()))
+            available_fields = ", ".join(
+                sorted(parent_channel_type.model_fields.keys())
+            )
             raise PipelineValidationError(
                 f"Module '{module_key}' input '{field_name}': "
                 f"Type '{parent_type_name}' has no field '{binding.field_path}'. "
@@ -282,7 +297,11 @@ class PipelineValidator:
             )
         return self._registry.get(module_type)
 
-    def _validate_exit_module(self, module: PipelineModuleSpec) -> None:
+    def _validate_exit_module(
+        self,
+        module: PipelineModuleSpec,
+        channel_types: Dict[str, type],
+    ) -> None:
         if not module.outputs:
             raise PipelineValidationError(
                 "ExitPoint module must declare at least one output",
@@ -323,11 +342,51 @@ class PipelineValidator:
                     details={
                         "output": field,
                         "type": type_name,
-                        "hint": "Register a handler with output_router.register_handler() or use create_output_router_with_json_schemas()"
+                        "hint": "Register a handler with output_router.register_handler() or use create_output_router_with_json_schemas()",
                     },
                 )
+            producer_type = channel_types.get(binding.channel_name)
+            if producer_type is None:
+                continue
+            resolved_producer_type = self._unwrap_optional(producer_type)
+            producer_type_name = getattr(resolved_producer_type, "__name__", None)
+            if not isinstance(producer_type_name, str):
+                continue
+            self._validate_exit_output_type(
+                module.key,
+                field,
+                binding,
+                producer_type_name,
+            )
 
-    def _validate_outputs(self, module: PipelineModuleSpec, descriptor: ModuleDescriptor) -> None:
+    def _validate_exit_output_type(
+        self,
+        module_key: str,
+        field: str,
+        binding: PipelineChannelBinding,
+        producer_type_name: str,
+    ) -> None:
+        """Reject an ExitPoint declaration that conflicts with its producer type name."""
+        if binding.type_name == producer_type_name:
+            return
+
+        raise PipelineValidationError(
+            "ExitPoint output type does not match producer channel type",
+            module=module_key,
+            details={
+                "output": field,
+                "declared_type": binding.type_name,
+                "producer_type": producer_type_name,
+                "hint": (
+                    f"Declare the output as '{producer_type_name}' to match "
+                    f"channel '{binding.channel_name}'"
+                ),
+            },
+        )
+
+    def _validate_outputs(
+        self, module: PipelineModuleSpec, descriptor: ModuleDescriptor
+    ) -> None:
         expected = set(descriptor.outputs.keys())
         actual = set(module.outputs.keys())
         if expected != actual:
@@ -347,7 +406,9 @@ class PipelineValidator:
         channel_types: Dict[str, type],  # NEW parameter
     ) -> None:
         """Validate module inputs against descriptor metadata."""
-        expected_inputs = set(descriptor.required_inputs) | set(descriptor.optional_inputs)
+        expected_inputs = set(descriptor.required_inputs) | set(
+            descriptor.optional_inputs
+        )
         actual_inputs = set(module.inputs.keys())
         missing_required = set(descriptor.required_inputs) - actual_inputs
         if missing_required:
@@ -373,10 +434,9 @@ class PipelineValidator:
             )
 
         for field, binding in module.inputs.items():
-            expected_type = (
-                descriptor.required_inputs.get(field)
-                or descriptor.optional_inputs.get(field)
-            )
+            expected_type = descriptor.required_inputs.get(
+                field
+            ) or descriptor.optional_inputs.get(field)
             if expected_type is None:
                 continue  # already handled unknown inputs
             if binding.source is ChannelSource.DEFAULT:
@@ -424,5 +484,9 @@ class PipelineValidator:
                 f"{binding_kind.capitalize()} '{field}' expects type {expected_name}, "
                 f"but binding declares {binding.type_name}",
                 module=module_key,
-                details={"field": field, "expected": expected_name, "declared": binding.type_name},
+                details={
+                    "field": field,
+                    "expected": expected_name,
+                    "declared": binding.type_name,
+                },
             )
