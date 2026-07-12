@@ -269,12 +269,19 @@ def create_default_router(*, in_memory: bool = False) -> OutputRouter:
             fn=writers.write_sync_guidance_series,
             extension=".json",
         ),
-        # Bare primitive types -- enables ExitPoint serialization of float/int/str/bool
-        "float": WriteHandler(fn=writers.write_json_primitive, extension=".json"),
-        "int": WriteHandler(fn=writers.write_json_primitive, extension=".json"),
-        "str": WriteHandler(fn=writers.write_json_primitive, extension=".json"),
-        "bool": WriteHandler(fn=writers.write_json_primitive, extension=".json"),
     }
+    # JSON-native scalars, both channel shapes, keyed off the shared constant so
+    # the exit contract cannot drift from the entry loaders. Bare values arrive
+    # from multi-output decomposition (write_json_primitive); RootModel wrappers
+    # arrive from single-output modules (write_json_model). The two produce
+    # byte-identical JSON for the same scalar, so on-disk output is shape-blind.
+    for type_name in schema.PRIMITIVE_TYPES:
+        handlers[type_name] = WriteHandler(
+            fn=writers.write_json_primitive, extension=".json"
+        )
+        handlers[f"RootModel[{type_name}]"] = WriteHandler(
+            fn=writers.write_json_model, extension=".json"
+        )
     return OutputRouter(type_handlers=handlers, in_memory=in_memory)
 
 
@@ -288,7 +295,10 @@ def create_output_router_with_json_schemas(
 
     This is a convenience function for external packages that want to register
     custom Pydantic schema types for ExitPoint persistence. All custom types
-    will use the standard JSON writer.
+    will use the standard JSON writer. When built-ins are included, an existing
+    default handler wins over a custom name collision (so a custom type named
+    "float" cannot silently replace the primitive writer); use
+    register_handler() for a deliberate override.
 
     Args:
         custom_schema_types: List of schema type names to register with JSON handlers.
@@ -340,9 +350,12 @@ def create_output_router_with_json_schemas(
     else:
         router = OutputRouter(type_handlers={}, in_memory=in_memory)
 
-    # Register custom types with JSON handler
+    # Register custom types with JSON handler. Defaults win: never replace a
+    # handler the default router already supplied (register_handler() remains
+    # the deliberate override).
     json_handler = WriteHandler(fn=writers.write_json_model, extension=".json")
     for type_name in custom_schema_types:
-        router.register_handler(type_name, json_handler)
+        if not router.has_handler(type_name):
+            router.register_handler(type_name, json_handler)
 
     return router

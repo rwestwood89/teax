@@ -535,3 +535,43 @@ modules:
                 str(tmp_path / "outputs"),
                 custom_schema_types=[CustomParamsA],  # Missing CustomParamsB!
             )
+
+
+class TestPrimitiveSingleSourceOfTruth:
+    """schema.PRIMITIVE_TYPES is the one list feeding entry loaders, the resolver,
+    the writer allowlist, and the exit handler names. These lock the linkage so a
+    change to PRIMITIVE_TYPES cannot leave a consumer behind."""
+
+    def test_entry_loaders_cover_every_primitive_type(self):
+        for primitive in schema.PRIMITIVE_TYPES.values():
+            assert primitive in _BUILTIN_ENTRY_LOADERS, (
+                f"{primitive.__name__} is in PRIMITIVE_TYPES but has no entry loader"
+            )
+
+    def test_entry_loaders_bind_their_own_type(self, tmp_path):
+        # Guards against a loop-capture bug: each derived loader must enforce its
+        # own type, not the last one bound. JSON `true` must load as bool and be
+        # rejected as int.
+        bool_file = tmp_path / "b.json"
+        bool_file.write_text("true", encoding="utf-8")
+        assert _BUILTIN_ENTRY_LOADERS[bool](bool_file) is True
+        with pytest.raises(TypeError):
+            _BUILTIN_ENTRY_LOADERS[int](bool_file)
+
+    def test_default_router_has_bare_and_wrapped_handler_for_every_primitive(self):
+        from simkit.io.output_router import create_default_router
+
+        router = create_default_router()
+        for name in schema.PRIMITIVE_TYPES:
+            assert router.has_handler(name), f"missing bare handler for '{name}'"
+            assert router.has_handler(
+                f"RootModel[{name}]"
+            ), f"missing wrapper handler for 'RootModel[{name}]'"
+
+    def test_writer_accepts_exactly_the_primitive_types(self, tmp_path):
+        from simkit.io.writers import write_json_primitive
+
+        for index, primitive in enumerate(schema.PRIMITIVE_TYPES.values()):
+            write_json_primitive(primitive(), tmp_path / f"{index}.json")  # no raise
+        with pytest.raises(TypeError, match="write_json_primitive expects"):
+            write_json_primitive({"not": "primitive"}, tmp_path / "bad.json")

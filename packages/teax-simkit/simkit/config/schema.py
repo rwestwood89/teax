@@ -44,6 +44,19 @@ from pydantic import (
 from . import time_utils
 
 
+# Single source of truth for the JSON-native scalar types the framework
+# persists and loads by default. Consumed by the output router (exit handler
+# names, bare and RootModel-wrapped) and the pipeline executor (entry loaders,
+# schema-type registry, type resolution). Lives here in config so both the io
+# and core layers can import it without an io->core dependency cycle.
+PRIMITIVE_TYPES: Dict[str, type] = {
+    "float": float,
+    "int": int,
+    "str": str,
+    "bool": bool,
+}
+
+
 class StrictBaseModel(BaseModel):
     """Base model enforcing immutable, validated data."""
 
