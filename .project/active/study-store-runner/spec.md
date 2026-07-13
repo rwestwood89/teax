@@ -100,6 +100,19 @@ left open to the owner and marked `[RESERVED]`.
 - **[INHERITED]** **Three-layer identity:** `proposal_id` (raw strategy output),
   `candidate_id` (the validated logical evaluation), `attempt_id` (one execution try), with
   idempotency scoped to `(study_id, candidate_id)`. (concept "Study Layer".)
+- **[HARD]** **Grid proposal order is row-major over the declared variable order, and
+  documented as such.** A grid enumerates the domain product deterministically — never backed by
+  a set or hash-ordered structure — so the same grid definition emits a byte-stable proposal
+  sequence across two fresh processes. This is the property positional minting rests on, and it
+  gets an **independent determinism pin** (same grid → identical proposal sequence across two
+  processes), not only the list-only composite resume test. (L3-2; the replay property S7 must
+  establish for adaptive strategies, guaranteed here for grids.)
+- **[HARD]** **`proposal_id` is deterministic across resume, and re-persisting a proposal is
+  idempotent.** On resume the runner re-proposes every proposal in order — including invalid
+  ones (S6's `p0003`, `x=999`) — and each must re-persist as the *same* append-only
+  `ProposalRecord` exactly once (positional `proposal_id`, idempotent insert). Otherwise a
+  resumed run risks duplicate proposal records or a non-reproducible proposals table. (L3-3;
+  S6 `record_proposal` uses `INSERT OR IGNORE`.)
 
 ### `StudyStore`
 
@@ -115,10 +128,14 @@ left open to the owner and marked `[RESERVED]`.
 - **[HARD]** `UNIQUE(study_id, candidate_id)` on the cases table enforces no-double-commit
   structurally, backed operationally by resume skipping any candidate that already has a
   committed case. (S6, kept invariant.)
-- **[INHERITED]** Committed cases and attempt history are **append-only**; controlled mutable
-  operational state (e.g. cursors) is kept **separate** from them. The probe derives resume
-  position from committed cases and needs no cursor — confirm whether production keeps that
-  property or introduces a cursor. (concept "Study Layer"; S6 open follow-up.)
+- **[INHERITED]** Committed cases are **append-only**, and attempt history is **append-only
+  across attempts** — a superseded attempt (e.g. a crashed `a1`) is never erased when `a2`
+  supersedes it. Whether a *single* attempt's row is mutated in place is the `[RESERVED]`
+  granularity question below, not something this line settles. Controlled mutable operational
+  state (e.g. cursors, the runner lease) is kept **separate** from case and attempt history.
+  The probe derives resume position from committed cases and needs no cursor — confirm whether
+  production keeps that property or introduces a cursor. (concept "Study Layer"; S6 open
+  follow-up.)
 - **[HARD]** **Content-addressed artifact staging protocol:** write to a staging tmp → `fsync`
   the file → atomic rename to the content-addressed final path → `fsync` the directory → then
   a **single DB transaction** inserts the case row referencing the durable digest. Database and
@@ -128,6 +145,17 @@ left open to the owner and marked `[RESERVED]`.
   addressed path is always complete, because the final path only ever appears via an atomic
   rename of a fully-`fsync`'d tmp; staging dedup may therefore trust `exists()` at the final
   path. State this in the store contract. (S6 carry-forward (3).)
+- **[INFERRED]** **Single-writer discipline is a store contract** (orchestrator agent-grade
+  decision, ratified for this spec). At most one active runner holds a study at a time,
+  enforced through a **runner lease** kept in the store's operational state; opening a second
+  runner against a live lease fails. This is the precondition that makes the GC safety rule
+  below sound — parallel workers stay deferred with S7 (Non-Goals). Mechanism (lease shape,
+  liveness/expiry) is design's.
+- **[INFERRED]** **In-flight staging tmp files carry the owning lease and attempt identity**,
+  so a crashed orphan is distinguishable by a **dead lease**, not by hash absence alone. A live
+  runner's half-written tmp and a crashed orphan's truncated tmp are byte-indistinguishable
+  under content hashing (neither hashes to a referenced digest); the lease identity is what
+  tells them apart. (Closes the L2-1 GC-vs-live-runner race.)
 - **[INHERITED]** A reader never sees a committed case pointing at a missing or half-written
   artifact. (concept Required Invariant "a committed case never references half-written
   artifacts".)
@@ -158,12 +186,27 @@ left open to the owner and marked `[RESERVED]`.
   the entry source only refuses a missing/extra/wrong-channel model). The bridge maps a
   validated candidate's selected fields onto the entry channel's model. (Item 0 findings;
   `entry_source.py` docstring, Shape A.)
+- **[INHERITED]** **A wrong-type input names expected and got** — this diagnostic is required
+  behavior, "the study layer's first line of defense," not probe detail. Item 10's entry source
+  already produces it verbatim (`entry_source.py:56-66`: "expects `{expected}`, got `{got}`"),
+  so Item 11 **relies on Item 10's diagnostic as-is** and must not wrap or degrade it. (S5
+  carry-forward (3), concept Appendix B.)
+- **[HARD]** **A bridge-produced invalid typed input is a runner defect, surfaced loudly — never
+  an ordinary `execution_failed` case.** Because the bridge is Item 11 code, an
+  `EvaluationFailed(phase=ENTRY_VALIDATION)` means the runner built a wrong-type or
+  wrong/missing/extra-channel entry model — a programming error, not a legitimate execution
+  failure of a well-formed candidate. It must fail loud with its own outcome and never be
+  persisted as a normal study result. (Item 0 findings; `entry_source.py:47-66` raises
+  `ENTRY_VALIDATION`; distinct from the terminal `execution_failed` routing below.)
 - **[HARD]** **Evaluator failures surface as Item 10's `EvaluationFailed` / `EvaluationFailure`**
   (phase, cause, module-or-channel when known, `retryable`, partial-artifact status). The
-  evaluator is deterministic and never sets `retryable=True`, so an evaluator failure is
-  **terminal → an `execution_failed` case**. Retryable events are infrastructure/persistence
-  failures the runner owns, retried under a new `attempt_id`. (`simkit/evaluation/failure.py`;
-  concept "persistence fails … a retryable phase-tagged event, replay from the last commit".)
+  evaluator is deterministic and never sets `retryable=True`, so a genuine evaluation failure of
+  a well-formed candidate — a `MODULE_EXECUTION` or `OUTPUT_WRITE` phase failure — is
+  **terminal → an `execution_failed` case**. An `ENTRY_VALIDATION` failure is *excluded* from
+  this routing: it is a bridge defect, handled by the runner-defect requirement above. Retryable
+  events are infrastructure/persistence failures the runner owns, retried under a new
+  `attempt_id`. (`simkit/evaluation/failure.py` `EvaluationPhase`; concept "persistence fails …
+  a retryable phase-tagged event, replay from the last commit".)
 - **[INHERITED]** **A retry runs under a new `attempt_id`, same `candidate_id`;** failed
   attempts are preserved and a candidate commits at most one case. (concept idempotency; S6.)
 - **[INHERITED]** **Three case states — `completed`, `execution_failed`, `assessment_failed` —
@@ -197,6 +240,16 @@ left open to the owner and marked `[RESERVED]`.
 - **[INHERITED]** **Safe GC collects only artifacts unreferenced by any committed case.**
   Content-addressed artifacts may be shared by replicates, so collection is by "unreferenced by
   any committed case," **never by attempt**. (S6 findings, GC follow-up; epic Item 11 §5.)
+- **[INFERRED]** **GC refuses to run while a runner lease is live** (single-writer contract
+  above); it runs only against a store no active runner holds, or reaps a crashed runner's
+  orphans identified by that runner's dead lease. This is the unstated precondition the
+  "collects exactly S6's orphan garbage" criterion depends on. (Closes L2-1.)
+- **[INFERRED]** **The GC reference set is defined across all three case states.** A
+  `completed` case references its evidence digest; an `assessment_failed` case preserves real
+  evidence and so references a digest too; an `execution_failed` case produced no evidence and
+  carries a **null artifact reference**. The referenced set is the union of the non-null digests
+  across all committed cases, with a replicate-shared digest counted once — so GC never collects
+  an artifact a committed replicate still points at. (L3-5.)
 - **[INHERITED]** **The durability boundary is stated in docs: `fsync`-before-return.** The
   protocol survives a killed process; it does **not** claim power-loss or disk-cache-loss
   safety. (S6 bounds of claim.)
@@ -206,11 +259,21 @@ left open to the owner and marked `[RESERVED]`.
 - **[INHERITED]** S6's three regimes are **CI-runnable kept tests** — crash-before-commit,
   crash-mid-staging, and resume-identical — using real `os._exit` child-process deaths and a
   fresh-process resume against the same DB and artifact directory. (epic Item 11 §6; brief.)
-- **[HARD]** These crash tests run against the **real Item 10 evaluator**, not only the fake.
-  Item 0 proved the seam holds and drove three verdict classes plus crash-before-commit against
-  the real package; `execution_failed`, `assessment_failed`, zero-assertion, and the
-  `mid_staging` phase against the real evaluator were **not** exercised there and must be
-  covered here. (Item 0 "Not exercised" note; brief.)
+- **[HARD]** **The crash seams are runner/store-owned test affordances, downstream of the
+  evaluator.** In S6 both seams sit after `evaluate()` returns evidence — `mid_staging` (tmp
+  fsync'd, final path absent) and `before_commit` (artifact durable, case row not yet committed)
+  live in the staging/commit path, not inside `evaluate()`. The certified Item 10 evaluator runs
+  to completion and is never modified (Non-Goals); the real evaluator changes *what evidence is
+  staged*, not *where the seams sit*. (S6 `study_lifecycle.py` staging path; `simkit/evaluation/`
+  is consumed as-is.)
+- **[HARD]** These crash tests run against the **real Item 10 evaluator**, driven over the
+  committed in-repo sealed-package fixture
+  `packages/teax-simkit/simkit/tests/evaluation/fixtures/sealed_package/package_live`, so
+  "CI-runnable against the real evaluator" is grounded in teax's own pytest, not Item 0's
+  cross-repo venv. Item 0 proved the seam holds and drove three verdict classes plus
+  crash-before-commit against the real package; `execution_failed`, `assessment_failed`,
+  zero-assertion, and the `mid_staging` phase against the real evaluator were **not** exercised
+  there and must be covered here. (Item 0 "Not exercised" note; brief.)
 
 ### Attempt-history record granularity — `[RESERVED: owner decision at design]`
 
@@ -262,8 +325,10 @@ does not pick one.
   with Item 12.
 - **Retry limit and backoff** for infrastructure-retryable failures (S6 used a fixed limit of
   3, no backoff).
-- **GC trigger** — a manual operation, an on-open sweep, both — and how retention policy
-  interacts with GC.
+- **GC trigger and lease/lock mechanism** — within the single-writer-plus-no-live-lease
+  constraint fixed above, whether GC is a manual operation, an on-open sweep, or both; the exact
+  lease shape, liveness/expiry, and orphan-reaping rule; and how retention policy interacts with
+  GC.
 - **Confirming the compatibility fingerprint set is exactly the fields that start a new
   lineage**, and pinning the `strategy_config` canonicalization form. (S6 open follow-up.)
 
