@@ -8,6 +8,8 @@ The repository contains two packages in `packages/`:
 - `simkit/core/` - Pipeline orchestration, module base classes, registry
 - `simkit/config/` - Generic schemas, pipeline configuration
 - `simkit/io/` - I/O adapters and serializers
+- `simkit/evaluation/` - Sealed-package loading and single-case evaluation (see `docs/evaluation-and-study.md`)
+- `simkit/study/` - Grid search over an evaluator, crash-safe persistence, `teax-study` CLI (see `docs/evaluation-and-study.md`)
 - `simkit/tests/` - Framework tests
 
 **battery-tea-demo** (`packages/battery-tea-demo/battery_tea/`): Example implementation

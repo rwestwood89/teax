@@ -320,10 +320,23 @@ Run tests before PRs: `pytest` (runs both packages from root)
 4. **Provenance**: Config hashes, module versions, run metadata persisted with outputs
 5. **Environment integration**: `.env` loaded before pipeline execution; `PYRONDO_INPUT_DIR` for input resolution
 
+## Evaluation and Study Layers
+
+`packages/teax-simkit/simkit/evaluation/` loads one sealed, sysml-codegen-generated
+package and runs one case through it, producing an immutable `ModelEvidence` record.
+`packages/teax-simkit/simkit/study/` drives many cases through an evaluator — proposing
+candidates, assessing their evidence, and persisting results crash-safely — and exposes
+a `teax-study` console entry point (`create | run | resume | inspect`). See
+`docs/evaluation-and-study.md` for the architecture: package seal verification, the two
+evaluator backends, the failure taxonomy, and how a `tracking_key` correlates a
+constraint by name across model versions (never by identity — a `constraint_id` is
+scoped to one executable fingerprint).
+
 ## Important Files for Context
 
 - `tea_simulation_design_doc.md`: Overall design philosophy and patterns
 - `sim_demo_plan.md`: Async pipeline demo plan (module contracts, acceptance criteria)
+- `docs/evaluation-and-study.md`: Evaluation and study layer architecture
 - `AGENTS.md`: Existing repository guidelines (superset of this file)
 
 ## Custom Module Development Pattern

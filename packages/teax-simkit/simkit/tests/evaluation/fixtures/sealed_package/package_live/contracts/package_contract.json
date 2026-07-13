@@ -3,6 +3,7 @@
     "__init__.py": "6f78002b8dd4351d916a5b80a8c6b2e28e307a5ecbf157eba0a4ecdd7a32913e",
     "contracts/constraint_catalog.json": "5d01758dd72d58de0d603d8d1151f7e3141b382fd45fecc6d5bc5b2af5d0613a",
     "contracts/model_contract.json": "ac41c0ea4a245f4d5be0ca1a9f734e4a26512612f4e79db1bb4594d57b5e807b",
+    "contracts/verify.py": "86de6dd3151f523ce16d3dc7ddc9172aaae472dcd502eba51793c3bd3ab7071d",
     "handwritten/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
     "handwritten/toy_library/__init__.py": "200b1c90d646c8c58c2644945ee551dddc12adcfdab30b7ae4197891284a70c8",
     "handwritten/toy_library/panel_area_impl.py": "88678f5da56b380ea5adf9f7c339ff3b7dee5d14471577517ed87ee055aaf7f2",
@@ -25,6 +26,15 @@
     "schemas/toy_plant_params.py": "08ed9dbc02d5cdfd95410dafc0f9310212a74c70c73e072019b5c24bd2109e04",
     "tests/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c"
   },
-  "executable_fingerprint": "3be9f72d237e8c1c1fae19beb2e242d4134f57f9ee91428669317749d5714eea",
-  "generator": "s4-probe"
+  "coverage_policy": {
+    "exclude_globs": [
+      "contracts/package_contract.json",
+      "**/__pycache__/**"
+    ],
+    "runtime_output_globs": []
+  },
+  "executable_fingerprint": "b4098ae2c3fb26adf297f62ff75380cad07fe7839fe354e609743edb4123301f",
+  "generator_version": "0.1.0",
+  "package_name": "wi014_s4",
+  "runtime_contract_version": "1.0.0"
 }

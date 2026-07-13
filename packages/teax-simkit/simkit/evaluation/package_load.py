@@ -1,18 +1,28 @@
 """Sealed-package loading (touches the generated package — D2).
 
-Provisional: a symlink-under-declared-name loader with inlined seal
-verification, pending Item 9's canonical package-load protocol (D7).
+Seal verification is wired to the canonical protocol from sysml-codegen's Item 9
+(``contracts.verify.verify_package``): every generated package carries its own copy of
+that stdlib-only module at ``contracts/verify.py`` (INV-8), and this loader imports that
+copy from the package tree it is loading rather than depending on sysml-codegen being
+installed (B3) — a teax environment verifies a package it loaded with nothing but the
+package itself. The symlink-under-declared-name import mechanism below is unrelated and
+unchanged.
 """
 from __future__ import annotations
 
-import hashlib
 import importlib
+import importlib.util
 import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
 from typing import Protocol
+
+RUNTIME_CONTRACT_VERSION = "1.0.0"
+"""The runtime API surface this loader targets — teax's own copy of the marker a
+package's seal was recorded against (``sysml_codegen.contracts.versions.RUNTIME_CONTRACT_VERSION``
+at seal time). Bump alongside a breaking change to that surface."""
 
 
 class SealVerificationError(Exception):
@@ -23,6 +33,22 @@ class PackageLoader(Protocol):
     def load(self) -> tuple[ModuleType, str]:
         """Load the sealed package, returning (module, executable_fingerprint)."""
         ...
+
+
+def _load_verify_package(package_dir: Path):
+    """Import the package's own ``contracts/verify.py`` (INV-8) by file path.
+
+    Not a package-qualified import: the module lives inside the tree being verified,
+    before that tree is exposed on ``sys.path`` under its declared name.
+    """
+    verify_path = package_dir / "contracts" / "verify.py"
+    spec = importlib.util.spec_from_file_location("_package_contract_verify", verify_path)
+    if spec is None or spec.loader is None:
+        raise SealVerificationError(f"seal violation: cannot load verifier at {verify_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 @dataclass(frozen=True)
@@ -38,6 +64,7 @@ class ProvisionalPackageLoader:
     package_dir: Path
     package_name: str
     link_root: Path
+    strict: bool = True
 
     def load(self) -> tuple[ModuleType, str]:
         fingerprint = self._verify_seal()
@@ -45,20 +72,18 @@ class ProvisionalPackageLoader:
         return module, fingerprint
 
     def _verify_seal(self) -> str:
+        verify = _load_verify_package(self.package_dir)
+        result = verify.verify_package(
+            self.package_dir,
+            self.package_name,
+            runtime_version=RUNTIME_CONTRACT_VERSION,
+            strict=self.strict,
+        )
+        if not result.ok:
+            details = "; ".join(f"{d.kind}({d.path}): {d.message}" for d in result.diagnostics)
+            raise SealVerificationError(f"seal violation: {details}")
         seal_path = self.package_dir / "contracts" / "package_contract.json"
-        seal = json.loads(seal_path.read_text())
-        for rel, expected in seal["artifact_hashes"].items():
-            actual = hashlib.sha256((self.package_dir / rel).read_bytes()).hexdigest()
-            if actual != expected:
-                raise SealVerificationError(f"seal violation: {rel} hash mismatch")
-        extras = {
-            str(p.relative_to(self.package_dir))
-            for p in self.package_dir.rglob("*")
-            if p.is_file() and p != seal_path and "__pycache__" not in p.parts
-        } - set(seal["artifact_hashes"])
-        if extras:
-            raise SealVerificationError(f"seal violation: unhashed files present: {sorted(extras)}")
-        return seal["executable_fingerprint"]
+        return json.loads(seal_path.read_text())["executable_fingerprint"]
 
     def _load_module(self) -> ModuleType:
         self.link_root.mkdir(parents=True, exist_ok=True)
