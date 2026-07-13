@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from simkit.evaluation.evaluator import PreparedEvaluator
+from simkit.evaluation.evaluator import FileBackedEvaluator, PreparedEvaluator
 from simkit.evaluation.package_load import ProvisionalPackageLoader
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "sealed_package" / "package_live"
@@ -27,9 +27,20 @@ FIXED = {
 
 
 @pytest.fixture(scope="session")
-def prepared(tmp_path_factory) -> PreparedEvaluator:
+def _loader(tmp_path_factory) -> ProvisionalPackageLoader:
     link_root = tmp_path_factory.mktemp("wi014_s4_pkg")
-    loader = ProvisionalPackageLoader(
+    return ProvisionalPackageLoader(
         package_dir=FIXTURE_DIR, package_name="wi014_s4", link_root=link_root
     )
-    return PreparedEvaluator(loader, SPEC_PATH)
+
+
+@pytest.fixture(scope="session")
+def prepared(_loader) -> PreparedEvaluator:
+    return PreparedEvaluator(_loader, SPEC_PATH)
+
+
+@pytest.fixture(scope="session")
+def file_backed(_loader, tmp_path_factory) -> FileBackedEvaluator:
+    work_dir = tmp_path_factory.mktemp("file_backed_work")
+    output_dir = tmp_path_factory.mktemp("file_backed_output")
+    return FileBackedEvaluator(_loader, FIXTURE_DIR, work_dir, output_dir)

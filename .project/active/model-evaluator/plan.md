@@ -219,13 +219,13 @@ def test_backends_agree(prepared, file_backed, case):
 
 ### Changes Required
 **See `design.md#architecture` (File-backed backend) and `design.md#implementation-notes` (Parity fixtures).**
-- [ ] `simkit/evaluation/evaluator.py` — add `FileBackedEvaluator` (audit): standard `execute_pipeline` path (file entry, real router, `persist_outputs=True`) → the **same** `projection.project(...)`. Export it from `__init__.py`.
-- [ ] `tests/evaluation/fixtures/` — file-form entry JSONs for all four parity cases (F-output uses a bare `NaN` token per Phase 0c).
-- [ ] `tests/evaluation/test_parity.py` (NEW) — the NaN-aware equivalence-class comparison over the four cases; assert the excluded fields are not compared.
+- [x] `simkit/evaluation/evaluator.py` — add `FileBackedEvaluator` (audit): standard `execute_pipeline` path (file entry, real router, `persist_outputs=True`) → the **same** `projection.project(...)`. Export it from `__init__.py`.
+- [x] `tests/evaluation/fixtures/` — file-form entry JSONs for all four parity cases (F-output uses a bare `NaN` token per Phase 0c).
+- [x] `tests/evaluation/test_parity.py` (NEW) — the NaN-aware equivalence-class comparison over the four cases; assert the excluded fields are not compared.
 
 ### Validation (gate)
-- [ ] `pytest tests/evaluation/test_parity.py -q` → green for all four cases.
-- [ ] F-output confirmed to drive a non-finite value into a *compared* output on both legs (add an assertion that `math.isnan(a.outputs["area"])`), so the NaN-aware rule is genuinely exercised — not vacuously passing.
+- [x] `pytest tests/evaluation/test_parity.py -q` → green for all four cases.
+- [x] F-output confirmed to drive a non-finite value into a *compared* output on both legs (add an assertion that `math.isnan(a.outputs["area"])`), so the NaN-aware rule is genuinely exercised — not vacuously passing.
 
 **What We Know Works After This Phase:** both backends agree over the equivalence class; the NaN-aware rule is exercised directly by F-output; the fast path is admitted on real parity.
 
@@ -337,6 +337,17 @@ def test_every_raised_failure_is_terminal(prepared):            # D4
 **Gate:** `pytest tests/evaluation -q` → 15 passed (isolation 2, projection 7, prepared-evaluator 6). Isolation test (Phase 1) still green — `evaluator.py`/`package_load.py` are outside the four-module scan set, confirmed. Full framework suite green (excluding the four pre-existing hard-coded-checkout-path failures). Manual B3 end-to-end check against the real sealed package: `budget=NaN` → `headline: indeterminate`, `outputs: {area: 12.0, cost: 3000.0}` — matches the design's stated fixture arithmetic exactly.
 
 ### Phase 3 Completion
+**Completed:** 2026-07-12
+**Actual Changes:**
+- `simkit/evaluation/evaluator.py` — added `FileBackedEvaluator`. Deviation from the probe/plan's implied shape: rather than overwriting the committed, seal-checked fixture's `inputs/toy_plant_params.json` per case (which would dirty a seal-verified tree and break test isolation), it owns a scratch `work_dir` — a copy of just `pipelines/pipeline.yaml` plus an empty `inputs/` directory — and writes each case's entry bytes there before `executor.run(..., persist_outputs=True)`. The sealed fixture tree is never written to; confirmed by re-hashing every file in it against `contracts/package_contract.json` after the full suite ran — zero mismatches.
+- `simkit/evaluation/__init__.py` — exports `FileBackedEvaluator`.
+- `tests/evaluation/conftest.py` — added a session-scoped `_loader` fixture shared by `prepared` and a new `file_backed` fixture (its own `work_dir`/`output_dir` under `tmp_path_factory`).
+- `tests/evaluation/test_parity.py` (NEW) — `nan_aware_equal` (exact equality, or both NaN, or both same-signed infinity); `test_backends_agree` parametrized over all four cases (satisfied, violated, F-budget, F-output) comparing `area`/`cost` (NaN-aware) and `responses` (string-exact), excluding provenance/report; `test_f_output_exercises_nan_aware_rule_on_a_compared_output` — the must-fix assertion that F-output's `area`/`cost` are actually non-finite on both legs, so the NaN-aware rule is exercised, not vacuously passed; `test_f_budget_compared_outputs_are_finite` — confirms F-budget's `area`/`cost` stay finite while the verdict is `indeterminate`, naming what that fixture proves versus what F-output proves.
+
+**Issues:** None.
+**Deviations:** The scratch-`work_dir` approach for `FileBackedEvaluator` (above) — a correctness fix over what a literal probe port would have done (mutate the fixture in place), not a scope change.
+
+**Gate:** `pytest tests/evaluation -q` → 21 passed (isolation 2, projection 7, prepared-evaluator 6, parity 6). All four parity cases green; F-output confirmed non-finite on both legs; F-budget confirmed finite on both legs with `indeterminate` verdict. Fixture seal re-verified intact after the run (0 hash mismatches, 0 unhashed extras). Full framework suite green (excluding the four pre-existing hard-coded-checkout-path failures).
 
 ### Phase 4 Completion
 

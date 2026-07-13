@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import shutil
 from pathlib import Path
 from typing import Any, Mapping, Protocol
 
@@ -123,5 +124,81 @@ class PreparedEvaluator:
             evidence_schema_version=self.EVIDENCE_SCHEMA_VERSION,
             evaluator_version=self.EVALUATOR_VERSION,
             input_digest=_input_digest(typed_inputs),
+        )
+        return project(result, report, provenance=provenance)
+
+
+class FileBackedEvaluator:
+    """Audit backend: file entry, real (persisting) router, `persist_outputs=True`.
+
+    Shares the same `project(...)` as `PreparedEvaluator` — this is what the
+    parity test (INV4) admits the fast in-memory path on. The spec/entry
+    artifacts live under a scratch `work_dir` this evaluator owns (a copy of
+    the fixture package's `pipelines/pipeline.yaml`); it never writes into
+    the sealed, seal-checked fixture tree itself.
+    """
+
+    EVIDENCE_SCHEMA_VERSION = PreparedEvaluator.EVIDENCE_SCHEMA_VERSION
+    EVALUATOR_VERSION = PreparedEvaluator.EVALUATOR_VERSION
+
+    def __init__(self, loader: PackageLoader, package_dir: Path, work_dir: Path, output_dir: Path) -> None:
+        self.package, self.fingerprint = loader.load()
+        custom_types = list(self.package.CUSTOM_SCHEMA_TYPES)
+        schema_types = _build_schema_type_registry(custom_types)
+        entry_loaders = _build_entry_loaders(custom_types)
+        registry_factory = getattr(self.package, f"create_{self.package.__name__}_registry")
+        registry = registry_factory()
+
+        router = create_output_router_with_json_schemas(
+            [t.__name__ for t in custom_types], include_builtins=True, in_memory=False
+        )
+        self._executor = SerialPipelineExecutor(
+            registry,
+            output_router=router,
+            schema_type_registry=dict(schema_types),
+            entry_loaders=dict(entry_loaders),
+        )
+
+        pipelines_dir = work_dir / "pipelines"
+        pipelines_dir.mkdir(parents=True, exist_ok=True)
+        spec_path = pipelines_dir / "pipeline.yaml"
+        shutil.copy(package_dir / "pipelines" / "pipeline.yaml", spec_path)
+        (work_dir / "inputs").mkdir(parents=True, exist_ok=True)
+
+        spec = entry_point_validate(spec_path)
+        try:
+            self._graph = self._executor.build_graph(spec)
+        except Exception as error:
+            raise EvaluationFailed(
+                EvaluationFailure(
+                    phase=EvaluationPhase.PREPARATION,
+                    cause=f"{type(error).__name__}: {error}",
+                )
+            ) from error
+        self._registry = registry
+        self._entry_path = work_dir / "inputs" / "toy_plant_params.json"
+        self._output_dir = output_dir
+
+    def evaluate(self, entry_json_path: Path) -> ModelEvidence:
+        entry_bytes = entry_json_path.read_bytes()
+        self._entry_path.write_bytes(entry_bytes)
+        context = PipelineExecutionContext(self._registry)
+        try:
+            result = self._executor.run(
+                self._graph, context, base_output_dir=self._output_dir, persist_outputs=True
+            )
+        except Exception as error:
+            raise EvaluationFailed(
+                EvaluationFailure(
+                    phase=EvaluationPhase.MODULE_EXECUTION,
+                    cause=f"{type(error).__name__}: {error}",
+                )
+            ) from error
+        report = result.outputs[REPORT_CHANNEL]
+        provenance = EvidenceProvenance(
+            executable_fingerprint=self.fingerprint,
+            evidence_schema_version=self.EVIDENCE_SCHEMA_VERSION,
+            evaluator_version=self.EVALUATOR_VERSION,
+            input_digest=hashlib.sha256(entry_bytes).hexdigest(),
         )
         return project(result, report, provenance=provenance)
