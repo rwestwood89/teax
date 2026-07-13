@@ -7,6 +7,7 @@ queries, and CLI are Item 12 (spec.md#assessment-policy-boundary);
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Mapping, Protocol
 
@@ -67,8 +68,7 @@ class DispositionPolicy:
 
 # Headline -> disposition, the extraction-independent half of the mapping
 # (design.md#the-policy step 3). "satisfied" is resolved by `ObjectivePolicy`
-# itself, since it also depends on the configured penalty threshold (Phase 3
-# completes that split; Phase 2 treats every "satisfied" as "feed-strategy").
+# itself, since it also depends on the configured penalty threshold.
 _HEADLINE_DISPOSITION: Mapping[str, str] = {
     "violated": "reject",
     "indeterminate": "keep-for-boundary",
@@ -76,15 +76,20 @@ _HEADLINE_DISPOSITION: Mapping[str, str] = {
 }
 
 
+def _beyond_penalty_threshold(objective: ObjectiveSpec, value: float) -> bool:
+    if objective.penalty_threshold is None or not math.isfinite(value):
+        return False
+    if objective.role == "maximize":
+        return value < objective.penalty_threshold
+    return value > objective.penalty_threshold  # minimize | penalty
+
+
 class ObjectivePolicy:
     """The real study-policy interpretation: extracts configured objectives
-    and response roles from immutable evidence, and maps the headline verdict
-    to a disposition (design.md#the-policy).
-
-    Phase 2 scope: the objective-extraction failure rule and the
-    reject/keep-for-boundary/feed-strategy split. Phase 3 completes the
-    "satisfied beyond penalty_threshold -> penalize" split and the raw
-    penalty value.
+    and response roles from immutable evidence, then maps the headline
+    verdict (plus, for "satisfied", each objective's raw value against its
+    configured `penalty_threshold`) to one of the four dispositions
+    (design.md#the-policy).
     """
 
     def __init__(
@@ -114,12 +119,23 @@ class ObjectivePolicy:
                 )
 
         headline = evidence.responses["headline"]
-        disposition = _HEADLINE_DISPOSITION.get(headline, "feed-strategy")
+        if headline != "satisfied":
+            disposition = _HEADLINE_DISPOSITION[headline]
+            return {
+                "disposition": disposition, "headline": headline,
+                "objectives": objective_values, "penalty": None,
+            }
+
+        for objective in self.objectives:
+            value = objective_values[objective.output]
+            if _beyond_penalty_threshold(objective, value):
+                return {
+                    "disposition": "penalize", "headline": headline,
+                    "objectives": objective_values, "penalty": value,
+                }
         return {
-            "disposition": disposition,
-            "headline": headline,
-            "objectives": objective_values,
-            "penalty": None,
+            "disposition": "feed-strategy", "headline": headline,
+            "objectives": objective_values, "penalty": None,
         }
 
 

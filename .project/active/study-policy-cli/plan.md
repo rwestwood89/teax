@@ -246,7 +246,7 @@ def test_evidence_digest_identical_across_dispositions(): ...     # INV-1 non-mu
 **See design:** "The policy: dispositions and the failure rule" (the four steps and the record
 shape); INV-1, INV-2; spec `[HARD]`/`[INHERITED]` policy items.
 
-- [ ] **`study/policy.py`** (complete `ObjectivePolicy`): objective extraction from
+- [x] **`study/policy.py`** (complete `ObjectivePolicy`): objective extraction from
   `evidence.outputs`/`evidence.responses`; the failure rule → `AssessmentFailed` when a configured
   objective `output` ID is absent from `outputs` **or** a configured response role names a
   `constraint_id` absent from `responses` (a well-formed `indeterminate`/`violated`/`not_assessed`
@@ -258,11 +258,11 @@ shape); INV-1, INV-2; spec `[HARD]`/`[INHERITED]` policy items.
 
 ### Validation
 **Automated:**
-- [ ] `test_policy.py` passes: four dispositions; disposition ⊥ state (INV-2 — a rejected point is a
+- [x] `test_policy.py` passes: four dispositions; disposition ⊥ state (INV-2 — a rejected point is a
   `completed` case whose `assessment_json.disposition == "reject"`, distinct from `assessment_failed`);
   genuine `AssessmentFailed` on a missing objective ID and on an unresolved response role; raw
   penalty; evidence digest identical across dispositions (INV-1).
-- [ ] Study suite (29) still green; ruff clean.
+- [x] Study suite (29) still green; ruff clean.
 
 **What we know after this phase:** the policy is a real interpretation that never mutates evidence
 and fails to `assessment_failed` only on a genuine extraction error.
@@ -460,6 +460,27 @@ correct dispositions (`reject` for the violated point, `feed-strategy` for the t
 `uvx ruff check` clean.
 
 ### Phase 3 Completion
+**Completed:** 2026-07-12
+**Changes Made:**
+- Completed `study/policy.py`'s `ObjectivePolicy.assess`: non-`"satisfied"` headlines resolve
+  directly via `_HEADLINE_DISPOSITION`; `"satisfied"` checks each objective against
+  `_beyond_penalty_threshold` (direction flips on `role == "maximize"` vs. `minimize`/`penalty`; a
+  non-finite objective value is never "beyond" — interpreted, not failed) and returns `penalize`
+  with the first offending objective's **raw** value, else `feed-strategy`.
+- `tests/study/test_policy.py` (10 tests): the four dispositions individually; penalty-direction
+  respects `role`; raw (non-normalized) penalty value; two genuine `AssessmentFailed` triggers
+  (missing objective output, unresolved response role); a well-formed `indeterminate` verdict +
+  non-finite objective is not a failure; evidence-digest identical across two differently-configured
+  policies assessing the same evidence object (INV-1, via `encode_evidence`); and one
+  runner-integration test over the real evaluator (`run_study`/`prepared`) proving INV-2 — the
+  violated PROPOSALS candidate lands as a `completed` case with `assessment_json.disposition ==
+  "reject"`, not `assessment_failed`.
+**Issues Encountered:** `ModelEvidence.report` is read via `.model_dump(mode="json")` inside
+`encode_evidence`, so a plain dict report (as in an early draft) raised `AttributeError`; fixed by
+giving the unit tests a minimal `_StubReport(BaseModel)` stand-in.
+**Validation:** `test_policy.py` 10/10 green; study suite 44/44 green (34 + 10 new); `uvx ruff check`
+clean.
+
 ### Phase 4 Completion
 ### Phase 5 Completion
 
