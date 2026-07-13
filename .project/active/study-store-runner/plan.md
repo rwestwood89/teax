@@ -253,14 +253,14 @@ def test_no_dangling_artifact(tmp_path):                  # both crash legs
 ### Changes Required
 **See design.md for:** the crash-regime recipes and the "seams downstream of a completed real `evaluate()`" rule → design.md#validation-approach and spec.md#crash-tests.
 
-- [ ] `tests/study/_study_child.py` — the production-runner CLI child: builds the real `PreparedEvaluator` + `StudyRunner` + `CrashController`, mirroring S6's `run --db --crash-at` (`study_lifecycle.py:663-678`). This is the child the crash regimes drive (distinct from Phase 1's store-only `_store_child.py`). Reuse a fixed multi-candidate `StudyDefinition` shared by driver and child so resume compares against a stable baseline (mirror `study_lifecycle.py:617-660`).
-- [ ] `test_crash_regimes.py` — `test_crash_before_commit`, `test_crash_mid_staging`, `test_resume_identical`, `test_no_dangling_artifact`, `test_no_double_commit` (end-to-end), `test_replicates_share_artifact` (two candidates, identical inputs, one shared artifact; distinct `candidate_id`s).
+- [x] `tests/study/_study_child.py` — the production-runner CLI child: builds the real `PreparedEvaluator` + `StudyRunner` + `CrashController`, mirroring S6's `run --db --crash-at` (`study_lifecycle.py:663-678`). This is the child the crash regimes drive (distinct from Phase 1's store-only `_store_child.py`). Reuse a fixed multi-candidate `StudyDefinition` shared by driver and child so resume compares against a stable baseline (mirror `study_lifecycle.py:617-660`).
+- [x] `test_crash_regimes.py` — `test_crash_before_commit`, `test_crash_mid_staging`, `test_resume_identical`, `test_no_dangling_artifact`, `test_no_double_commit` (end-to-end), `test_replicates_share_artifact` (two candidates, identical inputs, one shared artifact; distinct `candidate_id`s).
 
 ### Validation (final gates)
-- [ ] **All Appendix B tests green:** `pytest packages/teax-simkit/simkit/tests/study/ -q`.
-- [ ] **Evaluation suite still green:** `pytest packages/teax-simkit/simkit/tests/evaluation/ -q` → 25 passed.
-- [ ] **Framework suite green except the four known pre-existing failures:** `pytest packages/teax-simkit/ -q` → only the four node IDs recorded in Pre-flight fail; no new failures.
-- [ ] **Ruff clean:** `ruff check packages/teax-simkit/simkit/study packages/teax-simkit/simkit/tests/study`.
+- [x] **All Appendix B tests green:** `pytest packages/teax-simkit/simkit/tests/study/ -q` → 29 passed.
+- [x] **Evaluation suite still green:** `pytest packages/teax-simkit/simkit/tests/evaluation/ -q` → 25 passed.
+- [x] **Framework suite green except the four known pre-existing failures:** `pytest packages/teax-simkit/ -q` → only the four node IDs recorded in Pre-flight fail; no new failures.
+- [x] **Ruff clean:** `ruff check packages/teax-simkit/simkit/study packages/teax-simkit/simkit/tests/study` (via `uvx ruff check`).
 
 **What we know works after Phase 4:** the full S6 oracle holds against the real Item 10 evaluator — the item's success criteria (spec.md#success-criteria) are met as kept CI tests.
 
@@ -309,9 +309,16 @@ def test_no_dangling_artifact(tmp_path):                  # both crash legs
 **Deviations:** none from design/plan.
 
 ### Phase 4 Completion
+**Completed:** 2026-07-12
+**Actual Changes:**
+- New: `simkit/tests/study/{_study_child,test_crash_regimes}.py`.
+- `_study_child.py` reuses `conftest.py`'s `build_definition`/`NamedFaultEvaluator`/`PROPOSALS` (imported as a plain module — pytest fixtures in `conftest.py` are just decorated functions, harmless to import outside pytest) so the child's study definition is byte-identical to what the in-process Phase 3 tests exercise, and to itself across resumed subprocess invocations sharing one `link_root`.
+- All six crash-regime tests run the **production runner** (`StudyRunner`, not the Phase 1 store-only child) via real `os._exit` subprocess deaths and fresh-process resume, closing the two rows Phase 1 only proved at the store-mechanics layer.
+**Issues:** none.
+**Deviations:** none from design/plan.
+
+**Final gates (all met):** 29 study tests green; evaluation suite still 25 green; framework suite green except the four pre-recorded `test_no_battery_deps.py` failures (unrelated hardcoded path, present before this item); ruff clean via `uvx ruff check` (no local `ruff` binary in `.venv`).
 
 ---
 
-**Status:** Draft → In Progress → Complete
-</content>
-</invoke>
+**Status:** ~~Draft~~ → ~~In Progress~~ → **Complete** (all four phases implemented and gated; 2026-07-12)
