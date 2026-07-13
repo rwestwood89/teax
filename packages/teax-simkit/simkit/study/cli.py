@@ -9,7 +9,9 @@ a changed config instead of mixing datasets.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 from simkit.evaluation.evaluator import PreparedEvaluator
@@ -19,6 +21,7 @@ from .config import StudyConfig, build_definition, load_study_config
 from .crash import CrashController
 from .definition import StudyDefinition
 from .failures import IncompatibleStore
+from .query import StudyQuery
 from .runner import StudyRunner
 from .store import StudyStore
 
@@ -80,13 +83,31 @@ def _cmd_run_or_resume(args: argparse.Namespace) -> int:
         store.acquire_lease()
         StudyRunner(store, definition, evaluator, crash).run()
         store.release_lease()
+        if config.retention == "gc_after":
+            store.gc()
     finally:
         store.close()
     return 0
 
 
 def cmd_inspect(args: argparse.Namespace) -> int:
-    raise NotImplementedError("teax-study inspect ships in a later phase of Item 12")
+    if not args.store.exists():
+        print(f"no store at '{args.store}' — run 'create' first", file=sys.stderr)
+        return 1
+    config = load_study_config(args.config)
+    catalog_path = Path(config.package.dir) / "contracts" / "constraint_catalog.json"
+    store = StudyStore(args.store)
+    try:
+        query = StudyQuery(store, catalog_path)
+        cases = query.cases(
+            parameter=args.parameter, output=args.output, constraint=args.constraint,
+            state=args.state, disposition=args.disposition,
+        )
+        for view in cases:
+            print(json.dumps(asdict(view)))
+    finally:
+        store.close()
+    return 0
 
 
 def _add_common_args(parser: argparse.ArgumentParser) -> None:
@@ -112,6 +133,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     inspect_parser = subparsers.add_parser("inspect", help="Query a study's results")
     _add_common_args(inspect_parser)
+    inspect_parser.add_argument("--parameter", default=None)
+    inspect_parser.add_argument("--output", default=None)
+    inspect_parser.add_argument("--constraint", default=None)
+    inspect_parser.add_argument(
+        "--state", default=None, choices=["completed", "execution_failed", "assessment_failed"]
+    )
+    inspect_parser.add_argument(
+        "--disposition", default=None,
+        choices=["reject", "penalize", "keep-for-boundary", "feed-strategy"],
+    )
     inspect_parser.set_defaults(func=cmd_inspect)
 
     return parser

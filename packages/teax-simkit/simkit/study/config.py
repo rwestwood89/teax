@@ -19,6 +19,7 @@ from pydantic import Field
 from simkit.config.schema import StrictBaseModel
 from simkit.evaluation.evaluator import PreparedEvaluator
 
+from .bounded_strategy import BoundedStrategy
 from .definition import ProposalValidator, StudyDefinition
 from .identity import digest_of
 from .policy import POLICY_REGISTRY, ObjectiveSpec
@@ -110,7 +111,9 @@ def build_definition(config: StudyConfig, evaluator: PreparedEvaluator) -> Study
     policy, and assemble the `StudyDefinition` (design.md#architecture).
     """
     entry_model = getattr(evaluator.package, config.entry_model)
-    strategy = GridStrategy([(name, list(domain)) for name, domain in config.grid])
+    strategy: Any = GridStrategy([(name, list(domain)) for name, domain in config.grid])
+    if config.budget is not None:
+        strategy = BoundedStrategy(strategy, config.budget)
     validator = _synthesize_validator(config)
 
     objectives = tuple(

@@ -352,25 +352,26 @@ def test_inspect_emits_one_json_line_per_case(built_store, capsys):
 ### Changes Required
 **See design:** D6 (CLI renders the query); D9 (budget/retention rule).
 
-- [ ] **`study/cli.py`** (extend): `inspect` builds `StudyQuery`, applies filter flags, prints one
+- [x] **`study/cli.py`** (extend): `inspect` builds `StudyQuery`, applies filter flags, prints one
   JSON line per `CaseView`.
-- [ ] **(Optional, D9) `study/bounded_strategy.py`** (NEW): `BoundedStrategy(inner, max_candidates)`
+- [x] **(Optional, D9) `study/bounded_strategy.py`** (NEW): `BoundedStrategy(inner, max_candidates)`
   additive strategy wrapper for `budget` (its `config_fingerprint` includes both inner config and
   the bound — a bounded study is a distinct lineage, correct by design). `retention: gc_after` calls
   the existing `store.gc()` after the lease releases; default `keep`. Ship if cheap; defer if it
   fights the schedule (design "Low-stakes / droppable") — leaving `budget`/`retention` inert is an
-  acceptable fallback and does not affect any acceptance criterion.
+  acceptable fallback and does not affect any acceptance criterion. Built: cheap given
+  `CandidateStrategy`'s narrow protocol.
 
 ### Validation (FINAL GATE)
 **Automated:**
-- [ ] `test_cli_inspect.py` passes (+ budget/retention tests if built).
-- [ ] **New tests green** across Phases 1–5.
-- [ ] **Study suite (29) still green**; **evaluation suite (25) still green**; **framework suite
+- [x] `test_cli_inspect.py` passes (+ budget/retention tests if built).
+- [x] **New tests green** across Phases 1–5.
+- [x] **Study suite (29) still green**; **evaluation suite (25) still green**; **framework suite
   green except the 4 known failures** (baseline from Phase 0).
-- [ ] **Ruff clean** across the whole diff.
+- [x] **Ruff clean** across the whole diff.
 
 **Manual:**
-- [ ] `teax-study inspect --config <cfg> --store <db>` emits readable JSON-line records with both
+- [x] `teax-study inspect --config <cfg> --store <db>` emits readable JSON-line records with both
   axes and `executable_fingerprint`.
 
 **What we know after this phase:** the full define → run → interrupt → resume → inspect story works
@@ -516,9 +517,41 @@ test-only, not a defect in `encode_evidence` (real generated reports use typed f
 `uvx ruff check` clean.
 
 ### Phase 5 Completion
+**Completed:** 2026-07-12
+**Changes Made:**
+- Extended `study/cli.py`: `cmd_inspect` (existence check on `--store` before opening — a genuine
+  caller-error boundary, fails loudly with the path named, no traceback), `--parameter`/`--output`/
+  `--constraint`/`--state`/`--disposition` filter flags, one `json.dumps(dataclasses.asdict(view))`
+  line per `CaseView`. `_cmd_run_or_resume` now calls `store.gc()` after `release_lease()` when
+  `config.retention == "gc_after"` (gc refuses while any lease is live, so this ordering matters).
+- Created `study/bounded_strategy.py`: `BoundedStrategy(inner, max_candidates)`. Wired into
+  `study/config.py`'s `build_definition` — wraps the `GridStrategy` when `config.budget is not
+  None`; its `config_fingerprint` folds in the inner config + the bound, so a bounded study is a
+  distinct lineage by construction (D9), consistent with `semantic_fingerprint()` already digesting
+  `budget`.
+- `tests/study/test_cli_inspect.py` (5 tests): one JSON line per case with both axes present;
+  disposition filter; a missing `--store` fails loudly naming the path (not a traceback); `budget`
+  below the grid size stops the run early (candidate 0 first, count == budget); `retention:
+  gc_after` runs without error post-release.
+**Issues Encountered:** none.
+**Manual verification:** ran `teax-study create|run|inspect` directly against a hand-written config;
+`inspect` output showed all three grid points with correct `disposition`/`headline`/`verdicts` and
+the catalog join naming `toy_plant__demo_plant__affordable`'s source form/owner/predicate.
+**Final gate:**
+- New tests green across Phases 1–5 (config 3, cli-e2e 2, policy 10, evidence_io +3, query 5,
+  cli-inspect 5 = 28 new).
+- Study suite green (29 baseline + 28 new = 57 — no regression).
+- Evaluation suite: 25/25 green, unchanged.
+- Framework suite: green except the same 4 known `test_no_battery_deps.py` failures from the Phase 0
+  baseline (unrelated, pre-existing).
+- `uvx ruff check` clean across `simkit/study` and `simkit/tests/study`.
+
+**Item 12 complete.** All five phases landed; the full define → run → interrupt → resume → inspect
+story works from the `teax-study` console entry point over the real sealed-package evaluator, with
+no regression to any certified suite.
 
 ---
 
-**Status:** Draft → In Progress → Complete
+**Status:** Draft → In Progress → **Complete**
 </content>
 </invoke>
