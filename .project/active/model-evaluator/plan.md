@@ -116,18 +116,18 @@ def test_construct_evidence_with_generated_package_absent(monkeypatch):
 
 **See `design.md#component-overview` for each module's exact contents and `design.md#required-invariants` (INV1) for the scan's two legs.**
 
-- [ ] `simkit/evaluation/__init__.py` (NEW) — start the package; export the clean types as they land.
-- [ ] `simkit/evaluation/evidence.py` (NEW, isolation-clean) — `ModelEvidence` (frozen), `ResponseEntry`, `EvidenceProvenance`, `CANONICAL_HEADLINE` constant. Provenance fields per `design.md#deferred-item-decisions`: `executable_fingerprint`, `evidence_schema_version`, `evaluator_version`, `input_digest` (no candidate/study identity, no timestamp).
-- [ ] `simkit/evaluation/failure.py` (NEW, isolation-clean) — `EvaluationPhase` enum (`entry_validation | preparation | module_execution | output_write`), `EvaluationFailure` (frozen: phase, cause, module_or_channel, `retryable` always `False`, partial_artifacts), `EvaluationFailed` exception carrying it (D4).
-- [ ] `simkit/evaluation/entry_source.py` (NEW, isolation-clean) — `MappingEntrySource` (Shape A, D1). Port `real_evaluator.py:90` `MappingEntrySource` unchanged in shape: `from_spec` derives the channel→type map from EntryPoint bindings; `validate` refuses missing/extra/wrong channel-model instance, naming expected vs got (INV2). Non-finite passes by construction.
-- [ ] `simkit/evaluation/projection.py` (NEW, isolation-clean, duck-typed) — `project(run_result, report) -> ModelEvidence`. Read-only headline normalize via `CANONICAL_HEADLINE` (generated `all_satisfied`→`satisfied`, `violation`→`violated`, `indeterminate`/`not_assessed` unchanged; Item 0 mismatch 5); per-constraint `r.status` pass-through (already canonical); output unwrap `v.root` (`RootModel[float]`); attach report opaque. Reads the report by attribute only; never imports it. Shape in `design.md#implementation-notes` snippet.
-- [ ] `tests/evaluation/test_isolation.py` (NEW) — the two legs above.
-- [ ] `tests/evaluation/test_projection.py` (NEW) — unit-test `project` against a **fake** duck-typed report (a simple object with `.headline`, `.results`, `r.constraint_id`/`r.status`) and a fake run-result — no package needed. Cover: headline normalization for all four generated values; status pass-through; output unwrap; opaque report attached unchanged.
+- [x] `simkit/evaluation/__init__.py` (NEW) — start the package; export the clean types as they land.
+- [x] `simkit/evaluation/evidence.py` (NEW, isolation-clean) — `ModelEvidence` (frozen), `ResponseEntry`, `EvidenceProvenance`, `CANONICAL_HEADLINE` constant. Provenance fields per `design.md#deferred-item-decisions`: `executable_fingerprint`, `evidence_schema_version`, `evaluator_version`, `input_digest` (no candidate/study identity, no timestamp).
+- [x] `simkit/evaluation/failure.py` (NEW, isolation-clean) — `EvaluationPhase` enum (`entry_validation | preparation | module_execution | output_write`), `EvaluationFailure` (frozen: phase, cause, module_or_channel, `retryable` always `False`, partial_artifacts), `EvaluationFailed` exception carrying it (D4).
+- [x] `simkit/evaluation/entry_source.py` (NEW, isolation-clean) — `MappingEntrySource` (Shape A, D1). Port `real_evaluator.py:90` `MappingEntrySource` unchanged in shape: `from_spec` derives the channel→type map from EntryPoint bindings; `validate` refuses missing/extra/wrong channel-model instance, naming expected vs got (INV2). Non-finite passes by construction.
+- [x] `simkit/evaluation/projection.py` (NEW, isolation-clean, duck-typed) — `project(run_result, report) -> ModelEvidence`. Read-only headline normalize via `CANONICAL_HEADLINE` (generated `all_satisfied`→`satisfied`, `violation`→`violated`, `indeterminate`/`not_assessed` unchanged; Item 0 mismatch 5); per-constraint `r.status` pass-through (already canonical); output unwrap `v.root` (`RootModel[float]`); attach report opaque. Reads the report by attribute only; never imports it. Shape in `design.md#implementation-notes` snippet.
+- [x] `tests/evaluation/test_isolation.py` (NEW) — the two legs above.
+- [x] `tests/evaluation/test_projection.py` (NEW) — unit-test `project` against a **fake** duck-typed report (a simple object with `.headline`, `.results`, `r.constraint_id`/`r.status`) and a fake run-result — no package needed. Cover: headline normalization for all four generated values; status pass-through; output unwrap; opaque report attached unchanged.
 
 ### Validation (gate)
 **Automated:**
-- [ ] `pytest tests/evaluation/test_isolation.py tests/evaluation/test_projection.py -q` → green.
-- [ ] Full framework suite still green (no regressions from the new package).
+- [x] `pytest tests/evaluation/test_isolation.py tests/evaluation/test_projection.py -q` → green.
+- [x] Full framework suite still green (no regressions from the new package).
 
 **What We Know Works After This Phase:** the four clean modules import allowlist-only and construct with the generated package absent; `project` normalizes correctly against a duck-typed report. The isolation guard is live and every later phase must keep it green.
 
@@ -304,6 +304,20 @@ def test_every_raised_failure_is_terminal(prepared):            # D4
 **Deviations:** None — no fallback env needed; the four failing tests are the ones the plan named in advance, so no additional recording was required beyond noting them here.
 
 ### Phase 1 Completion
+**Completed:** 2026-07-12
+**Actual Changes:**
+- `simkit/evaluation/failure.py` (NEW) — `EvaluationPhase` enum, `EvaluationFailure` (frozen, `retryable` defaults `False` and evaluator code never overrides it), `EvaluationFailed` exception carrying the failure.
+- `simkit/evaluation/evidence.py` (NEW) — `ResponseEntry` (a `Literal["satisfied","violated","indeterminate","not_assessed"]` type alias, not a wrapper class — the "entries" in `responses` are plain canonical-vocabulary strings, matching the Phase-1 test stencil's `ev.responses["headline"] == "indeterminate"`), `CANONICAL_HEADLINE`, `EvidenceProvenance`, `ModelEvidence` (frozen, `report: Any`).
+- `simkit/evaluation/entry_source.py` (NEW) — `MappingEntrySource`, ported unchanged in shape from `real_evaluator.py`. Deviation from the probe: `validate` raises `EvaluationFailed(EvaluationFailure(phase=ENTRY_VALIDATION, ...))` directly instead of bare `ValueError`/`TypeError` — this is what makes INV2 ("names expected vs got", phase-tagged) hold at the source instead of needing a wrapping catch in `evaluator.py`.
+- `simkit/evaluation/projection.py` (NEW) — `project(result, report, *, provenance) -> ModelEvidence`. Deviation from the design's two-arg prose signature: `provenance` is a required keyword-only third parameter, not patched on afterward. Reasoning: `ModelEvidence` is frozen, so "build without provenance, then patch" would need a `model_copy` two-step for every caller; a required parameter keeps `project` a total function and keeps the isolation-clean module free of any fingerprint/versioning knowledge (that stays in evaluator.py, Phase 2). Scalar-output selection is a duck-typed `hasattr(value, "root")` check — this is what lets the same function generalize across pipelines without hardcoding channel names.
+- `simkit/evaluation/__init__.py` (NEW) — exports the four clean modules' public names built so far.
+- `tests/evaluation/test_isolation.py` (NEW) — both INV1 legs: AST allowlist scan (stdlib ∪ `pydantic` ∪ `simkit`-internal, including relative imports) over the four clean modules, and package-absent `ModelEvidence` construction with `wi014_s4` confirmed absent from `sys.modules`/`sys.path`.
+- `tests/evaluation/test_projection.py` (NEW) — headline normalization for all four generated values, per-constraint status pass-through, output unwrap + non-scalar (report/ConstraintEvaluation) exclusion, and report-attached-unchanged, all against fake duck-typed objects (no package needed).
+
+**Issues:** None.
+**Deviations:** The two documented above (`EvaluationFailed` raised from `entry_source.validate` rather than bare exceptions; `provenance` as a required parameter of `project` rather than a two-step patch) — both are additive precision on the design's prose, not contradictions of it.
+
+**Gate:** `pytest tests/evaluation/test_isolation.py tests/evaluation/test_projection.py -q` → 9 passed. Full framework suite (excluding the four pre-existing hard-coded-checkout-path failures) → green, no regressions.
 
 ### Phase 2 Completion
 
