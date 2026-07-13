@@ -1,0 +1,57 @@
+{
+  "parameters": [
+    {
+      "id": "toy_plant__Toy_Plant__plant_budget",
+      "group": "toy_plant_params",
+      "python_type": "float",
+      "default_value": 5000.0,
+      "entry_type": "design_attribute"
+    },
+    {
+      "id": "toy_plant__Toy_Plant__plant_length",
+      "group": "toy_plant_params",
+      "python_type": "float",
+      "default_value": 4.0,
+      "entry_type": "design_attribute"
+    },
+    {
+      "id": "toy_plant__Toy_Plant__plant_unit_cost",
+      "group": "toy_plant_params",
+      "python_type": "float",
+      "default_value": 250.0,
+      "entry_type": "design_attribute"
+    },
+    {
+      "id": "toy_plant__Toy_Plant__plant_width",
+      "group": "toy_plant_params",
+      "python_type": "float",
+      "default_value": 3.0,
+      "entry_type": "design_attribute"
+    }
+  ],
+  "outputs": [
+    {
+      "channel": "toy_plant__demo_plant__area_calc__area",
+      "python_type": "float",
+      "field": "root"
+    },
+    {
+      "channel": "toy_plant__demo_plant__cost_calc__cost",
+      "python_type": "float",
+      "field": "root"
+    },
+    {
+      "channel": "toy_plant__demo_plant__affordable__evaluation",
+      "python_type": "ConstraintEvaluation",
+      "field": "evaluation"
+    },
+    {
+      "channel": "constraint_report",
+      "python_type": "ConstraintReport",
+      "field": "constraint_report"
+    }
+  ],
+  "constraint_catalog_fingerprint": "659d0298caaa51ac4f4f9bee5ecde14d9ef929cf5c8ced3ca2e7857bce87d00f",
+  "evaluation_semantics": "kleene-three-valued-s4",
+  "semantic_fingerprint": "655eeab0a609a57c7f924174acfad1f70cfacf66e058e0dd7ea10d5f53294688"
+}

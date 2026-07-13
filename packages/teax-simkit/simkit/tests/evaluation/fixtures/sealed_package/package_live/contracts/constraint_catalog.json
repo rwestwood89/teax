@@ -1,0 +1,44 @@
+{
+  "source_records": [
+    {
+      "usage_name": "affordable",
+      "source_form": "definition_typed",
+      "membership_kind": "assert",
+      "is_negated": false,
+      "owner_qn": "toy_plant::'Toy Plant'",
+      "definition_qn": "toy_library::'Cost Within Budget'",
+      "predicate_ir": "{\"kind\":\"op\",\"operator\":\"<=\",\"operands\":[{\"kind\":\"feature_ref\",\"source_name\":\"cost\",\"target_qn\":[\"toy_library\",\"Cost Within Budget\",\"cost\"]},{\"kind\":\"feature_ref\",\"source_name\":\"budget\",\"target_qn\":[\"toy_library\",\"Cost Within Budget\",\"budget\"]}]}",
+      "source_location": null
+    }
+  ],
+  "concrete_entries": [
+    {
+      "constraint_id": "toy_plant__demo_plant__affordable",
+      "source_usage": "affordable",
+      "owner_instance": "toy_plant__demo_plant",
+      "membership_kind": "assert",
+      "is_negated": false,
+      "expected_value": true,
+      "eligible": true,
+      "inputs": [
+        {
+          "resolution": "entry_point",
+          "qualified_name": "toy_plant__Toy_Plant__plant_budget",
+          "default_value": 5000.0,
+          "source_expr": "plant_budget",
+          "formal": "budget",
+          "param_group": "toy_plant_params"
+        },
+        {
+          "resolution": "module_output",
+          "channel": "toy_plant__demo_plant__cost_calc__cost",
+          "source_expr": "cost_calc.cost",
+          "formal": "cost"
+        }
+      ],
+      "response_metadata": {
+        "margin": "simple_inequality_signed"
+      }
+    }
+  ]
+}

@@ -40,13 +40,13 @@ Make teax's own venv able to run the evaluation tests, and make the sealed S4-li
 ### Steps
 
 **0a. Provision teax's own venv.** The venv exists (`.venv/`, uv 0.10.0, CPython 3.12.3) but holds no project deps. Install both packages editable into it:
-- [ ] `uv pip install -e packages/teax-simkit[dev]`
-- [ ] `uv pip install -e packages/battery-tea-demo[dev]`
+- [x] `uv pip install -e packages/teax-simkit[dev]`
+- [x] `uv pip install -e packages/battery-tea-demo[dev]`
   (equivalently `uv pip install -e .[dev]` from root for workspace mode — CLAUDE.md Build & Development Commands.)
 
 **Smoke check (gate 0a):**
-- [ ] `.venv/bin/python -c "import simkit, pydantic, numpy; print('deps ok')"` → prints `deps ok`
-- [ ] `.venv/bin/pytest packages/teax-simkit -q` → existing framework suite green (the four hard-coded-checkout-path tests S5 named may still fail; if so, run with `--ignore` for those files and record it — they do not exercise this item).
+- [x] `.venv/bin/python -c "import simkit, pydantic, numpy; print('deps ok')"` → prints `deps ok`
+- [x] `.venv/bin/pytest packages/teax-simkit -q` → existing framework suite green (the four hard-coded-checkout-path tests S5 named may still fail; if so, run with `--ignore` for those files and record it — they do not exercise this item).
 
 **Fallback (only if 0a fails for reasons outside this item — e.g. no package index reachable).** The design sanctions running under the licensed host venv until teax's own is stood up (`design.md#validation-approach`; spec Implementation Prerequisites). Record the borrowed-env form and proceed:
 ```bash
@@ -59,22 +59,22 @@ If the fallback is used, note in Implementation Notes *why* provisioning failed,
 **0b. Provision the sealed-package fixture (reuse, do not regenerate).** Item 0's sealed package is the S4-lineage package the evidence tests need. It is on disk at
 `/home/reid/1cfe/sysml-codegen/.project/active/spike-vertical-slice-constraint-execution/out/package_live`
 (reachable now via the Item 0 spike's `_pkg/wi014_s4` symlink). **Reuse this exact package** — copy its tree into teax as a committed fixture so the test suite is self-contained and does not depend on the sibling repo path or on live SysIDE.
-- [ ] Copy the `package_live` tree (its Python package, `pipelines/pipeline.yaml`, `contracts/package_contract.json`; exclude `__pycache__`) into `packages/teax-simkit/simkit/tests/evaluation/fixtures/sealed_package/package_live/`.
-- [ ] Confirm the copied seal still verifies: hash every file under the tree against `contracts/package_contract.json`'s `artifact_hashes` and confirm no unhashed extras (the check `real_evaluator.py:verify_seal` performs). This is the acceptance test for the copy.
-- [ ] Commit the fixture tree. It is test data, not product code.
+- [x] Copy the `package_live` tree (its Python package, `pipelines/pipeline.yaml`, `contracts/package_contract.json`; exclude `__pycache__`) into `packages/teax-simkit/simkit/tests/evaluation/fixtures/sealed_package/package_live/`.
+- [x] Confirm the copied seal still verifies: hash every file under the tree against `contracts/package_contract.json`'s `artifact_hashes` and confirm no unhashed extras (the check `real_evaluator.py:verify_seal` performs). This is the acceptance test for the copy.
+- [x] Commit the fixture tree. It is test data, not product code.
 
 *Regeneration path (documented, not a test dependency):* the package can be regenerated via Item 0's recipe (live SysIDE in the agentic-mbse uv env — `findings.md` Reproduction, "Regenerate S4's sealed package"). This is the provenance/refresh path only; kept tests must not invoke it.
 
 **0c. Author the input fixtures (reuse Item 0's candidate set).** The parity and verdict fixtures reuse Item 0's proven inputs. Fixed design attributes are `plant_length=4.0`, `plant_unit_cost=250.0`, `plant_width=3.0` (`real_evaluator.py:FIXED`); the varied field is `plant_budget`.
-- [ ] `budget=5000` → `satisfied`; `budget=2500` → `violated` (Item 0 verdict classes).
-- [ ] **F-budget:** `budget=NaN` → `indeterminate`, compared outputs `area=12`, `cost=3000` finite (`design.md#implementation-notes`, "Parity fixtures").
-- [ ] **F-output:** `plant_length=NaN` → `area=NaN`, `cost=NaN` (non-finite reaches a *compared* output).
-- [ ] For the file-backed leg, the entry JSON carries a **bare `NaN` token** (stdlib `allow_nan=True` round-trips it via `readers.py:35` / `writers.py:25–27`) — **not** the `{"__nonfinite__": …}` tag (that tag is digest-input only). See `design.md#implementation-notes`.
+- [x] `budget=5000` → `satisfied`; `budget=2500` → `violated` (Item 0 verdict classes).
+- [x] **F-budget:** `budget=NaN` → `indeterminate`, compared outputs `area=12`, `cost=3000` finite (`design.md#implementation-notes`, "Parity fixtures").
+- [x] **F-output:** `plant_length=NaN` → `area=NaN`, `cost=NaN` (non-finite reaches a *compared* output).
+- [x] For the file-backed leg, the entry JSON carries a **bare `NaN` token** (stdlib `allow_nan=True` round-trips it via `readers.py:35` / `writers.py:25–27`) — **not** the `{"__nonfinite__": …}` tag (that tag is digest-input only). See `design.md#implementation-notes`.
 
 ### Validation (gate)
-- [ ] Smoke check 0a green (or fallback recorded with reason).
-- [ ] Sealed-package fixture present under `tests/evaluation/fixtures/` and its seal verifies.
-- [ ] Input fixtures present for all five cases above.
+- [x] Smoke check 0a green (or fallback recorded with reason).
+- [x] Sealed-package fixture present under `tests/evaluation/fixtures/` and its seal verifies.
+- [x] Input fixtures present for all five cases above.
 
 **What We Know Works After This Phase:** teax's own env (or the recorded fallback) runs the framework suite; the sealed package loads and seal-verifies from inside teax; the fixture inputs exist.
 
@@ -293,10 +293,15 @@ def test_every_raised_failure_is_terminal(prepared):            # D4
 [TO BE FILLED DURING IMPLEMENTATION — leave empty now]
 
 ### Phase 0 Completion
-**Completed:**
+**Completed:** 2026-07-12
 **Actual Changes:**
-**Issues:**
-**Deviations:**
+- Provisioned teax's own `.venv` (already existed, uv 0.10.0, CPython 3.12.3, no project deps): `uv pip install -e packages/teax-simkit[dev] -e packages/battery-tea-demo[dev] --python .venv/bin/python`. Smoke check green; framework suite green except the four pre-existing hard-coded-checkout-path tests in `test_no_battery_deps.py` (fail with `FileNotFoundError: /home/reid/teax` — unrelated to this item, matches the plan's documented expectation). No fallback needed.
+- Copied Item 0's sealed package tree (`package_live`, 25 files excl. `__pycache__`) into `packages/teax-simkit/simkit/tests/evaluation/fixtures/sealed_package/package_live/`. Re-verified the seal against the copy: 24/24 artifact hashes match, zero unhashed extras, fingerprint `3be9f72d237e8c1c1fae19beb2e242d4134f57f9ee91428669317749d5714eea` unchanged.
+- Read the package's `pipeline.yaml`, `toy_plant_params.py`, `demo_plant_affordable.py`, `panel_area_impl.py`/`panel_cost_impl.py` to confirm the fixture arithmetic: `area = length * width`, `cost = area * unit_cost`, budget compared via a Kleene `<=` that returns `None` (→ `indeterminate`) when either operand is non-finite. Confirms F-budget (`budget=NaN`, `cost`/`area` stay finite at 3000/12) and F-output (`plant_length=NaN` → `area`/`cost` both NaN) match the design's stated fixture behavior exactly.
+- Authored four entry fixtures under `tests/evaluation/fixtures/entries/`: `satisfied.json` (budget=5000), `violated.json` (budget=2500), `f_budget.json` (budget=NaN, bare token), `f_output.json` (plant_length=NaN, bare token). Verified all four round-trip through stdlib `json.load` (matches `readers.py:35`'s `allow_nan=True` default) with the NaN cases producing real `float('nan')`.
+
+**Issues:** None.
+**Deviations:** None — no fallback env needed; the four failing tests are the ones the plan named in advance, so no additional recording was required beyond noting them here.
 
 ### Phase 1 Completion
 

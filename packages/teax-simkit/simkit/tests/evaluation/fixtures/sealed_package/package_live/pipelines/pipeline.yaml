@@ -1,0 +1,61 @@
+# Generated Pipeline Configuration for wi014_s4
+#
+# Auto-generated from SysML calc def dependency analysis
+# DO NOT EDIT - Regenerate using code generator
+
+metadata:
+  run_description: "Generated pipeline for wi014_s4"
+  output_folder: "wi014_s4_results"
+
+modules:
+  # Entry point - load inputs from JSON
+  entry_fusion:
+    module_type: EntryPoint
+    inputs:
+      toy_plant_params: ToyPlantParams ../inputs/toy_plant_params.json
+
+
+  # toy_library.Panel_AreaModule
+  toy_plant__demo_plant__area_calc:
+    module_type: toy_library.Panel_AreaModule
+    inputs:
+      length: float toy_plant_params.toy_plant__Toy_Plant__plant_length
+      width: float toy_plant_params.toy_plant__Toy_Plant__plant_width
+    outputs:
+      root: RootModel[float] toy_plant__demo_plant__area_calc__area
+
+  # toy_library.Panel_CostModule
+  toy_plant__demo_plant__cost_calc:
+    module_type: toy_library.Panel_CostModule
+    inputs:
+      area: float toy_plant__demo_plant__area_calc__area.root
+      unit_cost: float toy_plant_params.toy_plant__Toy_Plant__plant_unit_cost
+    outputs:
+      root: RootModel[float] toy_plant__demo_plant__cost_calc__cost
+
+  # toy_plant.DemoPlantAffordableConstraintModule
+  toy_plant__demo_plant__affordable:
+    module_type: toy_plant.DemoPlantAffordableConstraintModule
+    inputs:
+      budget: float toy_plant_params.toy_plant__Toy_Plant__plant_budget
+      cost: float toy_plant__demo_plant__cost_calc__cost.root
+    outputs:
+      evaluation: ConstraintEvaluation toy_plant__demo_plant__affordable__evaluation
+
+  # constraints.ConstraintReportAggregatorModule
+  constraint_report_aggregator:
+    module_type: constraints.ConstraintReportAggregatorModule
+    inputs:
+      toy_plant__demo_plant__affordable: ConstraintEvaluation toy_plant__demo_plant__affordable__evaluation
+    outputs:
+      constraint_report: ConstraintReport constraint_report
+
+
+  # Exit point - capture all results
+  exit_point:
+    module_type: ExitPoint
+    outputs:
+      toy_plant__demo_plant__area_calc__area: RootModel[float] toy_plant__demo_plant__area_calc__area.json
+      toy_plant__demo_plant__cost_calc__cost: RootModel[float] demo_plant__total_cost.json
+      toy_plant__demo_plant__affordable__evaluation: ConstraintEvaluation toy_plant__demo_plant__affordable__evaluation.json
+      constraint_report: ConstraintReport constraint_report.json
