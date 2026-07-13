@@ -90,10 +90,14 @@ single stringly-typed `ExecutionFailed` into a normalized outcome over teax's re
   non-finite field passes construction and flows to the Kleene predicate.** *If false → the
   `indeterminate` verdict class is unreachable through typed entry, and the architecture's
   reason to exist is gone.* (Item 0 mismatch 1–2; the real model accepts `NaN`/`inf`.)
-- **B4. No failure the evaluator raises is transiently retryable.** A deterministic function
-  fails the same way every time. *If false → we'd drop real transient signal on the floor —
-  but transient/infra retry is the runner's layer (S6's `RetryableError`), not the evaluator's,
-  so the evaluator never raises it.* (Constrains D4.)
+- **B4. The private executor extension points stay stable across teax versions.** The evaluator
+  subclasses `SerialPipelineExecutor` and overrides the `_`-prefixed `_execute_entry`
+  (`pipeline_executor.py:167`), and relies on `_load_entry_binding` / `_execute_module` behavior
+  being unchanged. *If false → a teax refactor of the entry-loading path breaks the evaluator with
+  no compile-time signal.* *Mitigation:* a kept test asserts the `_execute_entry` override contract
+  (a seeded context reaches the channels), and this design records that teax should treat
+  `_execute_entry` as a stable extension point. (The retryability rule this once cited is a
+  scoping decision, now stated in D4, not a bet.)
 
 ## Key Decisions
 
@@ -123,7 +127,10 @@ single stringly-typed `ExecutionFailed` into a normalized outcome over teax's re
   *Rejected: a `Result[ModelEvidence, EvaluationFailure]` return union — it would force every
   caller to branch and diverges from the S6 runner the seam is validated against; and a
   free-form `retryable` field — the rule is fixed (deterministic → terminal), so we state it,
-  not leave it open (spec deferred item 3).*
+  not leave it open (spec deferred item 3).* **Retryability is a decision, not a bet:** no failure
+  the evaluator raises is transiently retryable, because a deterministic function fails the same
+  way every time; transient/infra retry is the runner's layer (S6's `RetryableError`), never the
+  evaluator's, so `retryable=False` is fixed here by construction.
 - **D5. In-memory backend builds the JSON router unconditionally (local workaround), not a
   validator change.** `create_output_router_with_json_schemas(generated_type_names,
   in_memory=True)`. *Rejected: decoupling validator-validity from ExitPoint-writability — that
@@ -188,9 +195,10 @@ per-constraint verdict statuses, already canonical, plus the normalized headline
 
 ## Required Invariants
 
-- **INV1. No runtime evidence/entry/failure/projection module references any generated symbol,
-  statically or dynamically, and each imports and constructs with the generated package absent
-  from the path.** (Kept isolation test.)
+- **INV1. The four isolation-clean modules import only from an allowlist (stdlib, `pydantic`,
+  `simkit`-internal) — checked by a static AST source scan including `TYPE_CHECKING` blocks — and
+  each imports and constructs with the generated package absent from the path.** (Kept isolation
+  test; two legs, allowlist not blacklist.)
 - **INV2. Entry validation rejects missing / extra / wrong channel-model instances before the
   first module runs, naming expected and got; a non-finite float is never rejected.**
 - **INV3. `prepare` runs topology + write-handler validation exactly once; `evaluate` never
@@ -239,15 +247,20 @@ per-constraint verdict statuses, already canonical, plus the normalized headline
   and `input_digest` (canonical-serialized content hash of the typed inputs — a cross-check anchor
   for the resume join). *Deliberately excluded:* `study_id`, `candidate_id`, `proposal_id`,
   `strategy_*`, wall-clock timestamp — those are runner-owned (S6 `Compatibility` / three-layer
-  identity) and stamping them here would break B2's determinism. The evaluator is study-agnostic;
-  Item 11 wraps evidence with its own identity. *(Resolves spec deferred item 1.)*
+  identity) and stamping them here would break B2's determinism. **The harder reason candidate
+  identity must stay out:** Item 0's deliberate replicate produced distinct `candidate_id`s with
+  identical inputs sharing *one* content-addressed artifact — if evidence carried `candidate_id`,
+  two replicates could not share one artifact, so exclusion is *required* by the store's
+  content-addressed dedup, not merely determinism-friendly. Auditability is preserved through the
+  runner's own identity record plus `input_digest` as a cross-check anchor. The evaluator is
+  study-agnostic; Item 11 wraps evidence with its own identity. *(Resolves spec deferred item 1.)*
 - **Opaque-report storage form:** held as the **in-memory generated object** (`Any`), never
   introspected. The file-backed path serializes it to JSON for its persisted artifact, but that
   encoding is excluded from parity and does not freeze Item 11's non-finite on-disk decision.
   *Rejected: serialize-at-evaluate (forces the deferred non-finite encoding now) or
   content-addressed reference (needs a store — that's Item 11).* *(Resolves spec deferred item 2.)*
 - **Retryability rule:** every evaluator-raised `EvaluationFailure` is `retryable=False`. The
-  evaluator is deterministic per case (B2/B4); transient/infra retry lives in the runner. State
+  evaluator is deterministic per case (B2; D4); transient/infra retry lives in the runner. State
   the rule; don't leave the field free. *(Resolves spec deferred item 3.)*
 - **ExitPoint-write-handler coupling:** local workaround (D5). *(Resolves spec deferred item 4.)*
 
@@ -268,10 +281,13 @@ per-constraint verdict statuses, already canonical, plus the normalized headline
     Pre-execution, a genuinely distinct phase. **This is the "schema failure" SC3 exercises.**
   - `preparation` — `build_graph`→`validate` at prepare (write-handler, producer/declaration
     mismatch, `pipeline_validator.py:326,~352`). Once per study, aborts before any case.
-  - `module_execution` — anything raised inside `module.run()` (`pipeline_executor.py:126–140,205,
-    397`): arbitrary exception, Pydantic `ValidationError`, aggregator missing-result, MultiOutput
-    missing field, field-extraction failure. **One phase, distinguished by `cause`, not phase** —
-    an in-`run()` schema failure is *not* a separate phase.
+  - `module_execution` — anything raised during the per-case run loop
+    (`pipeline_executor.py:126–140`): an arbitrary exception or Pydantic `ValidationError` inside
+    `module.run()`, plus the executor-wrapper raises around it while gathering inputs / decomposing
+    outputs — MultiOutput missing field (`:205`), single-output shape mismatch (`:226`),
+    field-extraction `AttributeError`→`PipelineExecutionError` (`:397`), None-on-Optional (`:404`).
+    **One phase, distinguished by `cause`, not phase** — an in-run-loop schema failure is *not* a
+    separate phase.
   - `output_write` — file-backed persistence only; never reached in no-persist mode.
 - **The evaluator catches executor exceptions and normalizes them**, replacing the probe's
   `except Exception → ExecutionFailed(str)` (`real_evaluator.py:evaluate`) with a mapping to
@@ -291,6 +307,36 @@ per-constraint verdict statuses, already canonical, plus the normalized headline
   ```
 - **Non-finite must survive to the verdict.** Do not add strict-float validation anywhere on the
   entry path (INV2, B3). The isolation and NaN-parity tests guard this.
+- **Parity fixtures and non-finite handling.** What each leg can carry, stated precisely:
+  - *In-memory leg* holds a real `float('nan')` end to end — entry values are constructed Pydantic
+    models, never serialized.
+  - *File-backed leg* mechanically round-trips a bare `NaN`/`Infinity` JSON token: `read_json_model`
+    uses `json.load` (`readers.py:35`) and `write_json_model` uses `json.dump(model_dump(
+    mode="json"))` (`writers.py:25–27`), both at stdlib `allow_nan=True` default, so a hand-authored
+    entry file with a bare `NaN` token loads into the non-strict `ToyPlantParams` as `float('nan')`.
+    Use the bare token, **not** the `{"__nonfinite__": …}` tag (that tag is digest-input only).
+  - *Reconciliation with Item 0.* Item 0's "a NaN budget cannot travel through the file-backed JSON
+    entry" is about the study **proposal/store** path (Item 11's higher layer), not the raw
+    reader/writer a parity fixture uses. Both are true at their own layer; the earlier design
+    hardened the concept's rationale without this distinction — corrected here.
+  - *Two mandatory fixtures, and what each actually proves:*
+    - **F-budget (budget = NaN → `indeterminate`).** NaN is confined to the constraint predicate
+      operand, which lives in the *excluded* opaque report; the compared outputs `area` (= 12) and
+      `cost` (= 3000) are finite (budget feeds only `cost ≤ budget`, not the numeric graph), and the
+      verdict is the string `"indeterminate"`. **This proves indeterminate-verdict + finite-output
+      parity across a NaN input — it does *not* exercise NaN-aware numeric output equality** (no
+      compared field is ever non-finite). Keep it; name what it tests.
+    - **F-output (plant_length = NaN → `area` = NaN, `cost` = NaN).** A non-finite input propagates
+      to *compared numeric outputs*. Both legs produce non-finite `area`/`cost` (the file-backed leg
+      carries the bare `NaN` token), so **this fixture exercises NaN-aware numeric output equality
+      directly** — the compared field is non-finite on both sides and a naive `NaN != NaN` compare
+      would spuriously fail without the rule. Verdict is also `indeterminate`.
+  - *Scope of the cross-leg parity claim.* The NaN-aware rule is exercised on **file-expressible
+    candidates** (bare `NaN`/`inf` tokens through stdlib json); both ToyPlant fixtures are
+    file-expressible, so cross-leg parity holds directly. If a future backend cannot serialize a
+    given non-finite candidate, parity for it is proven on the in-memory leg against a stated
+    expectation only, and the cross-leg claim is scoped to file-expressible candidates — said
+    explicitly rather than implied.
 
 ## Potential Risks
 
@@ -301,8 +347,10 @@ per-constraint verdict statuses, already canonical, plus the normalized headline
   *Mitigation:* fields chosen against S6's `Compatibility` row and the resume-join constraint
   (lineage + executable/study fingerprints + candidate identity); the evaluator-owned subset is
   small and additive-safe.
-- **Parity test written naively fails on NaN.** *Mitigation:* the NaN-aware equality rule is
-  specified in the spec's equivalence class and the NaN case is mandated in the fixture set.
+- **Parity test written naively fails on NaN.** *Mitigation:* the NaN-aware equality rule, plus a
+  fixture (F-output) whose *compared* output is actually non-finite so the rule is exercised
+  directly — not just the budget=NaN case, whose compared outputs are finite. See "Parity fixtures
+  and non-finite handling" (Implementation Notes).
 - **Provisional loader diverges from Item 9's protocol.** *Mitigation:* the `PackageLoader`
   seam isolates the swap to one module; evidence/evaluator contracts don't change.
 
@@ -323,12 +371,20 @@ Kept test suite (all in `packages/teax-simkit/simkit/tests/`, mirroring existing
    of an invalid typed input before any module runs (INV2); execution-context isolation across
    cases (fresh context per `evaluate`, no channel bleed); no output directory in no-persist mode
    (INV6).
-2. **Parity fixture set** — canonical inputs across the three verdict classes; **the
-   NaN/indeterminate case is mandatory**; compares selected outputs (NaN-aware) + verdict statuses
-   (exact), excludes provenance/timestamps/digests/paths/report-encoding.
-3. **Isolation test** — import-scan `evidence.py`/`entry_source.py`/`failure.py`/`projection.py`
-   for any generated symbol (assert none) **and** import + construct evidence with the generated
-   package absent from `sys.path` (INV1).
+2. **Parity fixture set** — canonical inputs across the three verdict classes; compares selected
+   outputs (NaN-aware) + verdict statuses (exact), excludes provenance/timestamps/digests/paths/
+   report-encoding. See "Parity fixtures and non-finite handling" (Implementation Notes) for what
+   each leg carries and which fixture exercises the NaN-aware rule — **two non-finite fixtures are
+   mandatory: the budget=NaN indeterminate case and a NaN-propagates-to-a-compared-output case.**
+3. **Isolation test (two legs, INV1)** — (a) **static AST source scan** of `evidence.py`/
+   `entry_source.py`/`failure.py`/`projection.py`: parse each module, collect every `import` /
+   `from … import` node **including those inside `TYPE_CHECKING` and string-annotation blocks**, and
+   assert every import root is on an **allowlist** (stdlib, `pydantic`, `simkit`-internal) — an
+   *allowlist*, not a blacklist of generated symbol names, so it is robust to the provisional
+   package name (`wi014_s4`) and Item 9's rename; (b) **package-absent construction** — import the
+   four modules and construct a `ModelEvidence` with the generated package absent from `sys.path`,
+   catching any dynamic `importlib` dependency the static scan can't see. Either leg alone has a
+   gap; together they have teeth.
 4. **Three-distinguishable-outcomes test** — a module exception → `module_execution` failure; an
    `entry_validation` schema rejection → failure with a different phase; an `indeterminate`
    verdict → ordinary evidence, never a failure (SC3, INV5).

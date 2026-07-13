@@ -122,7 +122,27 @@ Layers diagram, plain "prepare once / evaluate per case" framing, a clear Core C
 
 ## Resolutions
 
-*(To be filled in Stage 4 as the owner/design-agent resolves each issue. This section is what the design agent reads to incorporate the review.)*
+*(Design-agent, 2026-07-12. All must-fixes and nice-to-haves incorporated into `design.md`.)*
+
+- **M1 (NaN parity) — resolved.** Added "Parity fixtures and non-finite handling" to Implementation
+  Notes: states precisely what each leg carries (in-memory holds `float('nan')`; file-backed
+  mechanically round-trips a bare `NaN` token via stdlib `allow_nan=True`, `readers.py:35` /
+  `writers.py:25–27`), reconciles Item 0's "cannot travel" as the proposal/store layer not the raw
+  reader/writer, and splits the fixtures: **F-budget** (budget=NaN → indeterminate; compared outputs
+  finite — proves verdict + finite-output parity, *not* NaN-aware equality) and a new **F-output**
+  (plant_length=NaN → area/cost non-finite — exercises NaN-aware numeric equality directly on both
+  legs). Cross-leg claim scoped explicitly to file-expressible candidates. Validation #2 and the
+  Risks NaN bullet updated to match.
+- **M2 (isolation test) — resolved.** INV1 and Validation #3 rewritten: static AST source scan
+  including `TYPE_CHECKING`/string-annotation blocks, an import **allowlist** (stdlib / `pydantic` /
+  `simkit`-internal) instead of a generated-symbol blacklist (robust to the provisional package name
+  and Item 9's rename), plus package-absent runtime construction as the second leg.
+- **Nice-to-haves — all resolved.** B4 restated: the retryability claim moved into D4 as a decision;
+  B4 is now the private-executor-hook bet (`_execute_entry` et al. staying stable) with its failure
+  mode and mitigation. Taxonomy prose corrected to "raised during the per-case run loop" with the
+  executor-wrapper raise sites (`:205`, `:226`, `:397`, `:404`) named. Provenance-exclusion decision
+  strengthened by citing Item 0's content-addressed replicate finding (distinct `candidate_id`s
+  sharing one artifact → candidate identity *must* stay out of evidence).
 
 ---
 
