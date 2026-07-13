@@ -10,13 +10,13 @@ parameters via the strategy/bridge (spec.md#studydefinition).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping
 
 from pydantic import BaseModel
 
 from .compatibility import Compatibility
-from .policy import Policy
+from .policy import ObjectiveSpec, Policy
 from .strategy import CandidateStrategy
 
 ProposalValidator = Callable[[Mapping[str, Any]], Mapping[str, Any] | None]
@@ -41,6 +41,10 @@ class StudyDefinition:
     input_schema_version: str
     evidence_schema_version: str
     study_definition_fingerprint: str
+    # Objective/response-role interpretation for the policy (Item 12 D4);
+    # empty defaults keep Item 11's hand-assembled definitions compiling.
+    objectives: tuple[ObjectiveSpec, ...] = ()
+    response_roles: Mapping[str, str] = field(default_factory=dict)
     # Carried per spec.md#studydefinition; interpretation is Item 12's.
     budget: Any = None
     retention: Any = None

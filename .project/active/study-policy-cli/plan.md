@@ -109,26 +109,26 @@ def test_fingerprint_shifts_on_each_shaping_field(tmp_path):
 **See design:** Component Overview (`study/config.py`, `study/definition.py`); D1, D2, D4; config
 schema block; Architecture data-flow "create".
 
-- [ ] **`study/config.py`** (NEW): `StudyConfig` Pydantic model over the illustrative schema
+- [x] **`study/config.py`** (NEW): `StudyConfig` Pydantic model over the illustrative schema
   (package ref, `entry_channel`, `entry_model` name, ordered `grid` as `[param_id, domain]` pairs,
   `fixed`, `policy` block with `name`/`objectives`/`response_roles`, `budget`, `retention`);
   `load_study_config(path)` YAML loader (PyYAML is already a dependency); `semantic_fingerprint()`
   = `digest_of` (`study/identity.py:22`) over the ordered semantic subset only, **excluding**
   `package.dir`, spec path, store path (D2). Preserve grid order as a pair-list, never a dict, so
   `sort_keys` cannot reorder it (mirror `identity.py` docstring and `GridStrategy.config`).
-- [ ] **`study/policy.py`** (extend): add the `ObjectiveSpec` frozen dataclass (shape fixed above).
+- [x] **`study/policy.py`** (extend): add the `ObjectiveSpec` frozen dataclass (shape fixed above).
   Keep `DispositionPolicy` untouched.
-- [ ] **`study/definition.py`** (extend): add `objectives: tuple[ObjectiveSpec, ...] = ()` and
+- [x] **`study/definition.py`** (extend): add `objectives: tuple[ObjectiveSpec, ...] = ()` and
   `response_roles: Mapping[str, str] = field(default_factory=dict)` after
   `study_definition_fingerprint`. Import `ObjectiveSpec` from `.policy` (definition already imports
   `Policy` from there — no new cycle).
 
 ### Validation
 **Automated:**
-- [ ] `test_config.py` passes.
-- [ ] **Compat check:** study suite (29) still green — `conftest.build_definition` compiles and runs
+- [x] `test_config.py` passes.
+- [x] **Compat check:** study suite (29) still green — `conftest.build_definition` compiles and runs
   unchanged with the new defaulted fields.
-- [ ] Ruff clean on changed files.
+- [x] Ruff clean on changed files.
 
 **What we know after this phase:** the config round-trips to a stable, correctly-scoped fingerprint
 (B1's read side), and the additive definition fields didn't disturb Item 11.
@@ -400,7 +400,36 @@ See CLAUDE.md for test commands. All work runs in teax's own `.venv` (Phase 0). 
 [TO BE FILLED DURING IMPLEMENTATION]
 
 ### Phase 0 Completion
+**Completed:** 2026-07-12
+**Changes Made:** none (environment already provisioned on this branch).
+**Findings:** `.venv` imports `simkit` and the sealed `wi014_s4` fixture package. Baseline:
+study suite 29/29 green, evaluation suite 25/25 green, framework suite green except the 4 known
+`test_no_battery_deps.py` failures (unrelated `FileNotFoundError` from a stale absolute path in a
+subprocess check, pre-existing).
+
 ### Phase 1 Completion
+**Completed:** 2026-07-12
+**Changes Made:**
+- Created `study/config.py`: `StudyConfig`/`PackageRef`/`ObjectiveConfig`/`PolicyConfig` (Pydantic,
+  extending `simkit.config.schema.StrictBaseModel` per repo convention), `load_study_config`,
+  `semantic_fingerprint()`. The fingerprint excludes the whole `package` block (not just `dir`) —
+  package identity is bound separately via `executable_fingerprint`, and no `store path` field
+  exists in the config to begin with (it's a CLI arg, not config content).
+- Extended `study/policy.py` with the `ObjectiveSpec` frozen dataclass (`output`, `role`,
+  `penalty_threshold`) — `DispositionPolicy` untouched.
+- Extended `study/definition.py`: `objectives: tuple[ObjectiveSpec, ...] = ()` and
+  `response_roles: Mapping[str, str] = field(default_factory=dict)`, placed directly after
+  `study_definition_fingerprint` and before `budget`/`retention` (trailing defaulted fields, frozen
+  dataclass ordering respected).
+- Added `write_grid_config` test helper + `COST_CH`/`GRID_VAR` constants to
+  `tests/study/conftest.py` (shared by Phase 1's `test_config.py` and Phase 2's
+  `test_cli_end_to_end.py`), and `tests/study/test_config.py` (3 tests: reload-stable,
+  filesystem-location-insensitive, shifts on each of 7 shaping-field edits).
+**Issues Encountered:** ruff/pip not on the project venv's PATH; used `uvx ruff check` instead
+(no other change to tooling).
+**Validation:** `test_config.py` 3/3 green; study suite 32/32 green (29 + 3 new); `uvx ruff check`
+clean on all changed/new files.
+
 ### Phase 2 Completion
 ### Phase 3 Completion
 ### Phase 4 Completion

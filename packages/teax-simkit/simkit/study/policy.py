@@ -7,9 +7,26 @@ queries, and CLI are Item 12 (spec.md#assessment-policy-boundary);
 """
 from __future__ import annotations
 
-from typing import Any, Protocol
+from dataclasses import dataclass
+from typing import Any, Literal, Protocol
 
 from simkit.evaluation.evidence import ModelEvidence
+
+ObjectiveRole = Literal["minimize", "maximize", "penalty"]
+
+
+@dataclass(frozen=True)
+class ObjectiveSpec:
+    """One configured objective: which output to read and how to weigh it.
+
+    `penalty_threshold` bounds the "satisfied but beyond threshold ->
+    penalize" disposition (`ObjectivePolicy`, design.md#the-policy).
+    """
+
+    output: str
+    role: ObjectiveRole
+    penalty_threshold: float | None = None
+
 
 _DISPOSITION_BY_HEADLINE = {
     "satisfied": "feasible",
