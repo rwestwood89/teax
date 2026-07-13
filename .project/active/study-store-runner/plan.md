@@ -204,23 +204,23 @@ def test_evidence_roundtrip_nonfinite(study_env):         # INV-H, D3
 **See design.md for:** fixed order → design.md#architecture; failure-routing switch (against the enum) → design.md#implementation-notes; retry (store-I/O only, limit 3, no backoff) → D7; non-finite encoding + reserved-key rejection → D3; the `execution_failed`/`assessment_failed`/retry trigger recipes → design.md#validation-approach.
 
 Files under `simkit/study/`:
-- [ ] `evidence_io.py` — serialize `ModelEvidence` for staging: `report.model_dump(mode="json")`, then apply the **recursive** `{"__nonfinite__": tag}` sentinel to the whole payload (outputs/responses/report), used for **both** the digest input and the on-disk bytes (single source — design.md#potential-risks). Reject a reserved-key collision loudly (`ValueError`) if a genuine value is a one-key `{"__nonfinite__": …}` mapping (MF-3). Never imports a generated report class as a runtime type (`evidence.py:45-58` holds `report: Any`).
-- [ ] `runner.py` — `StudyRunner`, fixed order with injected evaluator/strategy/validator/bridge/policy. Write and commit the `started` transition *before* evaluate/stage/commit; terminal transitions after commit (design.md#implementation-notes). Failure-routing switch written against `EvaluationPhase` (four phases; `failure.py:13-24`), not "two phases":
+- [x] `evidence_io.py` — serialize `ModelEvidence` for staging: `report.model_dump(mode="json")`, then apply the **recursive** `{"__nonfinite__": tag}` sentinel to the whole payload (outputs/responses/report), used for **both** the digest input and the on-disk bytes (single source — design.md#potential-risks). Reject a reserved-key collision loudly (`ValueError`) if a genuine value is a one-key `{"__nonfinite__": …}` mapping (MF-3). Never imports a generated report class as a runtime type (`evidence.py:45-58` holds `report: Any`).
+- [x] `runner.py` — `StudyRunner`, fixed order with injected evaluator/strategy/validator/bridge/policy. Write and commit the `started` transition *before* evaluate/stage/commit; terminal transitions after commit (design.md#implementation-notes). Failure-routing switch written against `EvaluationPhase` (four phases; `failure.py:13-24`), not "two phases":
   - `ENTRY_VALIDATION` → `raise StudyBridgeDefect(failure)` (loud, never a case; spec.md#runner);
   - `PREPARATION` → re-raise (startup fault, not a case);
   - else (`MODULE_EXECUTION` today / `OUTPUT_WRITE` future) → `execution_failed` case with `evidence_digest=NULL`, `failure_json=failure` (D5).
   - Retry loop: only `RetryableStoreError` (staging/commit `OSError`, SQLite `OperationalError`) retries, new `attempt_id`, limit 3, no backoff (D7). The evaluator is never retryable (`failure.py:31-38`).
-- [ ] `tests/study/conftest.py` — real-evaluator fixtures reusing `PreparedEvaluator(loader, SPEC_PATH)` with `ProvisionalPackageLoader(package_dir=FIXTURE_DIR, package_name="wi014_s4", link_root=...)` (mirror `tests/evaluation/conftest.py:29-39`); the study-definition variables; and the named test affordances (MODULE_EXECUTION-raising wrapper, zero-assertion wrapper, store-transient fault, policy rejection).
+- [x] `tests/study/conftest.py` — real-evaluator fixtures reusing `PreparedEvaluator(loader, SPEC_PATH)` with `ProvisionalPackageLoader(package_dir=FIXTURE_DIR, package_name="wi014_s4", link_root=...)` (mirror `tests/evaluation/conftest.py:29-39`); the study-definition variables; and the named test affordances (MODULE_EXECUTION-raising wrapper, zero-assertion wrapper, store-transient fault, policy rejection).
 
 Tests:
-- [ ] `test_runner_matrix.py` — `test_completed_matrix` (four classes; see Flagged finding for `not_assessed`), `test_invalid_proposal_record` (validator injection; well-formed-but-invalid stays a `ProposalRecord`, never a case — and **non-finite is NOT invalid**, spec.md#runner), `test_no_double_commit`.
-- [ ] `test_runner_failures.py` — `test_execution_failed` (named MODULE_EXECUTION fault), `test_assessment_failed` (policy rejection, real evidence preserved), `test_retry_new_attempt` (store-transient fault, one case on a new `attempt_id`), `test_bridge_defect_is_loud` (an `ENTRY_VALIDATION` from a deliberately wrong bridge raises `StudyBridgeDefect`, never a case).
-- [ ] `test_evidence_io.py` — `test_evidence_roundtrip_nonfinite` (INV-H), `test_reserved_key_rejected` (MF-3).
+- [x] `test_runner_matrix.py` — `test_completed_matrix` (four classes; see Flagged finding for `not_assessed`), `test_invalid_proposal_record` (validator injection; well-formed-but-invalid stays a `ProposalRecord`, never a case — and **non-finite is NOT invalid**, spec.md#runner), `test_no_double_commit`.
+- [x] `test_runner_failures.py` — `test_execution_failed` (named MODULE_EXECUTION fault), `test_assessment_failed` (policy rejection, real evidence preserved), `test_retry_new_attempt` (store-transient fault, one case on a new `attempt_id`), `test_bridge_defect_is_loud` (an `ENTRY_VALIDATION` from a deliberately wrong bridge raises `StudyBridgeDefect`, never a case).
+- [x] `test_evidence_io.py` — `test_evidence_roundtrip_nonfinite` (INV-H), `test_reserved_key_rejected` (MF-3).
 
 ### Validation
-- [ ] `pytest packages/teax-simkit/simkit/tests/study/ -q` → Phases 1–3 green.
-- [ ] `pytest packages/teax-simkit/simkit/tests/evaluation/ -q` → still 25.
-- [ ] `ruff check` → clean.
+- [x] `pytest packages/teax-simkit/simkit/tests/study/ -q` → Phases 1–3 green (23 passed).
+- [x] `pytest packages/teax-simkit/simkit/tests/evaluation/ -q` → still 25.
+- [x] `ruff check` → clean.
 
 **What we know works after Phase 3:** every per-case outcome the runner must produce is proven against the real evaluator + real failure taxonomy + real evidence, and evidence round-trips losslessly.
 
@@ -299,6 +299,14 @@ def test_no_dangling_artifact(tmp_path):                  # both crash legs
 **Deviations:** `StudyDefinition` carries `budget`/`retention` as inert opaque fields (spec.md requires the container shape; Item 12 interprets them) rather than typed/behavioral — flagging so it isn't mistaken for an oversight.
 
 ### Phase 3 Completion
+**Completed:** 2026-07-12
+**Actual Changes:**
+- New: `simkit/study/{evidence_io,runner}.py`, `simkit/tests/study/{test_runner_matrix,test_runner_failures,test_evidence_io}.py`.
+- Backfilled `RetryableStoreError` wrapping into `store.py` (edit, not new file): `_fenced_execute` catches `sqlite3.OperationalError`, `_stage_artifact` catches `OSError`, both re-raise as `RetryableStoreError` — this is the D7 mechanism the Phase-1 store didn't yet need. Re-ran the full Phase 1+2 study suite after the edit; still green.
+- Extended `tests/study/conftest.py` with the Phase 3 real-evaluator seam: `PROPOSALS` (10 positional candidates covering all four `completed` headlines, an invalid proposal, `execution_failed`, `assessment_failed`, a replicate pair, and a retry target), `validate_proposal`, `NamedFaultEvaluator` (delegates to `PreparedEvaluator`; two sentinel budget values trigger the named `execution_failed`/`not_assessed` affordances per the orchestrator's recorded resolution), `FlakyOnceStore` (subclasses `StudyStore`, raises `RetryableStoreError` once for a designated candidate), and `run_study(...)`/`build_definition(...)` helpers.
+- `runner.py`'s failure-routing switch is written against all four `EvaluationPhase` values (`ENTRY_VALIDATION`/`PREPARATION`/else), per NF-1, even though only `ENTRY_VALIDATION` and `MODULE_EXECUTION` are reachable per-case under today's `PreparedEvaluator` (B4) — `PREPARATION` re-raise is unreachable dead code by construction, kept because the design explicitly requires the switch shaped this way for a future persisting backend.
+**Issues:** none.
+**Deviations:** none from design/plan.
 
 ### Phase 4 Completion
 

@@ -33,7 +33,7 @@ from typing import Any, Mapping
 
 from .compatibility import Compatibility
 from .crash import NO_CRASH, CrashController
-from .failures import IncompatibleStore, StudyLeaseLost, StudyLocked
+from .failures import IncompatibleStore, RetryableStoreError, StudyLeaseLost, StudyLocked
 from .identity import canonical_bytes
 
 _SCHEMA = """
@@ -253,7 +253,13 @@ class StudyStore:
     # -- fenced writes (MF-1) ---------------------------------------------
 
     def _fenced_execute(self, sql: str, params: tuple) -> None:
-        """Run one write inside a transaction fenced on the held lease_id."""
+        """Run one write inside a transaction fenced on the held lease_id.
+
+        A `sqlite3.OperationalError` (e.g. a lock-contention timeout) is a
+        transient store-I/O fault, not a lease loss or a caller bug — wrapped
+        as `RetryableStoreError` so the runner retries under a new attempt
+        (D7).
+        """
         if self.lease_id is None:
             raise StudyLeaseLost("no lease held")
         self.conn.execute("BEGIN IMMEDIATE")
@@ -264,6 +270,9 @@ class StudyStore:
             if row is None or row["lease_id"] != self.lease_id:
                 raise StudyLeaseLost(f"lease {self.lease_id} no longer held")
             self.conn.execute(sql, params)
+        except sqlite3.OperationalError as error:
+            self.conn.rollback()
+            raise RetryableStoreError(str(error)) from error
         except Exception:
             self.conn.rollback()
             raise
@@ -343,19 +352,23 @@ class StudyStore:
         if self.lease_id is None:
             raise StudyLeaseLost("no lease held")
         lease_dir = self.staging_dir / self.lease_id
-        lease_dir.mkdir(parents=True, exist_ok=True)
         tmp = lease_dir / f"{attempt_id}.tmp"
-        with open(tmp, "wb") as handle:
-            half = len(payload) // 2
-            handle.write(payload[:half])
-            handle.flush()
-            os.fsync(handle.fileno())
-            crash.maybe_crash("mid_staging", candidate_id)  # tmp truncated, final absent
-            handle.write(payload[half:])
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(tmp, final_path)  # atomic
-        _fsync_dir(self.artifacts_dir)
+        try:
+            lease_dir.mkdir(parents=True, exist_ok=True)
+            with open(tmp, "wb") as handle:
+                half = len(payload) // 2
+                handle.write(payload[:half])
+                handle.flush()
+                os.fsync(handle.fileno())
+                crash.maybe_crash("mid_staging", candidate_id)  # tmp truncated, final absent
+                handle.write(payload[half:])
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp, final_path)  # atomic
+            _fsync_dir(self.artifacts_dir)
+        except OSError as error:
+            # Transient store-I/O fault, not a lease/logic error (D7).
+            raise RetryableStoreError(str(error)) from error
         return digest
 
     def commit_case(
