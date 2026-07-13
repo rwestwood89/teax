@@ -1,6 +1,6 @@
 # Implementation Plan: Study Policy, Query, and CLI Surface (Item 12)
 
-**Status:** Draft
+**Status:** Complete
 **Created:** 2026-07-12
 **Last Updated:** 2026-07-12
 **Branch:** constraint-exec-epic
