@@ -10,6 +10,7 @@ Two legs, together giving the guard teeth (design.md#validation-approach):
 from __future__ import annotations
 
 import ast
+import subprocess
 import sys
 from pathlib import Path
 
@@ -42,23 +43,38 @@ def test_clean_modules_import_only_allowlist():
                 )
 
 
+_PACKAGE_ABSENT_SCRIPT = """
+import sys
+assert "wi014_s4" not in sys.modules, "wi014_s4 pre-imported before the test ran"
+
+from simkit.evaluation import EvidenceProvenance, ModelEvidence
+
+evidence = ModelEvidence(
+    responses={"headline": "indeterminate"},
+    outputs={"area": 12.0},
+    provenance=EvidenceProvenance(
+        executable_fingerprint="fp",
+        evidence_schema_version="v1",
+        evaluator_version="v1",
+        input_digest="digest",
+    ),
+    report=object(),
+)
+
+assert evidence.responses["headline"] == "indeterminate"
+assert "wi014_s4" not in sys.modules
+"""
+
+
 def test_construct_evidence_with_generated_package_absent():
-    assert "wi014_s4" not in sys.modules
-    assert not any("wi014_s4" in str(p) for p in sys.path)
-
-    from simkit.evaluation import EvidenceProvenance, ModelEvidence
-
-    evidence = ModelEvidence(
-        responses={"headline": "indeterminate"},
-        outputs={"area": 12.0},
-        provenance=EvidenceProvenance(
-            executable_fingerprint="fp",
-            evidence_schema_version="v1",
-            evaluator_version="v1",
-            input_digest="digest",
-        ),
-        report=object(),
+    # Run in a fresh subprocess: within the test *session*, wi014_s4 may
+    # already be in sys.modules (other evaluation tests load it via the
+    # `prepared`/`file_backed` fixtures) — that says nothing about whether
+    # these four modules themselves need it. Only a clean interpreter proves
+    # that.
+    result = subprocess.run(
+        [sys.executable, "-c", _PACKAGE_ABSENT_SCRIPT],
+        capture_output=True,
+        text=True,
     )
-
-    assert evidence.responses["headline"] == "indeterminate"
-    assert "wi014_s4" not in sys.modules
+    assert result.returncode == 0, result.stderr

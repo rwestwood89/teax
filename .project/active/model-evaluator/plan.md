@@ -1,6 +1,6 @@
 # Implementation Plan: Model Evaluator and Typed Entry (Item 10)
 
-**Status:** Draft
+**Status:** Complete
 **Created:** 2026-07-12
 **Last Updated:** 2026-07-12
 **Branch:** constraint-exec-epic
@@ -262,15 +262,15 @@ def test_every_raised_failure_is_terminal(prepared):            # D4
 
 ### Changes Required
 **See `design.md#implementation-notes` (the phase→real-failure map) and `design.md#required-invariants` (INV5).**
-- [ ] `simkit/evaluation/evaluator.py` — wrap the prepare-time `build_graph` call to emit `phase=preparation` on validation failure (the probe did not; new, correct behavior). Confirm the per-case catch-all emits `module_execution` with `cause` = type+message and `module_or_channel` when known; `retryable=False` always (D4). `output_write` is file-backed-only and unreachable in no-persist mode — assert it is never emitted there.
-- [ ] `simkit/evaluation/__init__.py` — finalize the full public API list (`design.md#component-overview` Public API): `MappingEntrySource`, `ModelEvidence`, `ResponseEntry`, `EvidenceProvenance`, `CANONICAL_HEADLINE`, `EvaluationPhase`, `EvaluationFailure`, `EvaluationFailed`, `Evaluator`, `PreparedEvaluator`, `FileBackedEvaluator`, `PackageLoader`, `ProvisionalPackageLoader`.
-- [ ] `tests/evaluation/test_failure_taxonomy.py` (NEW) — the stencils above (SC3, INV5, D4).
+- [x] `simkit/evaluation/evaluator.py` — wrap the prepare-time `build_graph` call to emit `phase=preparation` on validation failure (the probe did not; new, correct behavior). Confirm the per-case catch-all emits `module_execution` with `cause` = type+message and `module_or_channel` when known; `retryable=False` always (D4). `output_write` is file-backed-only and unreachable in no-persist mode — assert it is never emitted there.
+- [x] `simkit/evaluation/__init__.py` — finalize the full public API list (`design.md#component-overview` Public API): `MappingEntrySource`, `ModelEvidence`, `ResponseEntry`, `EvidenceProvenance`, `CANONICAL_HEADLINE`, `EvaluationPhase`, `EvaluationFailure`, `EvaluationFailed`, `Evaluator`, `PreparedEvaluator`, `FileBackedEvaluator`, `PackageLoader`, `ProvisionalPackageLoader`.
+- [x] `tests/evaluation/test_failure_taxonomy.py` (NEW) — the stencils above (SC3, INV5, D4).
 
 ### Validation (gate — final)
-- [ ] `pytest tests/evaluation -q` → all evaluation tests green (isolation, projection, prepared evaluator, parity, failure taxonomy).
-- [ ] Full framework suite green (no regressions): `pytest packages/teax-simkit -q` (or the borrowed-env form if Phase 0 fell back).
-- [ ] Public API importable: `python -c "from simkit.evaluation import *"` resolves every name above.
-- [ ] Isolation test still green — the guard held across all four phases.
+- [x] `pytest tests/evaluation -q` → all evaluation tests green (isolation, projection, prepared evaluator, parity, failure taxonomy).
+- [x] Full framework suite green (no regressions): `pytest packages/teax-simkit -q` (or the borrowed-env form if Phase 0 fell back).
+- [x] Public API importable: `python -c "from simkit.evaluation import *"` resolves every name above.
+- [x] Isolation test still green — the guard held across all four phases.
 
 **What We Know Works After This Phase:** the full kept suite — S5's four invariants, F-budget + F-output parity, isolation (AST + allowlist + package-absent), three distinguishable outcomes, non-finite-reaches-verdict — passes against the real sealed package. Item 10's evaluator API is production and ready for Item 11 to consume.
 
@@ -350,9 +350,27 @@ def test_every_raised_failure_is_terminal(prepared):            # D4
 **Gate:** `pytest tests/evaluation -q` → 21 passed (isolation 2, projection 7, prepared-evaluator 6, parity 6). All four parity cases green; F-output confirmed non-finite on both legs; F-budget confirmed finite on both legs with `indeterminate` verdict. Fixture seal re-verified intact after the run (0 hash mismatches, 0 unhashed extras). Full framework suite green (excluding the four pre-existing hard-coded-checkout-path failures).
 
 ### Phase 4 Completion
+**Completed:** 2026-07-12
+**Actual Changes:**
+- `tests/evaluation/test_failure_taxonomy.py` (NEW) — `test_module_exception_is_module_execution` (swaps the `Panel_AreaModule` registry entry for a module whose `run()` always raises, for the duration of one call, then restores it — the only way to get a genuine module exception out of the real sealed package without corrupting it — and asserts `phase is MODULE_EXECUTION`); `test_entry_rejection_is_entry_validation` (a distinct phase from the above — SC3's "two distinguishable failure phases"); `test_indeterminate_is_evidence_not_failure` (NaN budget returns evidence, does not raise — SC3/INV5); `test_every_raised_failure_is_terminal` (`retryable is False`, D4).
+- No changes were needed to `evaluator.py`'s `preparation`-phase wrapping or `module_execution` catch-all — both were already in place from Phase 2 (recorded there as done ahead of schedule). This phase only had to write the tests that exercise them.
+- Confirmed the full public API list resolves: `python -c "from simkit.evaluation import *"` → all 13 names (`MappingEntrySource`, `CANONICAL_HEADLINE`, `EvidenceProvenance`, `ModelEvidence`, `ResponseEntry`, `EvaluationFailed`, `EvaluationFailure`, `EvaluationPhase`, `Evaluator`, `PreparedEvaluator`, `FileBackedEvaluator`, `PackageLoader`, `ProvisionalPackageLoader`) already present — `__init__.py` needed no further edits.
+
+**Issues:** One real bug found and fixed during this phase, not in the code being added but in Phase 1's isolation test. `test_construct_evidence_with_generated_package_absent` asserted `"wi014_s4" not in sys.modules` — true only when it happened to run before any fixture that loads the package. Adding `test_failure_taxonomy.py` (alphabetically before `test_isolation.py`, and using the session-scoped `prepared` fixture) broke that assumption and failed the test. Fixed by moving the package-absent leg into a subprocess (`subprocess.run([sys.executable, "-c", ...])`) so it genuinely proves the four modules construct without the package, independent of what else pytest has imported in-process — the correct form of this check per INV1's intent, not a workaround. Re-verified: full `tests/evaluation` suite green regardless of file collection order.
+
+**Deviations:** The isolation-test subprocess fix (above) — a correctness fix to Phase 1 work, done here because Phase 4 is what exposed the gap.
+
+**Gate (final):**
+- `pytest tests/evaluation -q` → 25 passed (isolation 2, projection 7, prepared-evaluator 6, parity 6, failure-taxonomy 4).
+- Full framework suite green: `pytest packages/teax-simkit -q` excluding the four pre-existing hard-coded-checkout-path failures (unrelated to this item, present before Phase 0).
+- `python -c "from simkit.evaluation import *"` resolves every public name.
+- Isolation test green regardless of test collection order (fixed above) — the guard held across all four phases.
+- `uvx ruff check` on `simkit/evaluation` and `simkit/tests/evaluation` (excluding the fixture package, which is committed third-party test data, not this item's code): all checks passed.
+
+**What We Know Works After This Phase:** the full kept suite — S5's four invariants, F-budget + F-output parity, isolation (AST + allowlist + package-absent, now collection-order-independent), three distinguishable outcomes, non-finite-reaches-verdict — passes against the real sealed package. Item 10's evaluator API is production and ready for Item 11 to consume.
 
 ---
 
-**Status:** Draft → In Progress → Complete
+**Status:** Draft → In Progress → Complete (2026-07-12)
 </content>
 </invoke>
