@@ -49,11 +49,14 @@ The whole item rests on Key Bets B1–B3 (design.md#key-bets), which live entire
 
 **See CLAUDE.md for environment rules.** Item 10 provisioned teax's venv.
 
-- [ ] Smoke-check the venv and the consumed evaluator:
+- [x] Smoke-check the venv and the consumed evaluator:
   - `.venv/bin/python -m pytest packages/teax-simkit/simkit/tests/evaluation/ -q` → **25 passed** (the baseline this item must keep green).
   - `.venv/bin/python -c "from simkit.evaluation.evaluator import PreparedEvaluator; from simkit.evaluation.failure import EvaluationFailed, EvaluationFailure, EvaluationPhase; print('ok')"`
-- [ ] Confirm the framework suite baseline: `.venv/bin/python -m pytest packages/teax-simkit/ -q` → green **except the four known pre-existing failures** (record their node IDs now so the final gate can distinguish them from regressions).
-- [ ] Create package skeletons: `simkit/study/__init__.py`, `simkit/tests/study/__init__.py`.
+- [x] Confirm the framework suite baseline: `.venv/bin/python -m pytest packages/teax-simkit/ -q` → green **except the four known pre-existing failures** (record their node IDs now so the final gate can distinguish them from regressions).
+  - Recorded pre-existing failures (unrelated `/home/reid/teax` hardcoded path in a subprocess check, nothing to do with this item):
+    `simkit/tests/test_no_battery_deps.py::test_no_battery_imports_in_framework`,
+    `::test_no_battery_config_imports`, `::test_no_load_profile_imports`, `::test_no_geography_imports`.
+- [x] Create package skeletons: `simkit/study/__init__.py`, `simkit/tests/study/__init__.py`.
 
 ---
 
@@ -95,11 +98,11 @@ def test_grid_reorder_is_new_lineage(tmp_path):           # MF-2, D8, INV-G
 **See design.md for:** DDL → Appendix A (transcribe **verbatim**); staging layout & seams → design.md#implementation-notes; lease acquire/fence/GC pseudocode → Appendix A; invariants → design.md#required-invariants (INV-A…INV-F, INV-H).
 
 Files under `simkit/study/`:
-- [ ] `failures.py` — `IncompatibleStore`, `StudyLocked`, `StudyLeaseLost`, `StudyBridgeDefect`, `RetryableStoreError` (design.md#component-overview).
-- [ ] `identity.py` — canonical JSON bytes, `sha256` digests, positional ID minting, and the **order-sensitive** `strategy_config` canonicalization (ordered `[name, domain]` pair-array, never `sort_keys`; D8). Contrast with the S6 `canonical_bytes` `sort_keys=True` (`study_lifecycle.py:43-49`) which this deliberately replaces for order-bearing config.
-- [ ] `compatibility.py` — the eight-field `Compatibility` binding (design.md#component-overview); `strategy_config` uses the order-preserving canonicalization from `identity.py`.
-- [ ] `crash.py` — `CrashController` with `maybe_crash(phase, candidate_id)` doing `os._exit`; default no-op instance for production (port `study_lifecycle.py:246-264`).
-- [ ] `store.py` — `StudyStore`:
+- [x] `failures.py` — `IncompatibleStore`, `StudyLocked`, `StudyLeaseLost`, `StudyBridgeDefect`, `RetryableStoreError` (design.md#component-overview).
+- [x] `identity.py` — canonical JSON bytes, `sha256` digests, positional ID minting, and the **order-sensitive** `strategy_config` canonicalization (ordered `[name, domain]` pair-array, never `sort_keys`; D8). Contrast with the S6 `canonical_bytes` `sort_keys=True` (`study_lifecycle.py:43-49`) which this deliberately replaces for order-bearing config.
+- [x] `compatibility.py` — the eight-field `Compatibility` binding (design.md#component-overview); `strategy_config` uses the order-preserving canonicalization from `identity.py`.
+- [x] `crash.py` — `CrashController` with `maybe_crash(phase, candidate_id)` doing `os._exit`; default no-op instance for production (port `study_lifecycle.py:246-264`).
+- [x] `store.py` — `StudyStore`:
   - DDL from Appendix A verbatim (`compatibility`, `proposals`, `attempt_transitions`, `cases`, `runner_lease`, + `ix_attempt_by_candidate`). Note the deltas from S6's schema: `attempt_transitions` replaces `attempts` (Option A, D2), `cases.evidence_digest` is **nullable** (D5), and `runner_lease` is new.
   - `PRAGMA journal_mode=WAL` + `PRAGMA synchronous=FULL`, set on every open and **asserted** as contract; state it in the module docstring and the single-host contract line (NF-3, design.md#implementation-notes).
   - Staging protocol: `root/staging/{lease_id}/{attempt_id}.tmp` → fsync → atomic rename → `root/artifacts/{digest}.json` → fsync dir, with the two seams (`mid_staging`, `before_commit`) exactly where `study_lifecycle.py:423-486` puts them. Per-lease staging subdir created at lease-acquire (NF-4).
@@ -107,18 +110,18 @@ Files under `simkit/study/`:
   - Lease acquire/heartbeat(background thread)/reclaim per Appendix A pseudocode (defaults: 10 s heartbeat, 30 s TTL; `os.kill(pid,0)`→`ESRCH` same-host fast path).
   - Attempt-number derivation: `COALESCE(MAX(attempt_number),0)+1` over the candidate's transition rows — **not** `COUNT(*)` (MF-4; contrast S6 `study_lifecycle.py:397-402`).
   - GC: refuse unless lease `released`/dead; collect dead-lease `staging/{dead}/*.tmp` and any `artifacts/{digest}.json` whose digest is in no committed case's non-null `evidence_digest` (Appendix A "GC"; L3-5).
-- [ ] `tests/study/_store_child.py` — minimal subprocess driver: open store, acquire lease, stage+commit one (or a few) case(s) directly via the store API with a `CrashController`. ~40 lines, store-only, no runner/strategy. Runnable as `python -m simkit.tests.study._store_child --db ... --crash-at PHASE:CAND`.
+- [x] `tests/study/_store_child.py` — minimal subprocess driver: open store, acquire lease, stage+commit one (or a few) case(s) directly via the store API with a `CrashController`. ~40 lines, store-only, no runner/strategy. Runnable as `python -m simkit.tests.study._store_child --db ... --crash-at PHASE:CAND`.
 
 Tests (`tests/study/`):
-- [ ] `test_store_seam.py` — `test_store_seam_before_commit`, `test_store_seam_mid_staging` (final absent, truncated tmp; mirror `probe_crash_safe_study.py:199-222`).
-- [ ] `test_lease.py` — `test_lease_fence_blocks_reclaimed_writer` (MF-1), `test_second_live_runner_refused` (`StudyLocked`).
-- [ ] `test_compatibility.py` — `test_incompatible_reopen_fails`, `test_grid_reorder_is_new_lineage` (MF-2), matching-reopen succeeds.
-- [ ] `test_gc.py` — `test_gc_orphans_only`: dead-lease orphan tmp collected, a replicate-shared artifact kept.
+- [x] `test_store_seam.py` — `test_store_seam_before_commit`, `test_store_seam_mid_staging` (final absent, truncated tmp; mirror `probe_crash_safe_study.py:199-222`).
+- [x] `test_lease.py` — `test_lease_fence_blocks_reclaimed_writer` (MF-1), `test_second_live_runner_refused` (`StudyLocked`).
+- [x] `test_compatibility.py` — `test_incompatible_reopen_fails`, `test_grid_reorder_is_new_lineage` (MF-2), matching-reopen succeeds.
+- [x] `test_gc.py` — `test_gc_orphans_only`: dead-lease orphan tmp collected, a replicate-shared artifact kept (plus `test_gc_refuses_while_lease_live`).
 
 ### Validation
-- [ ] `.venv/bin/python -m pytest packages/teax-simkit/simkit/tests/study/ -q` → all Phase-1 tests pass.
-- [ ] `.venv/bin/python -m pytest packages/teax-simkit/simkit/tests/evaluation/ -q` → still 25 passed.
-- [ ] `ruff check packages/teax-simkit/simkit/study packages/teax-simkit/simkit/tests/study` → clean.
+- [x] `.venv/bin/python -m pytest packages/teax-simkit/simkit/tests/study/ -q` → all Phase-1 tests pass (9 passed).
+- [x] `.venv/bin/python -m pytest packages/teax-simkit/simkit/tests/evaluation/ -q` → still 25 passed.
+- [x] `ruff check packages/teax-simkit/simkit/study packages/teax-simkit/simkit/tests/study` → clean (via `uvx ruff check`; no local `ruff` binary in `.venv`).
 
 **What we know works after Phase 1:** the store survives both crash seams (B2/INV-B/INV-C), a reclaimed writer cannot double-write (B3/INV-F), reordered grid variables start a new lineage (D8/INV-G identity property), and GC collects only unreferenced garbage — all without the evaluator.
 
@@ -275,7 +278,15 @@ def test_no_dangling_artifact(tmp_path):                  # both crash legs
 [TO BE FILLED DURING IMPLEMENTATION — leave empty now]
 
 ### Phase 1 Completion
-**Completed:** …  **Actual Changes:** …  **Issues:** …  **Deviations:** …
+**Completed:** 2026-07-12
+**Actual Changes:**
+- New: `simkit/study/{failures,identity,crash,compatibility,store}.py`, `simkit/tests/study/{__init__,conftest,_store_child,test_store_seam,test_lease,test_compatibility,test_gc}.py`.
+- `store.py` implements the Appendix A DDL verbatim, fenced writes via a `_fenced_execute` helper (`BEGIN IMMEDIATE` → re-read `runner_lease.lease_id` → raise `StudyLeaseLost` on mismatch → write → commit; rollback on any exception), lease acquire/reclaim with a pid-liveness fast path (same host, `os.kill(pid,0)`) falling back to TTL expiry, a background-thread heartbeat on its **own** sqlite3 connection (the held connection is not thread-safe to share), and GC gated on the lease being released/dead.
+- `_stage_artifact` and `commit_case` reuse `identity.canonical_bytes` as the single function that produces both the on-disk bytes and the digest input (INV-H single-source property).
+**Issues:**
+- No `ruff` binary in `.venv`; not declared as a project dependency. Ran `uvx ruff check` instead (clean) — flagging since CLAUDE.md doesn't document a ruff invocation path.
+**Deviations:**
+- None from design/plan. Test stencil's `reclaim_lease()` name was not literal API — implemented as a single `acquire_lease()` that both fresh-acquires and reclaims-if-dead (matches the Appendix A pseudocode, which is one procedure), tests call it on both sides of the fence.
 
 ### Phase 2 Completion
 
