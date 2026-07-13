@@ -1,4 +1,6 @@
-"""Phase 1 store-level test helpers (no runner/strategy/evaluator)."""
+"""Store-level test helpers (Phase 1) and real-evaluator fixtures (Phase 2+),
+mirroring `simkit/tests/evaluation/conftest.py`.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -6,9 +8,36 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+from simkit.evaluation.evaluator import PreparedEvaluator
+from simkit.evaluation.package_load import ProvisionalPackageLoader
 from simkit.study.compatibility import Compatibility
 
 HERE = Path(__file__).parent
+FIXTURE_DIR = HERE.parent / "evaluation" / "fixtures" / "sealed_package" / "package_live"
+SPEC_PATH = FIXTURE_DIR / "pipelines" / "pipeline.yaml"
+ENTRY_CH = "toy_plant_params"
+
+# Fixed design attributes; only plant_budget varies unless a test says otherwise.
+FIXED = {
+    "toy_plant__Toy_Plant__plant_length": 4.0,
+    "toy_plant__Toy_Plant__plant_unit_cost": 250.0,
+    "toy_plant__Toy_Plant__plant_width": 3.0,
+}
+
+
+@pytest.fixture(scope="session")
+def _loader(tmp_path_factory) -> ProvisionalPackageLoader:
+    link_root = tmp_path_factory.mktemp("wi014_s4_pkg_study")
+    return ProvisionalPackageLoader(
+        package_dir=FIXTURE_DIR, package_name="wi014_s4", link_root=link_root
+    )
+
+
+@pytest.fixture(scope="session")
+def prepared(_loader) -> PreparedEvaluator:
+    return PreparedEvaluator(_loader, SPEC_PATH)
 
 
 def run_store_child(db: Path, crash_at: str | None = None) -> int:

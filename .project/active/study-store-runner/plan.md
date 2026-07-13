@@ -154,18 +154,18 @@ def test_bridge_builds_entry_model(prepared):             # Shape A
 **See design.md for:** strategy contract → design.md#component-overview (`strategy.py`); Shape A bridge → design.md#core-concept item 1 and spec.md#runner; grid row-major over declared order → D8.
 
 Files under `simkit/study/`:
-- [ ] `strategy.py` — `CandidateStrategy` protocol; `PreparedListStrategy` (port `PreparedCandidateStrategy`, `study_lifecycle.py:202-219`, positional `p{index:04d}`); `GridStrategy` enumerating `itertools.product` over **declared** variable order, config exposed as the order-sensitive pair-array from `identity.py`. `observe` inert but present.
-- [ ] `bridge.py` — `CandidateBridge`: maps a validated candidate's selected fields onto `ToyPlantParams(**selected)` (all four fields are defaulted floats — `.../schemas/toy_plant_params.py:9-14`; unselected fields keep modeled defaults, plus any study-fixed constants) and returns `{"toy_plant_params": model}` (channel ID from `tests/evaluation/conftest.py:19` `ENTRY_CH`). Does **not** type-check — delegates to `entry_source`.
-- [ ] `definition.py` — `StudyDefinition`: selects variables/domains by parameter ID (a *field* of the entry channel), observables, objectives, response roles; carries the **injected** proposal validator + policy, strategy, budget, retention; cannot redefine a predicate (spec.md#studydefinition).
-- [ ] `policy.py` — `Policy` protocol + minimal `DispositionPolicy` producing the three case states and able to reject a designated candidate for `assessment_failed` (port `DeterministicPolicy`, `study_lifecycle.py:182-195`, adapted to the real `responses["headline"]` vocabulary).
+- [x] `strategy.py` — `CandidateStrategy` protocol; `PreparedListStrategy` (port `PreparedCandidateStrategy`, `study_lifecycle.py:202-219`, positional `p{index:04d}`); `GridStrategy` enumerating `itertools.product` over **declared** variable order, config exposed as the order-sensitive pair-array from `identity.py`. `observe` inert but present.
+- [x] `bridge.py` — `CandidateBridge`: maps a validated candidate's selected fields onto `ToyPlantParams(**selected)` (all four fields are defaulted floats — `.../schemas/toy_plant_params.py:9-14`; unselected fields keep modeled defaults, plus any study-fixed constants) and returns `{"toy_plant_params": model}` (channel ID from `tests/evaluation/conftest.py:19` `ENTRY_CH`). Does **not** type-check — delegates to `entry_source`.
+- [x] `definition.py` — `StudyDefinition`: selects variables/domains by parameter ID (a *field* of the entry channel), observables, objectives, response roles; carries the **injected** proposal validator + policy, strategy, budget, retention; cannot redefine a predicate (spec.md#studydefinition).
+- [x] `policy.py` — `Policy` protocol + minimal `DispositionPolicy` producing the three case states and able to reject a designated candidate for `assessment_failed` (port `DeterministicPolicy`, `study_lifecycle.py:182-195`, adapted to the real `responses["headline"]` vocabulary).
 
 Tests:
-- [ ] `test_strategy.py` — `test_grid_determinism_pin` (two-process pin), `test_proposal_determinism_idempotent` (same positional `proposal_id` re-proposed, incl. an invalid entry; L3-3), `test_grid_config_is_order_sensitive` (GridStrategy feeds the ordered pair-array).
-- [ ] `test_bridge.py` — `test_bridge_builds_entry_model`, `test_bridge_defaults_unselected`.
+- [x] `test_strategy.py` — `test_grid_determinism_pin` (two-process pin), `test_proposal_determinism_idempotent` (same positional `proposal_id` re-proposed, incl. an invalid entry; L3-3), `test_grid_config_is_order_sensitive` (GridStrategy feeds the ordered pair-array).
+- [x] `test_bridge.py` — `test_bridge_builds_entry_model`, `test_bridge_defaults_unselected`.
 
 ### Validation
-- [ ] `pytest packages/teax-simkit/simkit/tests/study/ -q` → Phase 1 + 2 green.
-- [ ] `ruff check` on study + study tests → clean.
+- [x] `pytest packages/teax-simkit/simkit/tests/study/ -q` → Phase 1 + 2 green (14 passed).
+- [x] `ruff check` on study + study tests → clean.
 
 **What we know works after Phase 2:** grids replay byte-identically across processes (the B1 property positional identity rests on), and the bridge produces entry models the certified `entry_source` accepts.
 
@@ -289,6 +289,14 @@ def test_no_dangling_artifact(tmp_path):                  # both crash legs
 - None from design/plan. Test stencil's `reclaim_lease()` name was not literal API — implemented as a single `acquire_lease()` that both fresh-acquires and reclaims-if-dead (matches the Appendix A pseudocode, which is one procedure), tests call it on both sides of the fence.
 
 ### Phase 2 Completion
+**Completed:** 2026-07-12
+**Actual Changes:**
+- New: `simkit/study/{strategy,bridge,definition,policy}.py`, `simkit/tests/study/{_grid_dump,test_strategy,test_bridge}.py`.
+- Extended `simkit/tests/study/conftest.py` with session-scoped `_loader`/`prepared` fixtures mirroring `simkit/tests/evaluation/conftest.py` (needed a bit earlier than Phase 3's plan line, since `test_bridge.py`'s stencil already calls `prepared._source.validate(...)`) — reuses the same in-repo sealed fixture, no new package load path.
+- `StudyDefinition.compatibility()` builds a `Compatibility` from the definition's fingerprints + the bound strategy's `identity`/`config_fingerprint()`, so Phase 3/4 don't duplicate that assembly.
+- `Policy.assess` takes `candidate_id` (not just evidence) so `DispositionPolicy` can reject one designated candidate — a shape decision local to this item's minimal seam, not binding on Item 12's protocol.
+**Issues:** none.
+**Deviations:** `StudyDefinition` carries `budget`/`retention` as inert opaque fields (spec.md requires the container shape; Item 12 interprets them) rather than typed/behavioral — flagging so it isn't mistaken for an oversight.
 
 ### Phase 3 Completion
 
