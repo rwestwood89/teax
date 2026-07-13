@@ -171,22 +171,22 @@ def test_fresh_context_per_case_no_channel_bleed(prepared):                # S5 
 
 **See `design.md#architecture` (Prepare once / Evaluate per case) and `design.md#component-overview`.**
 
-- [ ] `simkit/evaluation/package_load.py` (NEW, touches package) — `PackageLoader` protocol, `ProvisionalPackageLoader` (D7). Port `real_evaluator.py:verify_seal` (inlined seal check) and `load_package` (symlink-under-declared-name → import under `wi014_s4`). Point it at the Phase 0 committed fixture tree.
-- [ ] `simkit/evaluation/evaluator.py` (NEW, touches package) — `Evaluator` protocol; `PreparedEvaluator` (prepare-once in-memory). Port `real_evaluator.py:_build_prepared` + `RealPreparedEvaluator`, **minus `attempt_number`** (D3), **minus the dict-rewrite** (projection is now `projection.project`). Wire:
+- [x] `simkit/evaluation/package_load.py` (NEW, touches package) — `PackageLoader` protocol, `ProvisionalPackageLoader` (D7). Port `real_evaluator.py:verify_seal` (inlined seal check) and `load_package` (symlink-under-declared-name → import under `wi014_s4`). Point it at the Phase 0 committed fixture tree.
+- [x] `simkit/evaluation/evaluator.py` (NEW, touches package) — `Evaluator` protocol; `PreparedEvaluator` (prepare-once in-memory). Port `real_evaluator.py:_build_prepared` + `RealPreparedEvaluator`, **minus `attempt_number`** (D3), **minus the dict-rewrite** (projection is now `projection.project`). Wire:
   - prepare: loader → `_build_schema_type_registry` / `_build_entry_loaders` / in-memory JSON router via `create_output_router_with_json_schemas([...], in_memory=True)` (D5) → `build_graph(spec)` (the `preparation` phase, once) → `MappingEntrySource.from_spec`.
   - evaluate: `source.validate` → seed fresh `MappingContext` → `MappingExecutor` (overrides only `_execute_entry`) → `executor.run(graph, context, persist_outputs=False)` → `projection.project(result, report)`.
   - the per-case `except Exception → raise EvaluationFailed(EvaluationFailure(phase=module_execution, cause=type+message, retryable=False))` catch-all (replaces the probe's `ExecutionFailed(str)`; full taxonomy refined in Phase 4).
-- [ ] Extend `simkit/evaluation/__init__.py` — export `Evaluator`, `PreparedEvaluator`, `PackageLoader`, `ProvisionalPackageLoader`.
-- [ ] `tests/evaluation/conftest.py` (NEW) — a `prepared` fixture that loads the sealed fixture package once per session; `FIXED` constant; channel-ID constants (`AREA_CH`/`COST_CH`/`REPORT_CH`/`ENTRY_CH` from `real_evaluator.py:182`).
-- [ ] `tests/evaluation/test_prepared_evaluator.py` (NEW) — the stencils above (B3, B4, INV2, INV6, context isolation).
+- [x] Extend `simkit/evaluation/__init__.py` — export `Evaluator`, `PreparedEvaluator`, `PackageLoader`, `ProvisionalPackageLoader`.
+- [x] `tests/evaluation/conftest.py` (NEW) — a `prepared` fixture that loads the sealed fixture package once per session; `FIXED` constant; channel-ID constants (`AREA_CH`/`COST_CH`/`REPORT_CH`/`ENTRY_CH` from `real_evaluator.py:182`).
+- [x] `tests/evaluation/test_prepared_evaluator.py` (NEW) — the stencils above (B3, B4, INV2, INV6, context isolation).
 
 ### Validation (gate)
 **Automated:**
-- [ ] `pytest tests/evaluation/test_prepared_evaluator.py -q` → green.
-- [ ] Isolation test (Phase 1) still green — `package_load.py`/`evaluator.py` are the *only* modules allowed to touch the package; they are outside the scanned set (D2). Confirm the scan set still lists exactly the four clean modules.
+- [x] `pytest tests/evaluation/test_prepared_evaluator.py -q` → green.
+- [x] Isolation test (Phase 1) still green — `package_load.py`/`evaluator.py` are the *only* modules allowed to touch the package; they are outside the scanned set (D2). Confirm the scan set still lists exactly the four clean modules.
 
 **Manual:**
-- [ ] Evaluate `budget=NaN` and confirm evidence carries `indeterminate` with finite `area`/`cost` — the B3 end-to-end check against the real package.
+- [x] Evaluate `budget=NaN` and confirm evidence carries `indeterminate` with finite `area`/`cost` — the B3 end-to-end check against the real package.
 
 **What We Know Works After This Phase:** the sealed package loads and evaluates; non-finite input reaches the verdict; entry validation rejects wrong inputs pre-execution; no directory is written in no-persist mode; each case gets a fresh context. The in-memory backend is real.
 
@@ -320,6 +320,21 @@ def test_every_raised_failure_is_terminal(prepared):            # D4
 **Gate:** `pytest tests/evaluation/test_isolation.py tests/evaluation/test_projection.py -q` → 9 passed. Full framework suite (excluding the four pre-existing hard-coded-checkout-path failures) → green, no regressions.
 
 ### Phase 2 Completion
+**Completed:** 2026-07-12
+**Actual Changes:**
+- `simkit/evaluation/package_load.py` (NEW) — `PackageLoader` Protocol, `ProvisionalPackageLoader` (D7): inlined seal verification (ported from `real_evaluator.py:verify_seal`) plus symlink-under-declared-name loading. Deviation from the probe: `link_root` and `package_dir` are constructor parameters, not module-level constants — the probe's `_PKG_ROOT` lived next to the throwaway file; production needs the symlink location caller-supplied (tests use a per-session `tmp_path_factory` dir) so the fixture tree stays the only committed artifact.
+- `simkit/evaluation/evaluator.py` (NEW) — `Evaluator` protocol; `PreparedEvaluator` (prepare-once in-memory), porting `real_evaluator.py`'s `_build_prepared`/`RealPreparedEvaluator` minus `attempt_number` (D3) and minus the dict-rewrite (projection is now `projection.project`). `_MappingContext`/`_MappingExecutor` mirror the probe's `MappingContext`/`MappingExecutor` shape exactly (only `_execute_entry` overridden — B4). The per-case catch-all normalizes any executor exception to `EvaluationFailed(phase=MODULE_EXECUTION, ...)`. One addition ahead of the plan's own schedule: `build_graph` at prepare time is already wrapped to raise `EvaluationFailed(phase=PREPARATION, ...)` — the plan assigned this to Phase 4, but since `evaluator.py` was being written now anyway, doing it here means Phase 4 only needs to confirm/test it, not add it fresh.
+- `simkit/evaluation/__init__.py` — exports extended with `Evaluator`, `PreparedEvaluator`, `PackageLoader`, `ProvisionalPackageLoader`.
+- `tests/evaluation/conftest.py` (NEW) — session-scoped `prepared` fixture (loads the sealed fixture package once, symlink root in a `tmp_path_factory` dir); `FIXED` constant; `AREA_CH`/`COST_CH`/`REPORT_CH`/`ENTRY_CH` channel-ID constants from the fixture's `pipeline.yaml`.
+- `tests/evaluation/test_prepared_evaluator.py` (NEW) — B3 (NaN budget → `indeterminate` with finite `area`/`cost`), satisfied/violated verdicts, B4 (`_execute_entry` override reaches the channels — asserted via correct `area`/`cost` values), INV2 (wrong-model entry rejected pre-execution, phase `entry_validation`), INV6 (no directory written under `persist_outputs=False`), and fresh-context-per-case isolation (no channel bleed across two sequential `evaluate()` calls on the same `prepared` fixture).
+
+**Issues:** None. One transient mistake caught before commit: an ad hoc manual verification script imported `simkit.evaluation.evaluator` with a redundant `sys.path.insert` that shadowed the editable install, producing a spurious `ModuleNotFoundError: wi014_s4`; re-running under a plain `.venv/bin/python` (no manual path manipulation) succeeded — not a product defect, noted here only because it briefly looked like one.
+
+**Deviations:**
+- `PackageLoader`/`link_root` made caller-configurable (above) rather than following the probe's hardcoded sibling-directory constant.
+- The `preparation`-phase `EvaluationFailed` wrapping (plan's Phase 4 item) implemented now instead of Phase 4, since it was cheap to add while writing `evaluator.py`'s `__init__` the first time.
+
+**Gate:** `pytest tests/evaluation -q` → 15 passed (isolation 2, projection 7, prepared-evaluator 6). Isolation test (Phase 1) still green — `evaluator.py`/`package_load.py` are outside the four-module scan set, confirmed. Full framework suite green (excluding the four pre-existing hard-coded-checkout-path failures). Manual B3 end-to-end check against the real sealed package: `budget=NaN` → `headline: indeterminate`, `outputs: {area: 12.0, cost: 3000.0}` — matches the design's stated fixture arithmetic exactly.
 
 ### Phase 3 Completion
 
