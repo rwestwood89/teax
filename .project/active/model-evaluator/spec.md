@@ -36,22 +36,30 @@ concept section; it does not build the study store, runner, strategies, or polic
 ## Success Criteria
 
 - [ ] **S5 invariants are kept teax tests:** mapping-vs-file case-level parity; pre-execution
-  rejection of missing, extra, and wrong-type entry inputs; execution-context isolation across
-  cases; and no output directory created when persistence is off.
+  rejection of an invalid typed input (missing/extra/wrong-type) before any module runs;
+  execution-context isolation across cases; and no output directory created when persistence is
+  off.
 - [ ] **S4-lineage packages evaluate to evidence:** evaluating a sealed generated package
   (Item 0's setup now; Item 9's sealed output when it lands) returns `ModelEvidence` whose
-  constraint verdicts are projected onto generic response keys, with the full generated report
-  attached as an opaque artifact and no generated class imported by any runtime type.
-- [ ] **Three phases are distinguishable:** a module exception, a schema/validation failure,
-  and an infeasible (`indeterminate`) verdict land in three distinguishable places — the first
-  two as the normalized failure outcome with different phase/cause, the third as ordinary
-  evidence, never a failure.
+  constraint verdicts are projected onto generic response keys using the runtime-owned canonical
+  vocabulary pinned in this item (`satisfied | violated | indeterminate | not_assessed`), with
+  the full generated report attached as an opaque artifact and no generated class imported by
+  any runtime type. This is closable in Item 10 — the vocabulary is pinned here, not deferred to
+  Item 9.
+- [ ] **Runtime never depends on generated classes (kept isolation test):** an import scan of
+  the runtime evidence and entry-source modules finds no reference to any generated symbol; the
+  modules import and construct evidence with the generated package absent from the path.
+- [ ] **Three phases are distinguishable:** a module exception, a schema-validation rejection
+  at entry (`entry_validation` phase), and an infeasible (`indeterminate`) verdict land in three
+  distinguishable places — the first two as the normalized failure outcome with different
+  phase/cause (`module_execution` vs `entry_validation`), the third as ordinary evidence, never
+  a failure.
 - [ ] **Non-finite input reaches the verdict, not the guard:** a well-formed candidate with a
   non-finite value (e.g. a NaN budget) passes entry validation and evaluates to
   `indeterminate` — it is never rejected as invalid input.
-- [ ] **Both backends agree:** the prepared in-memory backend and the file-backed backend
-  return equivalent selected outputs and constraint results for the same canonical inputs
-  (kept parity test).
+- [ ] **Both backends agree (kept parity test):** the prepared in-memory backend and the
+  file-backed backend return the equivalent-class-equal result (defined in Known Requirements)
+  for the same canonical inputs, with the NaN/indeterminate case in the fixture set.
 - [ ] S5's `RootModel[float]` continuity regression test is committed — **already discharged
   this run** (S5 carry-forward (1)); recorded here as done, not re-planned.
 
@@ -72,15 +80,20 @@ and epic are `[INHERITED]` with their source cited. See `capture-fidelity.md`.
 - **[INHERITED]** **No silent coercion under any shape.** A value must never be accepted under
   a mismatched contract parameter ID. (concept "Contracts and the Evaluator"; S5 findings
   Open Questions.)
-- **[INHERITED]** **Wrong-type diagnostic names expected and got types.** When an entry value
-  has the wrong type, the rejection message names both the expected type and the type actually
-  supplied. This holds regardless of which `MappingEntrySource` shape is chosen and is the
-  study layer's first line of defense — required behavior, not spike detail.
-  (concept Appendix B, S5 carry-forward (3).)
-- **[HARD]** **Non-finite floats are well-formed input, not invalid input.** The entry source
-  rejects missing, extra, and wrong-*type* inputs before execution, but must let a non-finite
-  float (`NaN`, `inf`) through — it is a well-formed candidate that the generated Kleene
-  predicate evaluates to `indeterminate`. Conflating non-finite with invalid would make the
+- **[INHERITED]** **An invalid typed input is rejected before any module executes, with a
+  diagnostic naming expected and got types.** "Invalid" means missing, extra, or wrong-type.
+  The rejection happens before the first module runs and names both the expected type and the
+  type actually supplied. **Which layer performs the rejection is exactly the reserved choice**
+  (see Open Questions): under a validate-raw source it is the entry source at field-value
+  granularity; under an instantiated-models source the source rejects a wrong *channel-model*
+  and the field-value check lives at the Item 11 bridge. The requirement — rejected
+  pre-execution, expected-and-got named — holds identically under both shapes; it is the study
+  layer's first line of defense, required behavior, not spike detail. (concept Appendix B, S5
+  carry-forward (3).)
+- **[HARD]** **Non-finite floats are well-formed input, not invalid input.** Entry validation
+  rejects missing, extra, and wrong-*type* inputs before execution (at whichever layer the
+  reserved choice places it), but must let a non-finite float (`NaN`, `inf`) through — it is a
+  well-formed candidate that the generated Kleene predicate evaluates to `indeterminate`. Conflating non-finite with invalid would make the
   entire indeterminate verdict class unreachable through typed entry. (Item 0 mismatches 1–2;
   the real `ToyPlantParams` is a non-strict float model that accepts non-finite values.)
 
@@ -92,10 +105,21 @@ and epic are `[INHERITED]` with their source cited. See `capture-fidelity.md`.
   benchmark; ~4× on S5's toy graph — the speedup scales with model-validation cost).
 - **[INHERITED]** **The file-backed path is retained for auditable runs**, producing the same
   evidence plus persisted artifacts. (concept "How It Works — Evaluate One Design Point".)
-- **[INHERITED]** **Case-level parity between the two backends is a kept test** — equivalent
-  selected outputs and constraint results for the same canonical inputs; a faster backend is
-  admitted only on that parity. (concept; Required Invariant "auditable and fast evaluators
-  return equivalent … results".)
+- **[INHERITED]** **Case-level parity between the two backends is a kept test**, over an
+  explicit equivalence class; a faster backend is admitted only on that parity. (concept;
+  Required Invariant "auditable and fast evaluators return equivalent … results".) The
+  equivalence class:
+  - **Compared:** selected outputs, matched by stable ID, with **NaN-aware numeric equality** —
+    two values are equal if they are numerically equal *or* both non-finite of the same kind
+    (both NaN counts equal; `+inf`≡`+inf`, `-inf`≡`-inf`). Constraint verdict statuses are
+    compared **exactly** (string equality on the canonical vocabulary).
+  - **Excluded (enumerated):** provenance, timestamps, input digests, artifact paths, and the
+    opaque report's on-disk encoding — the file-backed path serializes and the in-memory path
+    does not, so byte-level report form is not a parity field.
+  - **The NaN / indeterminate case MUST be in the parity fixture set.** It is the case the whole
+    architecture exists to preserve, and it is exactly where a naive field compare fails: the
+    file-backed path round-trips a NaN through JSON while the in-memory path holds a real
+    `float('nan')`, and `NaN != NaN`. The NaN-aware rule above is what makes the two agree.
 - **[INHERITED]** **No-persist mode writes nothing** — no output directory is created when
   persistence is off. (S5 findings; concept.)
 - **[HARD]** **The validator requires ExitPoint write handlers even in no-persist mode.** A
@@ -119,39 +143,86 @@ and epic are `[INHERITED]` with their source cited. See `capture-fidelity.md`.
   every other runtime type depend only on generic/runtime types; the generated
   `ConstraintReport` is held opaquely, never imported. Item 0 confirmed the generic projection
   is clean. (concept; Item 0 mismatch 6.)
-- **[HARD]** **Headline vocabulary is normalized in the projection layer.** The generated
-  report uses underscore headlines (`all_satisfied`, `not_assessed`); the study policy uses
-  hyphenated ones (`all-satisfied`, `not-assessed`); `violation` and `indeterminate` already
-  match. The projection must map to one canonical vocabulary so a naive projection does not
-  `KeyError`. **The single canonical headline vocabulary is pinned jointly with Item 9** (the
-  generated `ConstraintReport`); note the dependency where the canonical set is fixed.
-  (Item 0 mismatch 5; `real_evaluator.py:HEADLINE_TO_POLICY`.)
+- **[INFERRED]** **The no-generated-import rule is a kept isolation test**, not a property left
+  to design. The test scans the runtime evidence and entry-source modules for any reference to a
+  generated symbol and asserts none, and imports/constructs evidence with the generated package
+  absent from the path. It is the only guard that keeps the concept's central
+  runtime-independent-of-generated-classes bet from silently rotting. *(Orchestrator decision,
+  agent-grade, 2026-07-12.)*
+- **[INFERRED]** **Headline value is projected by a read-only normalization; the report artifact
+  stays opaque and unmodified.** The projection layer *reads* the generated report's headline and
+  normalizes only the value it writes onto the generic response key — it never mutates or rewrites
+  the attached report, which stays opaque and byte-unchanged in evidence. The generated report
+  uses underscore headlines (`all_satisfied`, `not_assessed`); `violation` and `indeterminate`
+  already match. (Item 0 mismatch 5; `real_evaluator.py:189` `HEADLINE_TO_POLICY`, adapted from
+  the spike's dict-rewrite to a read-only projection because production evidence holds the report
+  opaque.) *(Orchestrator decision, agent-grade, 2026-07-12.)*
+- **[INFERRED]** **The canonical evidence vocabulary is pinned in this item, runtime-owned:**
+  `satisfied | violated | indeterminate | not_assessed` (underscore forms). The runtime owns its
+  evidence surface; packages conform. **Ownership direction:** Item 9's contract conforms the
+  *generated* side to the runtime's vocabulary, not the reverse — so the projection normalizes to
+  a target fixed *here*, and SC2 is closable in Item 10 without waiting for Item 9. Item 9 must
+  align the generated `ConstraintReport` headline vocabulary to this set. *(Orchestrator decision,
+  agent-grade, 2026-07-12; resolves review L1-1/L1-2.)*
 
 ### Normalized failure outcome
 
 - **[INHERITED]** **One normalized outcome for every evaluation failure**, carrying: phase,
   module or channel when known, cause, retryability, and partial-artifact status. (concept
   "Contracts and the Evaluator".)
+- **[HARD]** **The `phase` field ranges over teax's real per-run phases**, in order:
+  1. **`entry_validation`** — the typed entry input is rejected before any module runs
+     (missing/extra/wrong-type). A genuinely distinct pre-execution phase.
+  2. **`preparation`** — topology and write-handler validation. Runs **once at prepare**
+     (`PipelineExecutor.build_graph` → `PipelineValidator.validate`,
+     `pipeline_executor.py:104`), not per case; the write-handler-per-ExitPoint-type demand
+     (`pipeline_validator.py:326`) and producer/declaration type-mismatch check
+     (`pipeline_validator.py:~352`) live here. A whole study hits these once, not per candidate.
+  3. **`module_execution`** — everything raised inside `module.run()` during the per-case run
+     loop (`pipeline_executor.py:126–140`): an arbitrary module exception, a Pydantic
+     `ValidationError` (generated modules validate inside `run()`), the aggregator's exact-schema
+     rejecting a missing result, a `MultiOutput` missing field (`:205`), a field-extraction
+     failure (`:397`). These are **one phase**, distinguished by `cause`, not by phase.
+  4. **`output_write`** — writing artifacts on the file-backed path (never reached in no-persist
+     mode).
+- **[HARD]** **SC3's three distinguishable places, bound to the taxonomy:** a **module
+  exception** is a `module_execution` failure; the **"schema failure"** SC3 means is the
+  **pre-execution `entry_validation` rejection** — a real, separate phase from module execution;
+  an **infeasible (`indeterminate`) verdict** is ordinary evidence, never a failure. An *in-run*
+  schema failure (aggregator missing-field, Pydantic error inside `run()`) is **not** a separate
+  phase — it is a `module_execution` failure carrying cause detail, matching the concept, which
+  buckets "missing inputs, schema failures, thrown predicate code, or a missing aggregator field"
+  together as execution failures (Required Invariants "Graph and Evaluation"). SC3's kept test
+  exercises the `entry_validation` schema rejection, not the in-`run()` one.
 - **[INHERITED]** **Violation stays evidence; breakage stays failure.** An assertion whose
   actual value differs from expected returns `violated` as evidence with ordinary outputs
-  intact; a non-finite operand yields `indeterminate` as evidence; only missing inputs, schema
-  failures, thrown predicate code, or a missing aggregator field are failures. A module
-  exception and a schema/validation failure are both failures but distinguishable by
-  phase/cause. (concept Required Invariants "Graph and Evaluation"; epic Item 10 success
-  criterion.)
+  intact; a non-finite operand yields `indeterminate` as evidence. Only the `entry_validation`,
+  `preparation`, `module_execution`, and `output_write` failures above are failures. (concept
+  Required Invariants "Graph and Evaluation"; epic Item 10 success criterion.)
 
-### Package load and environment
+### Package load
 
 - **[HARD]** **The sealed package loads under its declared package name.** The package's
   internal imports are absolute to its declared name (`from wi014_s4. …`), so the evaluator's
   package-load step must place/load it under that declared name, not its on-disk directory
   name. The canonical package-load protocol is **Item 9's** to own; Item 10 consumes it and
   must not hard-code a directory-name assumption. (Item 0 mismatch 8; `real_evaluator.py:load_package`.)
-- **[INHERITED]** **Provision teax's own venv as the first implementation step.** teax's own
-  `.venv`/`uv run` is broken for real-simkit runs; the spikes borrowed the fusion-tea (a.k.a.
-  agentic-mbse) venv with a `PYTHONPATH`/`sys.path` insert. Items 10–12 must stand up teax's
-  own working environment before building on it. (epic Risks: "teax environment provisioning";
-  Item 0 / S5 Reproduction.)
+- **[INFERRED]** **Item 10 uses a provisional loader pending Item 9.** Item 9 has not landed, but
+  Item 10 must load Item 0's package now to run any test — via the symlink-under-declared-name
+  approach the spike uses (`real_evaluator.py:73`). "Item 9 owns the protocol" does **not** mean
+  "Item 10 can't load anything yet"; the provisional loader is replaced when Item 9's protocol
+  lands. *(Resolves review L3-3.)*
+
+## Implementation Prerequisites (not API requirements)
+
+These are sequencing/ops prerequisites for building the item, not contract obligations of the
+evaluator API. Nothing about `MappingEntrySource`, `ModelEvidence`, or the failure outcome
+depends on them — they belong to the plan, not the API surface.
+
+- **Provision teax's own venv as the first implementation step.** teax's own `.venv`/`uv run`
+  is broken for real-simkit runs; the spikes borrowed the fusion-tea (a.k.a. agentic-mbse) venv
+  with a `PYTHONPATH`/`sys.path` insert. Items 10–12 must stand up teax's own working environment
+  before building on it. (epic Risks: "teax environment provisioning"; Item 0 / S5 Reproduction.)
 
 ## Non-Goals
 
@@ -194,6 +265,14 @@ diagnostic naming expected/got types, hold under either shape.
   - *Consequence:* raw-mapping validation is closer to the file-backed loader's behavior, which
     may simplify backend parity — but requires an explicit "no coercion across parameter IDs"
     rule that Shape A gets for free.
+  - *Consequence (weighs against the no-generated-import rule):* the declared entry channel model
+    is a *generated* class (e.g. `ToyPlantParams`), obtained dynamically from the loaded package.
+    To validate raw mappings *into* it, the Shape B source must reference that generated model
+    shape at runtime. It is a dynamic dependency, not a static import, so the letter of
+    "runtime types never import generated classes" is met — but the spirit is strained, and the
+    isolation test above must be written to allow the dynamic lookup while still forbidding a
+    static generated import. Under Shape A the caller builds the model and the source never
+    touches a generated class. *(Resolves review L3-2.)*
 - **Cross-cutting for either shape:** Item 0 mismatch 1 means the contract the source validates
   against is channel→model→field, so whichever shape is chosen, the design must define how a
   study variable ("vary `plant_budget`") selects a *field* of the entry channel model.
@@ -230,8 +309,10 @@ diagnostic naming expected/got types, hold under either shape.
     carry-forwards.
   - `.project/active/constraint-study-integration-spike/findings.md` — Item 0 findings; the
     eight named evaluator-interface mismatches.
-- **Dependencies:** Item 0 (seam findings — landed); Item 9 (contract consumption + canonical
-  headline vocabulary + package-load protocol — hardens this item when it lands).
+- **Dependencies:** Item 0 (seam findings — landed); Item 9 (contract consumption + package-load
+  protocol, and conforming the generated report's headline vocabulary to *this item's*
+  runtime-owned canonical set — hardens this item when it lands; the vocabulary itself is pinned
+  here, not by Item 9).
 - **Design:** `.project/active/model-evaluator/design.md` (to be created).
 
 ---
