@@ -426,11 +426,11 @@ The seam is confirmed; Items 9–11 may freeze schemas against it. See
 **Out of Scope**:
 - Study semantics (Item 11); optimizers/adaptive strategies (deferred with S7).
 
-**Success Criteria**:
-- [ ] S5's invariants as kept teax tests: mapping/file parity, pre-execution rejection of missing/extra/wrong-type, context isolation, no files in no-persist mode.
-- [ ] Evaluating S4-lineage packages (via Item 0's setup, then Item 9's sealed output) returns evidence with constraint verdicts projected onto generic response keys.
-- [ ] A module exception, a schema failure, and an infeasible verdict land in three distinguishable places (failure outcome vs evidence).
-- [ ] S5's kept continuity test is committed (it currently exists only as a working-tree change — S5 carry-forward (1)).
+**Success Criteria** *(audited 2026-07-12, Certify-with-notes — static trace strong; heading ✅ held pending orchestrator live probes, see `active/model-evaluator/audit.md`):*
+- [x] S5's invariants as kept teax tests: mapping/file parity, pre-execution rejection of missing/extra/wrong-type, context isolation, no files in no-persist mode.
+- [x] Evaluating S4-lineage packages (via Item 0's setup, then Item 9's sealed output) returns evidence with constraint verdicts projected onto generic response keys.
+- [x] A module exception, a schema failure, and an infeasible verdict land in three distinguishable places (failure outcome vs evidence).
+- [x] S5's kept continuity test is committed (spec records it discharged this run — S5 carry-forward (1); not re-verified in this audit, out of Item 10's diff).
 
 **Required Reading**: concept "Contracts and the Evaluator" + S5 result and carry-forwards; Item 0 findings.
 

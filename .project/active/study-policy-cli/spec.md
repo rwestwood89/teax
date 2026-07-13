@@ -40,20 +40,20 @@ evaluator or the crash-safe store/runner contracts.
 - [ ] **Grid study runs end-to-end from the CLI:** define → run → interrupt → resume → query,
   over the sealed fixture package, with the resumed store's ordered cases identical to an
   uninterrupted run (byte-identical case order, states, and committed evidence digests).
-- [ ] **The full policy protocol interprets evidence into the four dispositions** (reject,
+- [x] **The full policy protocol interprets evidence into the four dispositions** (reject,
   penalize, keep-for-boundary, feed-strategy) and **never mutates stored evidence**; a
   policy-*rejected* point is a `completed` case that still carries its outputs and violation
   verdicts (a boundary-plot point), distinct from an `assessment_failed` case.
-- [ ] **Policy failure yields `assessment_failed` with evidence intact** — reachable through a
+- [x] **Policy failure yields `assessment_failed` with evidence intact** — reachable through a
   real objective/policy extraction failure, not only the test-only injected reject set.
-- [ ] **The query distinguishes both axes:** the three case states
+- [x] **The query distinguishes both axes:** the three case states
   (`completed | execution_failed | assessment_failed`) and the three verdict classes
   (`satisfied | violated | indeterminate`), and can filter cases by parameter, output,
   constraint ID, status, and assessment.
-- [ ] **The query read path decodes the non-finite sentinel:** a NaN or infinite output or
+- [x] **The query read path decodes the non-finite sentinel:** a NaN or infinite output or
   observed operand in a staged artifact reads back as a real non-finite float (or an explicit
   non-finite marker), never as the raw `{"__nonfinite__": …}` dict.
-- [ ] **Resume refuses a changed fingerprint with a new-lineage message** instead of mixing
+- [x] **Resume refuses a changed fingerprint with a new-lineage message** instead of mixing
   datasets, and the query can join static source detail (source form, membership kind,
   polarity, owner) through the catalog keyed by `constraint_id`.
 - [ ] teax suite green; Ruff clean.

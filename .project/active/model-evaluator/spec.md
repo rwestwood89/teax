@@ -35,29 +35,29 @@ concept section; it does not build the study store, runner, strategies, or polic
 
 ## Success Criteria
 
-- [ ] **S5 invariants are kept teax tests:** mapping-vs-file case-level parity; pre-execution
+- [x] **S5 invariants are kept teax tests:** mapping-vs-file case-level parity; pre-execution
   rejection of an invalid typed input (missing/extra/wrong-type) before any module runs;
   execution-context isolation across cases; and no output directory created when persistence is
   off.
-- [ ] **S4-lineage packages evaluate to evidence:** evaluating a sealed generated package
+- [x] **S4-lineage packages evaluate to evidence:** evaluating a sealed generated package
   (Item 0's setup now; Item 9's sealed output when it lands) returns `ModelEvidence` whose
   constraint verdicts are projected onto generic response keys using the runtime-owned canonical
   vocabulary pinned in this item (`satisfied | violated | indeterminate | not_assessed`), with
   the full generated report attached as an opaque artifact and no generated class imported by
   any runtime type. This is closable in Item 10 — the vocabulary is pinned here, not deferred to
   Item 9.
-- [ ] **Runtime never depends on generated classes (kept isolation test):** an import scan of
+- [x] **Runtime never depends on generated classes (kept isolation test):** an import scan of
   the runtime evidence and entry-source modules finds no reference to any generated symbol; the
   modules import and construct evidence with the generated package absent from the path.
-- [ ] **Three phases are distinguishable:** a module exception, a schema-validation rejection
+- [x] **Three phases are distinguishable:** a module exception, a schema-validation rejection
   at entry (`entry_validation` phase), and an infeasible (`indeterminate`) verdict land in three
   distinguishable places — the first two as the normalized failure outcome with different
   phase/cause (`module_execution` vs `entry_validation`), the third as ordinary evidence, never
   a failure.
-- [ ] **Non-finite input reaches the verdict, not the guard:** a well-formed candidate with a
+- [x] **Non-finite input reaches the verdict, not the guard:** a well-formed candidate with a
   non-finite value (e.g. a NaN budget) passes entry validation and evaluates to
   `indeterminate` — it is never rejected as invalid input.
-- [ ] **Both backends agree (kept parity test):** the prepared in-memory backend and the
+- [x] **Both backends agree (kept parity test):** the prepared in-memory backend and the
   file-backed backend return the equivalent-class-equal result (defined in Known Requirements)
   for the same canonical inputs, with the NaN/indeterminate case in the fixture set.
 - [ ] S5's `RootModel[float]` continuity regression test is committed — **already discharged
