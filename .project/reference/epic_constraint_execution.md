@@ -1,4 +1,4 @@
-<!-- REFERENCE COPY. Canonical: sysml-codegen .project/backlog/epic_constraint_execution.md @ 662411a. Do not edit here. -->
+<!-- REFERENCE COPY. Canonical: sysml-codegen .project/backlog/epic_constraint_execution.md (constraint-exec-epic). Do not edit here. -->
 # Epic: Constraint Execution and Design-Space Studies
 
 **Epic ID**: CONSTRAINT-EXEC
@@ -110,7 +110,7 @@ faster than rebuild on the real package (vs S5's ~4× on its toy graph; the spee
 with model validation cost). **Eight evaluator-interface mismatches named, all
 schema/naming/wiring — none architectural** — and distributed to Items 9–11 in the findings.
 The seam is confirmed; Items 9–11 may freeze schemas against it. See
-`.project/active/constraint-study-integration-spike/findings.md`.
+`~/1cfe/teax/.project/active/constraint-study-integration-spike/findings.md`.
 
 **Deliverables**:
 - `findings.md` (summary-on-top, reproduction, verdict feeding Items 9–11)
