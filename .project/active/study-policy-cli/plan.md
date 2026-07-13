@@ -170,7 +170,7 @@ def test_resume_reproduces_uninterrupted_cases(tmp_path):
 `--crash-at`); Implementation Notes (`entry_model` via `getattr`, synthesized validator, provisional
 `model_contract_fingerprint` = catalog-bytes digest). `_study_child.py` is the crash-wiring template.
 
-- [ ] **`study/config.py`** (extend): `build_definition(config, evaluator)` — the create data flow.
+- [x] **`study/config.py`** (extend): `build_definition(config, evaluator)` — the create data flow.
   Load+seal package (`ProvisionalPackageLoader`) → `PreparedEvaluator` → resolve
   `entry_model = getattr(evaluator.package, config.entry_model)` (package-agnostic, **not**
   `evaluator.ToyPlantParams`) → `GridStrategy(config.grid)` → synthesize the proposal-validator
@@ -179,33 +179,33 @@ def test_resume_reproduces_uninterrupted_cases(tmp_path):
   Notes) → build the policy from `POLICY_REGISTRY` → assemble `StudyDefinition` with all
   fingerprints (`study_definition_fingerprint = config.semantic_fingerprint()`;
   `model_contract_fingerprint` = digest of the catalog file bytes, labeled provisional until Item 9).
-- [ ] **`study/policy.py`** (extend): `POLICY_REGISTRY: dict[str, PolicyFactory]` mapping name →
+- [x] **`study/policy.py`** (extend): `POLICY_REGISTRY: dict[str, PolicyFactory]` mapping name →
   factory taking `(objectives, response_roles, config)`. Register one working objective policy
   (`objective/v1`) **sufficient to run the grid** — extract objectives, map headline → disposition.
   Full four-disposition mapping, the failure rule, and raw penalty are Phase 3; INV-4 asserts only
   ordered-case identity (`assessment_json` is not part of `evidence_digest`), so the disposition
   detail cannot affect this test and Phase 3 will not rework it.
-- [ ] **`study/cli.py`** (NEW): argparse `create | run | resume | inspect` (`inspect` stubbed until
+- [x] **`study/cli.py`** (NEW): argparse `create | run | resume | inspect` (`inspect` stubbed until
   Phase 4). `create`: build definition, `StudyStore.create_or_open(store, compat)`, copy the config
   beside the store as a record. `run`/`resume`: rebuild the same definition, open the store, acquire
   lease, `StudyRunner(store, definition, evaluator, crash).run()`, release lease. Hidden `--crash-at
   PHASE:CANDIDATE` on `run`/`resume` wires a `CrashController` (D8, mirroring `_study_child.py`).
   Catch `IncompatibleStore` → actionable new-lineage message (Phase 4 hardens the wording). `main()`
   is the console entry point.
-- [ ] **`pyproject.toml`** (`teax-simkit`): add `[project.scripts]` `teax-study =
+- [x] **`pyproject.toml`** (`teax-simkit`): add `[project.scripts]` `teax-study =
   "simkit.study.cli:main"`.
 
 ### Validation
 **Automated:**
-- [ ] `test_cli_end_to_end.py` passes: resumed store's identity columns equal the uninterrupted
+- [x] `test_cli_end_to_end.py` passes: resumed store's identity columns equal the uninterrupted
   reference's — case order, `state`, `evidence_digest`, `inputs_json` byte-identical. **Note:**
   compare identity columns, **not** `attempt_id`/`commit_order` — the crashed candidate resumes on
   attempt 2 (a "started" transition for attempt 1 was recorded before the `before_commit` crash), so
   its `attempt_id` legitimately differs; `commit_order` is a fresh autoincrement per store.
-- [ ] Study suite (29) still green; ruff clean.
+- [x] Study suite (29) still green; ruff clean.
 
 **Manual:**
-- [ ] `teax-study create --config <cfg> --store /tmp/s.db` then `teax-study run …` → completes; a
+- [x] `teax-study create --config <cfg> --store /tmp/s.db` then `teax-study run …` → completes; a
   second `teax-study run …` is a no-op (idempotent by candidate).
 
 **What we know after this phase:** the config-driven definition is byte-reproducible across
@@ -431,6 +431,34 @@ subprocess check, pre-existing).
 clean on all changed/new files.
 
 ### Phase 2 Completion
+**Completed:** 2026-07-12
+**Changes Made:**
+- Extended `study/config.py`: `build_definition(config, evaluator)`, `_synthesize_validator`
+  (mirrors `conftest.validate_proposal`, generalized to config's declared grid variables),
+  `_model_contract_fingerprint` (sha256 of the catalog file bytes).
+- Extended `study/policy.py`: `ObjectivePolicy` (extracts configured objectives/response roles,
+  raises `AssessmentFailed` on a genuinely absent output/constraint, maps
+  `violated→reject`, `indeterminate|not_assessed→keep-for-boundary`, `satisfied→feed-strategy` for
+  now) and `POLICY_REGISTRY = {"objective/v1": ObjectivePolicy}`.
+- Created `study/cli.py`: `create|run|resume|inspect` over argparse; `inspect` raises
+  `NotImplementedError` until Phase 4/5. `_open_store` is the shared open-or-refuse-with-message
+  helper; `create`/`run`/`resume` each build their own evaluator+definition (no hidden state stashed
+  on the certified `StudyStore` instance — an earlier draft did this and was reworked into passing
+  `definition`/`evaluator` explicitly).
+- `pyproject.toml` (`teax-simkit`): `[project.scripts] teax-study = "simkit.study.cli:main"`
+  (registers on next editable-install; not re-run this session — tests invoke `python -m
+  simkit.study.cli` / `simkit.study.cli.main()` directly, which needs no reinstall).
+- `tests/study/test_cli_end_to_end.py`: `test_resume_reproduces_uninterrupted_cases` (INV-4, the
+  crash subprocess exits 137 at `before_commit:<2nd candidate>`; resumed vs. uninterrupted reference
+  compared on `(candidate_id, state, evidence_digest, inputs_json)`, not `attempt_id`/
+  `commit_order`) and `test_resumed_run_is_idempotent`.
+**Issues Encountered:** none — the round-trip passed first run; no fingerprint drift found.
+**Manual verification:** ran the built CLI directly (`python -m simkit.study.cli create|run`) against
+a hand-written config outside the test tree; second `run` was a no-op; `assessment_json` showed
+correct dispositions (`reject` for the violated point, `feed-strategy` for the two satisfied points).
+**Validation:** `test_cli_end_to_end.py` 2/2 green; study suite 34/34 green (29 + 3 config + 2 cli);
+`uvx ruff check` clean.
+
 ### Phase 3 Completion
 ### Phase 4 Completion
 ### Phase 5 Completion

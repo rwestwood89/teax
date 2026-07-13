@@ -8,7 +8,7 @@ queries, and CLI are Item 12 (spec.md#assessment-policy-boundary);
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol
+from typing import Any, Callable, Literal, Mapping, Protocol
 
 from simkit.evaluation.evidence import ModelEvidence
 
@@ -63,3 +63,72 @@ class DispositionPolicy:
             raise AssessmentFailed(f"policy rejected {candidate_id}")
         headline = evidence.responses["headline"]
         return {"disposition": _DISPOSITION_BY_HEADLINE[headline], "headline": headline}
+
+
+# Headline -> disposition, the extraction-independent half of the mapping
+# (design.md#the-policy step 3). "satisfied" is resolved by `ObjectivePolicy`
+# itself, since it also depends on the configured penalty threshold (Phase 3
+# completes that split; Phase 2 treats every "satisfied" as "feed-strategy").
+_HEADLINE_DISPOSITION: Mapping[str, str] = {
+    "violated": "reject",
+    "indeterminate": "keep-for-boundary",
+    "not_assessed": "keep-for-boundary",
+}
+
+
+class ObjectivePolicy:
+    """The real study-policy interpretation: extracts configured objectives
+    and response roles from immutable evidence, and maps the headline verdict
+    to a disposition (design.md#the-policy).
+
+    Phase 2 scope: the objective-extraction failure rule and the
+    reject/keep-for-boundary/feed-strategy split. Phase 3 completes the
+    "satisfied beyond penalty_threshold -> penalize" split and the raw
+    penalty value.
+    """
+
+    def __init__(
+        self,
+        objectives: tuple[ObjectiveSpec, ...],
+        response_roles: Mapping[str, str],
+        config: Any = None,
+    ) -> None:
+        self.objectives = tuple(objectives)
+        self.response_roles = dict(response_roles)
+
+    def assess(self, evidence: ModelEvidence, *, candidate_id: str) -> dict[str, Any]:
+        objective_values: dict[str, float] = {}
+        for objective in self.objectives:
+            if objective.output not in evidence.outputs:
+                raise AssessmentFailed(
+                    f"{candidate_id}: objective output {objective.output!r} "
+                    "absent from evidence.outputs"
+                )
+            objective_values[objective.output] = evidence.outputs[objective.output]
+
+        for role, constraint_id in self.response_roles.items():
+            if constraint_id not in evidence.responses:
+                raise AssessmentFailed(
+                    f"{candidate_id}: response role {role!r} names constraint "
+                    f"{constraint_id!r}, absent from evidence.responses"
+                )
+
+        headline = evidence.responses["headline"]
+        disposition = _HEADLINE_DISPOSITION.get(headline, "feed-strategy")
+        return {
+            "disposition": disposition,
+            "headline": headline,
+            "objectives": objective_values,
+            "penalty": None,
+        }
+
+
+PolicyFactory = Callable[[tuple[ObjectiveSpec, ...], Mapping[str, str], Any], Policy]
+
+# name -> factory(objectives, response_roles, policy_config). `policy_config`
+# is the raw `study.config.PolicyConfig` (typed loosely here to avoid a
+# policy<->config import cycle; only `ObjectivePolicy` needs it, and only for
+# future per-name config, not today).
+POLICY_REGISTRY: dict[str, PolicyFactory] = {
+    "objective/v1": ObjectivePolicy,
+}

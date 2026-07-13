@@ -37,6 +37,7 @@ FIXED = {
     "toy_plant__Toy_Plant__plant_width": 3.0,
 }
 GRID_VAR = "toy_plant__Toy_Plant__plant_budget"
+GRID_STUDY_ID = "toy-grid-demo"
 
 
 def write_grid_config(
@@ -52,7 +53,7 @@ def write_grid_config(
     violated/boundary/satisfied). `edit` perturbs exactly one
     definition-shaping field, for the fingerprint-sensitivity tests.
     """
-    study_id = "toy-grid-demo"
+    study_id = GRID_STUDY_ID
     entry_model = "ToyPlantParams"
     domain = list(budgets) if budgets is not None else [1000.0, 3000.0, 6000.0]
     fixed = dict(FIXED)
