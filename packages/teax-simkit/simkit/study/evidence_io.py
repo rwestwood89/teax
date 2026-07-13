@@ -49,3 +49,22 @@ def encode_evidence(evidence: ModelEvidence) -> dict[str, Any]:
         "report": evidence.report.model_dump(mode="json"),
     }
     return _tag_nonfinite(payload)
+
+
+def _untag_nonfinite(value: Any) -> Any:
+    if isinstance(value, dict):
+        if set(value) == {NONFINITE_KEY}:
+            return {"nan": math.nan, "inf": math.inf, "-inf": -math.inf}[value[NONFINITE_KEY]]
+        return {key: _untag_nonfinite(val) for key, val in value.items()}
+    if isinstance(value, list):
+        return [_untag_nonfinite(val) for val in value]
+    return value
+
+
+def decode_evidence(payload: dict[str, Any]) -> dict[str, Any]:
+    """The exact inverse of `encode_evidence`'s sentinel tagging (D5, INV-3):
+    a one-key `{"__nonfinite__": ...}` dict decodes back to the real float;
+    every other dict/list is recursed identically, so no sentinel-shaped
+    dict leaks to the caller and no other one-key dict is ever touched.
+    """
+    return _untag_nonfinite(payload)

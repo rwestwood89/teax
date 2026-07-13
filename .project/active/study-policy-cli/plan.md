@@ -300,11 +300,11 @@ def test_incompatible_store_yields_new_lineage_message(tmp_path): ...     # mess
 **See design:** Component Overview (`study/query.py`, `study/evidence_io.py`); D5, D6, D7; INV-3,
 INV-5; Research Findings (catalog join key; sentinel shape).
 
-- [ ] **`study/evidence_io.py`** (extend): `decode_evidence` — the exact inverse of
+- [x] **`study/evidence_io.py`** (extend): `decode_evidence` — the exact inverse of
   `_tag_nonfinite`, recursing identically: a one-key `{"__nonfinite__": "nan"|"inf"|"-inf"}` dict →
   the real float; every other dict/list recursed; genuine one-key dicts of any other key left
   unmolested. One inverse, beside its encoder (D5, INV-3).
-- [ ] **`study/query.py`** (NEW): `StudyQuery(store, catalog)` reading `cases` rows via
+- [x] **`study/query.py`** (NEW): `StudyQuery(store, catalog)` reading `cases` rows via
   `store.ordered_cases()`, loading+decoding each referenced artifact once, **memoized by
   `evidence_digest`** (D7). `CaseView` (state, inputs, decoded outputs, per-constraint verdicts,
   `assessment_json` incl. disposition, `executable_fingerprint` from evidence provenance) and
@@ -312,18 +312,18 @@ INV-5; Research Findings (catalog join key; sentinel shape).
   typed records. Join per-constraint verdicts to the catalog by `constraint_id → source_usage →
   source_record`. Filters by parameter, output, constraint ID, state, and disposition. Every result
   carries its `executable_fingerprint`; never merge across fingerprints (INV-5).
-- [ ] **`study/cli.py`** (extend): harden the `IncompatibleStore` catch into an actionable
+- [x] **`study/cli.py`** (extend): harden the `IncompatibleStore` catch into an actionable
   new-lineage message that names the differing binding and tells the user a new store path (or
   reverted config) is needed — never a bare traceback (design Implementation Notes).
 
 ### Validation
 **Automated:**
-- [ ] `test_query.py` + extended `test_evidence_io.py` pass: three states × three verdict classes
+- [x] `test_query.py` + extended `test_evidence_io.py` pass: three states × three verdict classes
   surfaced and filterable; sentinel round-trip over nan/inf/-inf in responses/outputs/report
   (INV-3); catalog join surfaces source form/membership kind/polarity/owner/display predicate by
   `constraint_id` (B3); every result carries `executable_fingerprint` (INV-5); `IncompatibleStore`
   → new-lineage message.
-- [ ] Study suite still green (now 29 + new); ruff clean.
+- [x] Study suite still green (now 29 + new); ruff clean.
 
 **What we know after this phase:** results are readable and joinable, the sentinel never leaks as a
 dict, both axes are distinct, and a changed fingerprint refuses cleanly.
@@ -482,6 +482,39 @@ giving the unit tests a minimal `_StubReport(BaseModel)` stand-in.
 clean.
 
 ### Phase 4 Completion
+**Completed:** 2026-07-12
+**Changes Made:**
+- Extended `study/evidence_io.py`: `decode_evidence`/`_untag_nonfinite`, the mechanical inverse of
+  `_tag_nonfinite`, beside the encoder.
+- Created `study/query.py`: `StudyQuery(store, catalog_path)`, `CaseView`/`CatalogView` frozen
+  dataclasses, `_Catalog` (indexes the fixture JSON by `usage_name`/`constraint_id` once). Query
+  result shape (own to decide, per spec Open Questions "mechanism; defer"): `CaseView.verdicts` is a
+  `dict[constraint_id, verdict]` and `CaseView.catalog` a `dict[constraint_id, CatalogView]` — a
+  case view carries *every* constraint's verdict + catalog detail, not one row per (case,
+  constraint) pair; `cases(constraint=X)` filters cases whose verdicts contain `X`, it does not
+  flatten to per-verdict rows. `executable_fingerprint` reads from evidence provenance when
+  evidence exists, else falls back to the store's bound compatibility fingerprint (execution_failed
+  cases carry no evidence) — the two are equal by construction (INV-5), so either source is correct.
+- Extended `study/cli.py`'s `_new_lineage_message` wording (already written in Phase 2; verified
+  here against a real refused resume) — no further change needed to satisfy "actionable, never a
+  bare traceback".
+- `tests/study/test_evidence_io.py`: added `test_decode_is_exact_inverse_of_encode`
+  (nan/inf/-inf, parametrized). Uses a typed `Dict[str, float]` report field, not a bare `dict` —
+  Pydantic's `model_dump(mode="json")` silently coerces non-finite floats to `null` inside an
+  untyped `dict` field (verified interactively), so an untyped poisoned-report stand-in would have
+  failed before `_tag_nonfinite` ever saw the value; the real generated report's
+  `observed: dict[str, float]` (constraint_types.py) is properly typed and unaffected.
+- `tests/study/test_query.py` (5 tests): two fixtures — `built_store` (`DispositionPolicy` with an
+  injected reject, for state/verdict diversity including a genuine `assessment_failed` case, mirrors
+  `test_runner_matrix.py`) and `objective_store` (real `ObjectivePolicy`, for its own disposition
+  vocabulary). Three states × four verdict classes surfaced/filterable; catalog join names the
+  failing instance; every result's `executable_fingerprint` equals the store's bound one (INV-5);
+  disposition/output filters; refused resume yields a lineage message with no traceback.
+**Issues Encountered:** the `Dict[str, float]` vs. bare `dict` Pydantic serialization gap above —
+test-only, not a defect in `encode_evidence` (real generated reports use typed float mappings).
+**Validation:** `test_query.py` 5/5, extended `test_evidence_io.py` 5/5 green; study suite green;
+`uvx ruff check` clean.
+
 ### Phase 5 Completion
 
 ---
