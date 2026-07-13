@@ -97,14 +97,19 @@ as-is), teax's pipeline executor (untouched, reached only through the evaluator)
   fully-fsync'd tmp; a case row is durable because WAL + `synchronous=FULL` fsyncs the commit. *If false
   → a resumed reader sees a half-written artifact or a torn case row.* (Bounded: process death, not
   power/disk-cache loss.)
-- **B3. A dead lease is promptly and safely distinguishable from a live one.** On same-host resume the
-  crashed runner's pid is provably gone; cross-host, a stale heartbeat past TTL marks it dead. PID reuse
-  can only cause a *false-live* (refuse, safe-slow), never a false-dead (reclaim a live runner). *If
-  false → either two runners write concurrently, or crash-resume/GC deadlocks against a dead lease.*
-- **B4. The certified evaluator's per-case failure surface is exactly two phases** — `MODULE_EXECUTION`
-  (any module raise) and `OUTPUT_WRITE` — plus `ENTRY_VALIDATION` for a bad entry model. *If false →
-  the runner's failure-routing switch mis-classifies a real failure* (e.g. persists a bridge defect as
-  an ordinary result, the exact bug the spec's loud-defect rule exists to prevent).
+- **B3. Two independent signals mark a lease dead, and neither can reclaim a lease whose owner might
+  still write.** Pid-death (same host, `os.kill(pid,0)` → `ESRCH`) is a *hard* guarantee the owner will
+  never write again; TTL expiry is a *soft* signal that only becomes safe once every store write is
+  fenced on `lease_id` (a reclaimed owner's write fails the fence and aborts — see D4/MF-1). PID reuse
+  can only cause a *false-live* (refuse, safe-slow), never a false-dead. *If false → either two runners
+  write concurrently, or crash-resume/GC stalls against a dead lease.* (TTL expiry alone, unfenced,
+  would be unsound: a live-but-stalled owner past TTL would be reclaimed and then keep writing.)
+- **B4. Under the `PreparedEvaluator` (`persist_outputs=False`), the certified evaluator's *per-case*
+  failure surface is exactly `MODULE_EXECUTION`** — any module raise is wrapped into it
+  (`evaluator.py:112-120`). `ENTRY_VALIDATION` is a bad entry model (a bridge defect); `PREPARATION`
+  fails at prepare/startup before any candidate; `OUTPUT_WRITE` is unreachable with no persistence. *If
+  false → the runner's failure-routing switch mis-classifies a real failure* (e.g. persists a bridge
+  defect as an ordinary result, the exact bug the spec's loud-defect rule exists to prevent).
 
 ## Key Decisions
 
@@ -120,18 +125,36 @@ as-is), teax's pipeline executor (untouched, reached only through the evaluator)
   *Rejected: Option B, last-state-wins (the S6 probe's `INSERT OR REPLACE` shape) — simpler and
   sufficient for every S6 pass criterion, but loses the intra-attempt timeline and becomes ambiguous
   under multi-transition attempts.* Consequence: the next attempt number is derived from
-  `MAX(attempt_number)` for the candidate, **not** a row count (Option A has many rows per attempt).
+  `COALESCE(MAX(attempt_number), 0) + 1` for the candidate, **not** a row count (Option A has many rows
+  per attempt; bare `MAX(...)+1` is NULL on the first attempt — MF-4).
 - **D3. Non-finite on-disk encoding: canonical JSON with a recursive `{"__nonfinite__": tag}` sentinel,
   used for *both* the digest input and the on-disk bytes.** The staged file's bytes must re-hash to the
   referenced digest, so — unlike Item 10, where the tag is digest-input only — Item 11 makes the tag the
   actual encoding. *Rejected: `json.dumps(allow_nan=True)` (emits bare `NaN`/`Infinity`, non-standard
   JSON, not portably re-parseable, and defeats content-addressing) and storing a real float NaN (cannot
-  round-trip through JSON at all).*
-- **D4. Runner lease: an operational-state row with `lease_id` + heartbeat + pid/host, TTL-plus-pid
-  liveness.** Acquire refuses a *live* lease (heartbeat within TTL) and reclaims a *dead* one (same-host
-  pid gone, or heartbeat past TTL) by compare-and-swap on `lease_id`. *Rejected: bare pid+timestamp with
-  no heartbeat (unreliable across hosts and PID reuse) and an OS advisory file lock (not visible in the
-  DB, doesn't survive the reader/GC needing to reason about a dead owner).*
+  round-trip through JSON at all).* **Injectivity (MF-3):** because Item 12's query layer *decodes* this
+  form (unlike Item 10, where the tag was digest-input-only and never read back), the encoding must be
+  injective — `"__nonfinite__"` is a **reserved key**. The encoder rejects loudly (`ValueError`) if a
+  genuine value inside the opaque `report` is itself a one-key mapping `{"__nonfinite__": …}`, so no real
+  value is ever silently reconstructed as a non-finite float. We reject rather than escape: the generated
+  `ConstraintReport` is a typed schema that cannot emit this key, so a collision means an unexpected
+  report shape that must fail rather than be papered over. Item 12 decodes on the same reserved-key
+  contract.
+- **D4. Runner lease is a fenced operational-state row: `lease_id` + heartbeat + pid/host, and every
+  store write is fenced on `lease_id` (MF-1).** Acquire refuses a *live* lease (heartbeat within TTL) and
+  reclaims a *dead* one (same-host pid gone, or heartbeat past TTL) by compare-and-swap on `lease_id`,
+  minting a **new** `lease_id`. The reclaim signal alone is not enough to be safe, because a live-but-
+  stalled owner (a slow evaluation or disk pause exceeding TTL) can be past TTL yet still about to write.
+  So **fencing is the actual guarantee, not the TTL**: the case-commit transaction — and every
+  transition/proposal insert — runs `... WHERE (SELECT lease_id FROM runner_lease WHERE singleton=1) =
+  :my_lease_id` (or an equivalent in-transaction guard) and aborts loudly (`StudyLeaseLost`) if the row
+  no longer holds `:my_lease_id`. A reclaimed stalled runner therefore fails its next fenced write,
+  observes the lease loss, and aborts instead of double-writing. Heartbeat is a **background thread**
+  updating `heartbeat_at` at an interval **≪ TTL** (default 10 s heartbeat, 30 s TTL), so a healthy
+  runner's lease never ages out mid-evaluation and only a genuinely stalled/dead runner trips reclaim.
+  *Rejected: bare pid+timestamp with no heartbeat (unreliable across hosts and PID reuse); TTL reclaim
+  without fencing (unsound — reclaims a stalled-but-live owner that then keeps writing); an OS advisory
+  file lock (not visible in the DB, doesn't survive the reader/GC needing to reason about a dead owner).*
 - **D5. `execution_failed` cases carry a NULL artifact reference and a `failure_json`.** They produced
   no evidence, so `evidence_digest` is NULL and the `EvaluationFailure` is stored as JSON. *Rejected:
   S6's shape (a synthetic `failure` dict staged as evidence with a real digest) — the spec's GC
@@ -146,6 +169,20 @@ as-is), teax's pipeline executor (untouched, reached only through the evaluator)
   owns (staging/commit `OSError`, SQLite `OperationalError`). *Rejected: retrying evaluator failures
   (deterministic — a retry fails identically) and a configurable backoff (deferred; S6's fixed limit is
   adequate for this item, tuning is noted for later).*
+- **D8. `strategy_config` encodes the *declared variable order* as an order-sensitive array of
+  `[name, domain]` pairs, not a sorted mapping (MF-2).** A grid's proposal order comes from
+  `itertools.product` over the *declared* variable order, so declared order is part of the study's
+  identity. S6's `canonical_bytes` used `sort_keys=True`, which sorts variable keys alphabetically and
+  discards declared order — so two grids declaring the same variables in a different order would digest
+  identically yet enumerate a different proposal sequence, and a reopen would pass the compatibility
+  check while re-proposing in a new order, remapping every positional `candidate_id` (silent resume
+  corruption). Encoding `strategy_config` (and any order-bearing part of `study_definition_fingerprint`)
+  as an ordered pair-array makes the order-bearing bytes order-sensitive by construction. **Consequence:
+  reordering the declared variables is a new study lineage — correct, because the proposal order, and
+  therefore positional identity, changes.** *Rejected: a `sort_keys` object over the variable→domain map
+  (order-insensitive; the exact bug above) and hashing the enumerated proposal sequence itself (larger,
+  and redundant with `study_definition_fingerprint`).* This is the property positional minting (INV-G,
+  B1) rests on.
 
 ## Architecture
 
@@ -161,7 +198,7 @@ StudyDefinition ── selects ──▶ Strategy.propose() ──▶ (proposal_
                           Evaluator.evaluate(typed_inputs) ─▶ ModelEvidence
                                      │                    └─▶ EvaluationFailed
                                      ▼                          ├ ENTRY_VALIDATION ─▶ StudyBridgeDefect (loud)
-                          Policy.assess(evidence)               └ MODULE_EXECUTION/OUTPUT_WRITE ─▶ execution_failed case
+                          Policy.assess(evidence)               └ MODULE_EXECUTION (or any non-ENTRY phase) ─▶ execution_failed case
                                      │  └─▶ AssessmentFailed ─▶ assessment_failed case (evidence preserved)
                                      ▼
                     StudyStore: stage artifact durably ─▶ atomic commit case ─▶ record transitions
@@ -192,7 +229,9 @@ executor directly. The crash seams live in the store's staging/commit path, stri
   A); operational state (the lease) is the only mutable table and is kept separate.
 - **INV-E. Compatibility is immutable at creation.** Any incompatible reopen fails explicitly; no reopen
   ever mixes datasets from two compatibility bindings.
-- **INV-F. Single writer.** At most one live runner holds a study; GC never runs against a live lease.
+- **INV-F. Single fenced writer.** At most one runner holds the current `lease_id`; every store write is
+  fenced on it and aborts (`StudyLeaseLost`) if reclaimed, so even a stalled-then-reclaimed runner cannot
+  double-write. GC never runs against a live lease, and never touches a live lease's in-flight tmps.
 - **INV-G. Determinism.** The same strategy definition emits a byte-identical proposal sequence across
   two fresh processes (grids get an independent pin, not only the composite resume test).
 - **INV-H. Lossless evidence round-trip.** A committed case's referenced digest re-hashes to the present
@@ -219,13 +258,14 @@ executor directly. The crash seams live in the store's staging/commit path, stri
   importing any generated class as a runtime type.
 - **`compatibility.py` — `Compatibility`.** The eight-field binding (executable / model-contract /
   study-definition fingerprints, input & evidence schema versions, strategy identity + canonicalized
-  config); bound once, checked on reopen.
+  config); the config canonicalization is **order-preserving** for grids (D8). Bound once, checked on reopen.
 - **`store.py` — `StudyStore`.** SQLite (`WAL` + `synchronous=FULL` as **contract**), staging protocol,
-  lease acquire/heartbeat/reclaim, case commit, GC.
+  lease acquire/heartbeat(-thread)/reclaim with **fenced writes** (D4), case commit, GC.
 - **`runner.py` — `StudyRunner`.** The fixed order + failure-routing switch + retry loop.
 - **`policy.py` — `Policy` protocol + a minimal `DispositionPolicy`.** Just enough to produce the three
   case states and exercise `assessment_failed`; the full policy/query/CLI is Item 12.
-- **`failures.py`.** `IncompatibleStore`, `StudyLocked`, `StudyBridgeDefect`, `RetryableStoreError`.
+- **`failures.py`.** `IncompatibleStore`, `StudyLocked`, `StudyLeaseLost`, `StudyBridgeDefect`,
+  `RetryableStoreError`.
 - **`crash.py` — `CrashController`** (test affordance): `os._exit` at `mid_staging` / `before_commit`.
 
 ## Non-Goals
@@ -237,39 +277,62 @@ executor directly. The crash seams live in the store's staging/commit path, stri
 
 ## Implementation Notes
 
-- **Attempt-number derivation (Option A gotcha):** `next_attempt_number = MAX(attempt_number) + 1` over
-  the candidate's transition rows, not `COUNT(*)` (S6 counted rows; Option A has many rows per attempt).
+- **Attempt-number derivation (Option A gotcha):** `next_attempt_number = COALESCE(MAX(attempt_number),
+  0) + 1` over the candidate's transition rows, not `COUNT(*)` (S6 counted rows; Option A has many rows
+  per attempt). The `COALESCE` matters: bare `MAX(...)+1` is NULL on the first attempt (MF-4).
+- **Fenced writes (MF-1):** the case-commit transaction and every transition/proposal insert include an
+  in-transaction guard on the current `lease_id` and raise `StudyLeaseLost` if it no longer equals the
+  writer's `lease_id`. A stalled runner that was reclaimed wakes, fails its next fenced write, and aborts
+  — it never double-writes. Heartbeat runs on a **background thread** at an interval ≪ TTL so a healthy
+  slow evaluation never ages the lease out.
 - **Transition rows are individually durable.** Write and commit the `started` transition *before*
   evaluate/stage/commit, so a crash leaves a `started` row with no terminal transition — the forensic
   signature of an in-flight attempt. Same for terminal transitions after commit.
-- **Failure-routing switch** (runner, after catching `EvaluationFailed`):
+- **Failure-routing switch** (runner, after catching `EvaluationFailed`). The failure enum has four
+  phases (`failure.py:13-24`: `ENTRY_VALIDATION, PREPARATION, MODULE_EXECUTION, OUTPUT_WRITE`), but under
+  the `PreparedEvaluator` (`persist_outputs=False`) the *per-case* surface is `MODULE_EXECUTION` only:
+  `PREPARATION` fails at evaluator construction/startup (fail-loud, before any candidate, never a case)
+  and `OUTPUT_WRITE` is unreachable with no persistence (NF-1). The switch is written against the enum,
+  not against "two phases":
   ```
-  if failure.phase == ENTRY_VALIDATION:  raise StudyBridgeDefect(failure)   # loud, never a case
-  else:                                  commit execution_failed case (evidence_digest=NULL,
-                                                                        failure_json=failure)
+  if failure.phase == ENTRY_VALIDATION:  raise StudyBridgeDefect(failure)   # bridge defect, loud, never a case
+  elif failure.phase == PREPARATION:     raise                              # startup fault, not a case
+  else:  # MODULE_EXECUTION (today) / OUTPUT_WRITE (future persisting backend)
+         commit execution_failed case (evidence_digest=NULL, failure_json=failure)
   ```
 - **Evidence serialization** never imports the generated report type; it reads the already-dumped JSON
-  and tags non-finite recursively. `outputs` are plain floats; a non-finite operand only appears inside
-  the dumped `report`.
+  and tags non-finite recursively, rejecting a reserved-key collision (D3). `outputs` are plain floats; a
+  non-finite operand only appears inside the dumped `report`.
 - **Staging layout:** `root/staging/{lease_id}/{attempt_id}.tmp` → `root/artifacts/{digest}.json`. The
   per-lease subdir carries lease identity, the filename carries attempt identity — so a crashed orphan
-  tmp is attributable to its (now dead) lease, distinct from a live runner's in-flight tmp (closes
-  L2-1). Dedup checks `exists()` at the final path first (INV-B).
+  tmp is attributable to its (now dead) lease, distinct from a live runner's in-flight tmp (closes L2-1).
+  The `staging/{lease_id}/` subdir is created with `mkdir(parents=True, exist_ok=True)` at lease-acquire
+  (S6 wrote directly into `staging_dir`; the per-lease dir is new — NF-4). Dedup checks `exists()` at the
+  final path first (INV-B).
 - **WAL + synchronous=FULL are contract:** set on every open and asserted; state in the module docstring
-  and store contract that the crash-safety proof binds to exactly these settings.
-- **strategy_config canonicalization:** canonical-JSON digest of the strategy's config (the proposals
-  list for a list; the ordered variable→domain map for a grid) — stable across processes.
+  and store contract that the crash-safety proof binds to exactly these settings. **Store contract line
+  (NF-3):** the store is single-host — the lease/GC reasoning and SQLite+WAL durability assume a local
+  filesystem; a network filesystem is out of contract (SQLite+WAL is unreliable on NFS, and the pid-
+  liveness fast path is meaningless cross-host). Cross-host is a bounded corner served only by the TTL
+  path, not a supported deployment.
+- **strategy_config canonicalization (D8):** a stable digest of the strategy's config — the proposals
+  list for a list; for a grid, an **order-sensitive array of `[name, domain]` pairs** in declared
+  variable order (never a `sort_keys` object, which would discard order and admit a silent resume
+  remap). Stable across processes.
 
 ## Potential Risks
 
 - **The deterministic toy package cannot natively raise or fail assessment**, so `execution_failed`,
-  `assessment_failed`, and the store-transient retry cannot be triggered by a real *input* alone. See
-  Validation Approach for how the real evaluator is still the system under test. This is the sharpest
-  point for the design review.
-- **Lease reclaim correctness.** The pid-liveness fast path must guard on hostname (a recorded pid is
-  only meaningful on the same host). Cross-host relies on TTL; a too-short TTL could reclaim a slow-but-
-  live runner. Mitigation: TTL ≫ heartbeat interval (default 30 s vs 10 s), and reclaim is CAS on
-  `lease_id` so a racing live owner's write wins.
+  `assessment_failed`, and the store-transient retry cannot be triggered by a real *input* alone (Item 0
+  confirmed the real package returns `indeterminate` on a non-finite operand and never raises). See
+  Validation Approach for how the real evaluator is still the system under test.
+- **Lease reclaim correctness rests on fencing, not on TTL tuning.** A live-but-stalled runner past TTL
+  can be reclaimed; the fencing guard (D4) makes that safe — its next write fails `StudyLeaseLost` and it
+  aborts. The pid-liveness fast path still guards on hostname (a recorded pid is only meaningful on the
+  same host). Residual risk is narrow: a reclaimed runner mid-`os.replace` of a tmp GC just deleted — but
+  the fenced commit that would reference that artifact fails, so no case ever points at it. Mitigation:
+  TTL ≫ heartbeat interval (30 s vs a 10 s background heartbeat) so healthy runs never trip reclaim, plus
+  fencing for the stalled case.
 - **Non-finite encoding drift.** If `evidence_io` and the digest use different canonicalizations, INV-H
   breaks silently. Mitigation: one function produces the bytes; the digest is `sha256` of exactly those
   bytes (single source, as in S6's `_stage_artifact`).
@@ -291,9 +354,12 @@ named fault at the exact seam the real evaluator genuinely uses**, not a fake ev
 
 - **`execution_failed`:** a test-only `Evaluator` that delegates to `PreparedEvaluator` and, for one
   designated candidate, raises the authentic `EvaluationFailed(EvaluationFailure(phase=MODULE_EXECUTION,
-  retryable=False))` — the identical exception `evaluator.py:114-120` raises when a real module throws.
-  Tests the runner's terminal-failure routing against the real failure type. *Alternative — a second
-  fixture package whose module raises — is heavier and deferred; noted for the review.*
+  retryable=False))`. That a *real module raise* actually surfaces as `MODULE_EXECUTION` is not an
+  Item-11 assumption — it is already certified in Item 10: `evaluator.py:112-120` wraps *any* exception
+  from `_executor.run` into `MODULE_EXECUTION` (NF-2/B4). So the named fault raises byte-for-byte what a
+  real module throw produces, and it exercises the runner's terminal-failure routing against the real
+  failure type without needing a package that raises. *Alternative — a second fixture package whose
+  module raises — would close it end-to-end but is not required given Item 10's coverage; deferred.*
 - **`assessment_failed`:** the **real** evaluator returns real evidence; the injected minimal policy
   rejects a designated candidate, so the case preserves real evidence (exactly the criterion's intent).
 - **retry / new `attempt_id`:** a transient store-I/O fault injected on the first persistence attempt
@@ -308,16 +374,21 @@ criterion. CI command: `pytest packages/teax-simkit/simkit/tests/study/`.
 
 ## Next-Stage Handoff
 
-- **Fixed:** the `simkit/study/` layout (D1); Option A attempt schema (D2, `[OWNER]`); the non-finite
-  sentinel encoding (D3); the lease model (D4); NULL artifact ref for `execution_failed` (D5); no cursor
-  (D6); the failure-routing switch; the eight-field compatibility binding; WAL+FULL as contract.
-- **Open (design-review targets):** the exact TTL/heartbeat numbers; whether the review accepts the
-  named-fault approach for `execution_failed` vs. demanding a raising fixture package; retention↔GC
-  interaction (spec left it open — this item ships GC of orphans + unreferenced artifacts, retention
-  policy interpretation is minimal).
-- **De-risk first:** stand up the store + staging + lease and re-run the S6 crash regimes against the
-  real evaluator *before* building strategies/definition — that path carries B1/B2/B3 and is where the
-  productionization risk concentrates.
+- **Fixed:** the `simkit/study/` layout (D1); Option A attempt schema with `COALESCE` derivation (D2,
+  `[OWNER]`; MF-4); the injective non-finite sentinel with a reserved key (D3, MF-3); the **fenced** lease
+  model with a background-thread heartbeat (D4, MF-1); NULL artifact ref for `execution_failed` (D5); no
+  cursor (D6); the order-preserving grid canonicalization (D8, MF-2); the four-phase failure-routing
+  switch (NF-1); the eight-field compatibility binding; WAL+FULL as contract; the single-host store
+  contract (NF-3).
+- **Open (design-review targets):** the exact TTL/heartbeat numbers (30 s / 10 s are defaults, tunable);
+  retention↔GC interaction (spec left it open — this item ships GC of orphans + unreferenced artifacts,
+  retention policy interpretation is minimal). The named-fault approach for `execution_failed` is now
+  grounded in Item 10's certified `MODULE_EXECUTION` wrapping (NF-2), so the raising-fixture alternative
+  is optional, not a gate.
+- **De-risk first:** stand up the store + staging + **fenced lease** and re-run the S6 crash regimes
+  against the real evaluator *before* building strategies/definition — that path carries B1/B2/B3. **Fold
+  the MF-1 fencing test (`test_lease_fence_blocks_reclaimed_writer`) and the MF-2 reorder-rejection test
+  (`test_grid_reorder_is_new_lineage`) into this first slice**, since both live in exactly that path.
 
 ## Appendix A — SQLite schema (DDL sketch)
 
@@ -328,7 +399,7 @@ CREATE TABLE compatibility (            -- singleton, bound once at creation (IN
   executable_fingerprint TEXT NOT NULL, model_contract_fingerprint TEXT NOT NULL,
   study_definition_fingerprint TEXT NOT NULL, input_schema_version TEXT NOT NULL,
   evidence_schema_version TEXT NOT NULL, strategy_identity TEXT NOT NULL,
-  strategy_config TEXT NOT NULL);
+  strategy_config TEXT NOT NULL);       -- order-preserving digest for grids (D8): a reorder is a new lineage
 
 CREATE TABLE proposals (                -- append-only; idempotent re-persist (INSERT OR IGNORE)
   proposal_id TEXT PRIMARY KEY, raw_json TEXT NOT NULL,
@@ -358,11 +429,26 @@ CREATE TABLE runner_lease (              -- the ONLY mutable operational state (
   acquired_at REAL NOT NULL, heartbeat_at REAL NOT NULL, released INTEGER NOT NULL DEFAULT 0);
 ```
 
-Lease acquire (pseudocode): read row; if none/released → CAS-insert. Else if
+**Lease acquire** (pseudocode): read row; if none/released → CAS-insert a fresh `lease_id`. Else if
 `heartbeat_at` within TTL → **live** → raise `StudyLocked`. Else if (same host and `os.kill(pid,0)`
-raises `ESRCH`) or `heartbeat_at` past TTL → **dead** → CAS-replace `lease_id`. GC: refuse unless the
-lease is released or dead; then collect `staging/{dead_lease}/*.tmp` and any
-`artifacts/{digest}.json` whose digest is in no committed case's non-null `evidence_digest`.
+raises `ESRCH`) or `heartbeat_at` past TTL → **dead** → CAS-replace with a fresh `lease_id`. A
+background thread updates `heartbeat_at` every ~10 s (TTL ~30 s).
+
+**Fenced write** (MF-1) — every case-commit / transition / proposal insert runs inside one transaction
+that first re-reads the lease and aborts if reclaimed:
+```sql
+-- inside the same transaction as the case INSERT:
+SELECT lease_id FROM runner_lease WHERE singleton = 1;   -- must equal :my_lease_id, else raise StudyLeaseLost
+INSERT INTO cases (...) VALUES (...);                     -- only reached when the fence holds
+```
+A stalled-then-reclaimed runner fails this fence and aborts — it cannot double-write. `UNIQUE(study_id,
+candidate_id)` remains the structural backstop for a same-candidate race.
+
+**GC**: refuse unless the lease is `released` or **dead** by the acquire rule above — GC never runs while
+a lease is live, so a live runner's in-flight `staging/{live_lease}/*.tmp` are untouchable. Only after a
+lease is reclaimed/dead do its `staging/{dead_lease}/*.tmp` become collectible; GC also collects any
+`artifacts/{digest}.json` whose digest is in no committed case's non-null `evidence_digest` (replicate-
+shared digests counted once, so a shared artifact is never collected — L3-5).
 
 ## Appendix B — S6 criterion → kept-test map (oracle)
 
@@ -382,6 +468,11 @@ lease is released or dead; then collect `staging/{dead_lease}/*.tmp` and any
 | Retry lands one case on a new `attempt_id` | `test_retry_new_attempt` | real + store-transient fault |
 | Grid determinism across two processes (INV-G) | `test_grid_determinism_pin` | strategy only |
 | GC collects orphan tmp, never a shared artifact | `test_gc_orphans_only` | store only |
+| Reclaimed-lease writer fails the fence, never double-writes (MF-1, INV-F) | `test_lease_fence_blocks_reclaimed_writer` | store only |
+| Variable reorder is rejected as incompatible (MF-2, INV-G) | `test_grid_reorder_is_new_lineage` | store + strategy |
+
+The first two added rows (fencing, reorder-rejection) fold into the de-risk-first slice below, since both
+live in exactly the store+lease path stood up first.
 
 ---
 Next Step: After approval → `/_my_design_review` (fresh session), then `/_my_plan`.
