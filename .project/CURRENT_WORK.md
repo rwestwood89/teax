@@ -1,8 +1,21 @@
 # Current Work
 
+**Last Updated**: 2026-07-13
+
 ## Active Work
 
-- **study-policy-cli** (epic CONSTRAINT-EXEC, Item 12) — Study Policy, Query, and CLI Surface. Gives studies their user surface over the certified Item 10/11 code: the full policy interpretation protocol over immutable evidence, a result-query API joining the catalog, and the study CLI (create/run/resume/inspect). **Spec in progress** (`.project/active/study-policy-cli/spec.md`).
-- **study-store-runner** (epic CONSTRAINT-EXEC, Item 11) — Study Store, Runner, and Strategies (lists/grids). Productionizes the S6 crash-safe study lifecycle against the real Item 10 evaluator. **Audited 2026-07-12: Certify-with-notes** (`.project/active/study-store-runner/audit.md`). All 4 phases implemented; `simkit/study/` new subpackage, `simkit/evaluation/` untouched. Five S6 criteria + three crash regimes map to kept tests driving the REAL evaluator via real `os._exit` subprocess deaths through the production runner; fence (MF-1), order-sensitive `strategy_config` (MF-2), Option A per-transition history + `COALESCE`, GC safety, and the injective non-finite sentinel all verified by static trace. **Execution was blocked in the audit session** (pytest/python/uvx needed approval) — 5 live probes requested for the orchestrator: (1) study suite → 29 passed, (2) eval suite → 25 passed, (3) framework suite green except exactly the 4 known `test_no_battery_deps` hard-coded-cwd failures, (4) ruff clean, (5) fence mutation → RED then GREEN. Upgrades to clean Certify once probes return expected. Minor non-blocking notes: resume-identical crashes on cand-0 (resume-from-empty, not mid-sequence); GC unreferenced-artifact-collection direction untested-positive; `not_assessed` proven via the design's named zero-assertion affordance (documented/owner-checked, not a silent cut). Spec/epic success checkboxes left for the orchestrator to mark after probes 1–4 pass. Next: run probes, then `/_my_pre_pr`.
-- **model-evaluator** (epic CONSTRAINT-EXEC, Item 10) — Model Evaluator and Typed Entry production API. **Audited 2026-07-12: Certify-with-notes** (`.project/active/model-evaluator/audit.md`). All 5 phases implemented; additive-only (1770 insertions, 0 deletions, no existing file touched). Every brief claim borne out by static trace of code + fixtures + assertions. **Execution was blocked in the audit session** (pytest/python needed interactive approval) — 4 live probes requested for the orchestrator: (1) pre-Item-10 four-failure comparison, (2) full suite green, (3) isolation mutation probe → RED, (4) file-backed NaN spot check. Upgrades to clean Certify once probes 1–3 return expected. Minor non-blocking notes: `preparation`/`output_write` phases untested; `module_or_channel` left None on module_execution; report-unchanged proven by identity. Next: run probes, then `/_my_pre_pr`.
-</content>
+(none — CONSTRAINT-EXEC closed; next teax work arrives via the CE-F2 follow-on or the docs sweep)
+
+## Recently Completed
+
+### 2026-07-13: CONSTRAINT-EXEC Items 0, 10–12 (epic closed, archived)
+- Integration spike, model evaluator + typed entry API, crash-safe study store/runner, and the
+  study policy/query/CLI surface — all certified and archived to
+  `.project/completed/20260713_{constraint-study-integration-spike,model-evaluator,study-store-runner,study-policy-cli}/`.
+- Post-run in the owner session: **CE-F3 fixed** (`0d606a4` — `entry_models` derived from the
+  pipeline spec replaces the hardcoded `ToyPlantParams`, plus a fixture-name source-scan guard)
+  and the 4 pre-existing `test_no_battery_deps` hardcoded-path failures fixed (`1b63272`).
+  Suite fully green: **262 passed**.
+- Canonical epic close-out + independent findings audit: sysml-codegen
+  `.project/completed/20260713_epic_constraint_execution*.md`. Open teax follow-on: **CE-F2**
+  (multi-channel `CandidateBridge`), registered in sysml-codegen BACKLOG.
