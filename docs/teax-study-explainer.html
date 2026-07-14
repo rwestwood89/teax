@@ -3,2088 +3,964 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A top-down field guide to TEAx pipelines, evaluators, studies, and crash-safe results.">
-  <meta name="theme-color" content="#f2efe7">
-  <title>TEAx study architecture — an interactive field guide</title>
+  <title>How TEAx runs a study</title>
   <style>
     :root {
-      color-scheme: light;
-      --paper: #f2efe7;
-      --paper-raised: #fbf9f3;
-      --paper-deep: #e7e2d7;
-      --ink: #17201f;
-      --ink-soft: #52605d;
-      --line: #cfc9bd;
-      --teal: #0e7770;
-      --teal-deep: #075a56;
-      --teal-pale: #dcece7;
-      --orange: #df623d;
-      --orange-pale: #f7dfd4;
-      --mustard: #d7a52f;
-      --mustard-pale: #f6eac7;
-      --plum: #6d557b;
-      --plum-pale: #e9e0ee;
-      --nav-width: 17.5rem;
-      --shadow: 0 18px 44px rgba(34, 43, 40, 0.09);
-      --radius: 1.1rem;
-      --radius-sm: 0.7rem;
-      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-      --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      --serif: Iowan Old Style, Charter, "Bitstream Charter", "Sitka Text", Cambria, serif;
-    }
-
-    [data-theme="night"] {
-      color-scheme: dark;
-      --paper: #151b1a;
-      --paper-raised: #1d2523;
-      --paper-deep: #26302e;
-      --ink: #f4f1e9;
-      --ink-soft: #b5c0bc;
-      --line: #3d4946;
-      --teal: #62c6bb;
-      --teal-deep: #91ddd4;
-      --teal-pale: #1c3b37;
-      --orange: #f18a65;
-      --orange-pale: #492c24;
-      --mustard: #edc35c;
-      --mustard-pale: #43391f;
-      --plum: #bea4cd;
-      --plum-pale: #372d3d;
-      --shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+      --paper: #f6f3ec;
+      --panel: #fffdf8;
+      --ink: #17211d;
+      --muted: #5b665f;
+      --line: #c9cec7;
+      --strong-line: #87928b;
+      --green: #176b4d;
+      --green-soft: #dcece4;
+      --blue: #285f8f;
+      --blue-soft: #e1ebf4;
+      --amber: #8d5d12;
+      --amber-soft: #f3e7cf;
+      --red: #9a3e36;
+      --red-soft: #f4dfdc;
+      --code: #202722;
+      --code-ink: #eaf1eb;
+      --shadow: 0 14px 34px rgba(24, 34, 29, .07);
     }
 
     * { box-sizing: border-box; }
-
-    html {
-      scroll-behavior: smooth;
-      scroll-padding-top: 2rem;
-    }
-
     body {
       margin: 0;
-      background:
-        radial-gradient(circle at 82% 3%, color-mix(in srgb, var(--orange-pale) 72%, transparent), transparent 26rem),
-        radial-gradient(circle at 36% 34%, color-mix(in srgb, var(--teal-pale) 64%, transparent), transparent 30rem),
-        var(--paper);
       color: var(--ink);
-      font-family: var(--sans);
-      line-height: 1.55;
+      background:
+        linear-gradient(rgba(23, 33, 29, .025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23, 33, 29, .025) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    body::before {
-      position: fixed;
-      z-index: -1;
-      inset: 0;
-      content: "";
-      opacity: 0.26;
-      pointer-events: none;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.13'/%3E%3C/svg%3E");
+    a { color: var(--blue); text-underline-offset: 3px; }
+    a:hover { color: #17476f; }
+    code, pre, .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    code {
+      padding: .08rem .28rem;
+      border-radius: 4px;
+      background: rgba(40, 95, 143, .09);
+      font-size: .9em;
     }
 
-    a {
-      color: var(--teal-deep);
-      text-decoration-thickness: 0.08em;
-      text-underline-offset: 0.18em;
-    }
-
-    a:hover { color: var(--orange); }
-
-    button, summary { font: inherit; }
-
-    button:focus-visible,
-    a:focus-visible,
-    summary:focus-visible {
-      outline: 3px solid color-mix(in srgb, var(--mustard) 70%, transparent);
-      outline-offset: 3px;
-      border-radius: 0.3rem;
-    }
-
-    .reading-progress {
-      position: fixed;
-      z-index: 50;
-      top: 0;
-      left: 0;
-      width: var(--reading-progress, 0%);
-      height: 4px;
-      background: linear-gradient(90deg, var(--teal), var(--orange));
-    }
-
-    .page-shell {
+    .page {
       display: grid;
-      grid-template-columns: var(--nav-width) minmax(0, 1fr);
-      min-height: 100vh;
+      grid-template-columns: 240px minmax(0, 1040px);
+      gap: 46px;
+      width: min(1360px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 28px 0 80px;
     }
 
-    .side-nav {
+    aside {
       position: sticky;
-      top: 0;
-      height: 100vh;
-      padding: 2rem 1.4rem 1.5rem;
-      border-right: 1px solid var(--line);
-      background: color-mix(in srgb, var(--paper-raised) 84%, transparent);
-      backdrop-filter: blur(16px);
-      overflow-y: auto;
+      top: 20px;
+      align-self: start;
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+      padding: 18px 16px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255, 253, 248, .9);
+      box-shadow: var(--shadow);
     }
-
     .brand {
       display: flex;
-      align-items: center;
-      gap: 0.7rem;
-      margin-bottom: 2.2rem;
-      color: var(--ink);
-      text-decoration: none;
-    }
-
-    .brand-mark {
-      display: grid;
-      width: 2.35rem;
-      height: 2.35rem;
-      place-items: center;
-      border: 1px solid var(--ink);
-      border-radius: 50%;
-      background: var(--mustard);
-      color: #17201f;
-      font-family: var(--serif);
-      font-size: 1.2rem;
-      font-weight: 800;
-    }
-
-    .brand-text strong,
-    .brand-text small { display: block; }
-
-    .brand-text strong {
-      font-family: var(--serif);
-      font-size: 1.1rem;
-      letter-spacing: -0.02em;
-    }
-
-    .brand-text small {
-      color: var(--ink-soft);
-      font-size: 0.72rem;
-      letter-spacing: 0.09em;
-      text-transform: uppercase;
-    }
-
-    .nav-label {
-      margin: 1.2rem 0 0.55rem;
-      color: var(--ink-soft);
-      font-size: 0.68rem;
-      font-weight: 800;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-
-    .side-nav nav a {
-      display: flex;
-      align-items: center;
-      gap: 0.7rem;
-      min-height: 2.45rem;
-      padding: 0.45rem 0.55rem;
-      border-left: 2px solid transparent;
-      color: var(--ink-soft);
-      font-size: 0.86rem;
-      text-decoration: none;
-      transition: 160ms ease;
-    }
-
-    .side-nav nav a::before {
-      width: 1.3rem;
-      color: var(--line);
-      content: attr(data-number);
-      font-family: var(--mono);
-      font-size: 0.68rem;
-    }
-
-    .side-nav nav a:hover,
-    .side-nav nav a.active {
-      border-left-color: var(--orange);
-      color: var(--ink);
-      transform: translateX(0.2rem);
-    }
-
-    .nav-actions {
-      display: grid;
-      gap: 0.55rem;
-      margin-top: 2rem;
-    }
-
-    .quiet-button {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.45rem;
-      min-height: 2.35rem;
-      padding: 0.45rem 0.7rem;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: transparent;
-      color: var(--ink);
-      cursor: pointer;
-      font-size: 0.76rem;
-      font-weight: 700;
-    }
-
-    .quiet-button:hover {
-      border-color: var(--teal);
-      background: var(--teal-pale);
-    }
-
-    main {
-      width: min(100%, 92rem);
-      padding: 0 clamp(1.25rem, 4vw, 5rem) 6rem;
-    }
-
-    .hero {
-      position: relative;
-      min-height: min(48rem, 92vh);
-      padding: clamp(4rem, 10vh, 7.5rem) 0 4rem;
-    }
-
-    .hero::after {
-      position: absolute;
-      z-index: -1;
-      top: 5rem;
-      right: 0;
-      width: min(31vw, 28rem);
-      aspect-ratio: 1;
-      border: 1px solid color-mix(in srgb, var(--teal) 55%, transparent);
-      border-radius: 50%;
-      content: "";
-      box-shadow:
-        inset 0 0 0 2.4rem color-mix(in srgb, var(--teal-pale) 60%, transparent),
-        inset 0 0 0 4.8rem color-mix(in srgb, var(--paper) 55%, transparent);
-      opacity: 0.65;
-    }
-
-    .eyebrow {
-      display: flex;
-      align-items: center;
-      gap: 0.65rem;
-      margin: 0 0 1.2rem;
-      color: var(--teal-deep);
-      font-size: 0.75rem;
-      font-weight: 850;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-
-    .eyebrow::before {
-      width: 2.2rem;
-      height: 2px;
-      background: var(--orange);
-      content: "";
-    }
-
-    h1, h2, h3, .display-type {
-      font-family: var(--serif);
-      font-weight: 720;
-      letter-spacing: -0.035em;
-      line-height: 1.03;
-    }
-
-    h1 {
-      max-width: 13ch;
-      margin: 0;
-      font-size: clamp(3.3rem, 7.5vw, 7.6rem);
-    }
-
-    h1 em {
-      color: var(--orange);
-      font-style: italic;
-      font-weight: 500;
-    }
-
-    .hero-lede {
-      max-width: 46rem;
-      margin: 2rem 0 0;
-      color: var(--ink-soft);
-      font-size: clamp(1.05rem, 1.5vw, 1.3rem);
-      line-height: 1.65;
-    }
-
-    .hero-problem {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      gap: 1rem;
-      max-width: 48rem;
-      margin-top: 2rem;
-      padding: 1.25rem 1.4rem;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: color-mix(in srgb, var(--paper-raised) 90%, transparent);
-      box-shadow: var(--shadow);
-    }
-
-    .problem-mark {
-      display: grid;
-      width: 2.5rem;
-      height: 2.5rem;
-      place-items: center;
-      border-radius: 50%;
-      background: var(--orange-pale);
-      color: var(--orange);
-      font-family: var(--serif);
-      font-size: 1.5rem;
-      font-weight: 800;
-    }
-
-    .hero-problem strong { display: block; margin-bottom: 0.25rem; }
-    .hero-problem p { margin: 0; color: var(--ink-soft); }
-
-    .hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      margin-top: 2rem;
-    }
-
-    .button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      min-height: 3rem;
-      padding: 0.7rem 1.1rem;
-      border: 1px solid var(--ink);
-      border-radius: 999px;
-      background: var(--ink);
-      color: var(--paper-raised);
-      font-size: 0.82rem;
-      font-weight: 800;
-      text-decoration: none;
-    }
-
-    .button:hover {
-      background: var(--orange);
-      border-color: var(--orange);
-      color: #fff;
-    }
-
-    .button.secondary { background: transparent; color: var(--ink); }
-    .button.secondary:hover { background: var(--teal-pale); color: var(--ink); }
-
-    .section {
-      padding: clamp(4.5rem, 10vw, 8rem) 0;
-      border-top: 1px solid var(--line);
-    }
-
-    .section-head {
-      display: grid;
-      grid-template-columns: minmax(10rem, 0.7fr) minmax(18rem, 1.3fr);
-      gap: clamp(2rem, 5vw, 6rem);
-      align-items: start;
-      margin-bottom: 3rem;
-    }
-
-    .section-index {
-      color: var(--orange);
-      font-family: var(--mono);
-      font-size: 0.75rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-
-    .section h2 {
-      max-width: 13ch;
-      margin: 0.5rem 0 0;
-      font-size: clamp(2.5rem, 5vw, 4.8rem);
-    }
-
-    .section-intro {
-      max-width: 46rem;
-      margin: 0.3rem 0 0;
-      color: var(--ink-soft);
-      font-size: clamp(1rem, 1.3vw, 1.2rem);
-      line-height: 1.7;
-    }
-
-    .section-intro strong { color: var(--ink); }
-
-    .architecture-rail {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 0;
-      margin: 3rem 0 1.5rem;
-      counter-reset: layer;
-    }
-
-    .architecture-block {
-      position: relative;
-      min-height: 18rem;
-      padding: 1.5rem 1.35rem;
-      border: 1px solid var(--line);
-      background: var(--paper-raised);
-      counter-increment: layer;
-    }
-
-    .architecture-block:first-child { border-radius: var(--radius) 0 0 var(--radius); }
-    .architecture-block:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
-    .architecture-block + .architecture-block { border-left: 0; }
-
-    .architecture-block::before {
-      display: grid;
-      width: 2.2rem;
-      height: 2.2rem;
-      margin-bottom: 3rem;
-      place-items: center;
-      border: 1px solid currentColor;
-      border-radius: 50%;
-      content: counter(layer);
-      font-family: var(--mono);
-      font-size: 0.7rem;
-    }
-
-    .architecture-block:not(:last-child)::after {
-      position: absolute;
-      z-index: 2;
-      top: 2rem;
-      right: -0.65rem;
-      display: grid;
-      width: 1.3rem;
-      height: 1.3rem;
-      place-items: center;
-      border-radius: 50%;
-      background: var(--ink);
-      color: var(--paper);
-      content: "→";
-      font-size: 0.7rem;
-    }
-
-    .architecture-block:nth-child(1) { color: var(--teal-deep); }
-    .architecture-block:nth-child(2) { color: var(--plum); }
-    .architecture-block:nth-child(3) { color: var(--orange); }
-    .architecture-block:nth-child(4) { color: #906c0d; }
-
-    .architecture-block h3 {
-      margin: 0 0 0.6rem;
-      color: var(--ink);
-      font-family: var(--sans);
-      font-size: 1rem;
-      letter-spacing: 0;
-      line-height: 1.25;
-    }
-
-    .architecture-block p {
-      margin: 0;
-      color: var(--ink-soft);
-      font-size: 0.86rem;
-    }
-
-    .architecture-block .output-label {
-      position: absolute;
-      right: 1.35rem;
-      bottom: 1.25rem;
-      left: 1.35rem;
-      padding-top: 0.8rem;
-      border-top: 1px solid var(--line);
-      color: var(--ink);
-      font-family: var(--mono);
-      font-size: 0.68rem;
-    }
-
-    .architecture-caption {
-      margin: 0;
-      color: var(--ink-soft);
-      font-size: 0.82rem;
-      text-align: right;
-    }
-
-    .route-grid,
-    .card-grid {
-      display: grid;
-      gap: 1rem;
-    }
-
-    .route-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 3.5rem; }
-    .card-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .card-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .card-grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .card-grid.cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-
-    .route-card,
-    .info-card {
-      position: relative;
-      padding: 1.35rem;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      background: color-mix(in srgb, var(--paper-raised) 86%, transparent);
-    }
-
-    .route-card {
-      color: var(--ink);
-      text-decoration: none;
-      transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
-    }
-
-    .route-card:hover {
-      border-color: var(--teal);
-      color: var(--ink);
-      transform: translateY(-3px);
-      box-shadow: var(--shadow);
-    }
-
-    .route-card span {
-      display: block;
-      margin-bottom: 0.6rem;
-      color: var(--orange);
-      font-family: var(--mono);
-      font-size: 0.68rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .route-card strong { display: block; margin-bottom: 0.35rem; }
-    .route-card p, .info-card p { margin: 0; color: var(--ink-soft); font-size: 0.86rem; }
-
-    .info-card h3 {
-      margin: 0 0 0.6rem;
-      font-family: var(--sans);
-      font-size: 0.96rem;
-      letter-spacing: 0;
-      line-height: 1.3;
-    }
-
-    .info-card .card-number {
-      display: block;
-      margin-bottom: 2rem;
-      color: var(--teal-deep);
-      font-family: var(--mono);
-      font-size: 0.7rem;
-      font-weight: 800;
-    }
-
-    .purpose-label {
-      display: inline-block;
-      margin-top: 1rem;
-      padding: 0.28rem 0.48rem;
-      border-radius: 0.35rem;
-      background: var(--teal-pale);
-      color: var(--teal-deep);
-      font-family: var(--mono);
-      font-size: 0.66rem;
-      font-weight: 800;
-    }
-
-    .callout {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      gap: 1rem;
-      margin: 2rem 0;
-      padding: 1.25rem 1.4rem;
-      border-left: 4px solid var(--mustard);
-      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-      background: var(--mustard-pale);
-    }
-
-    .callout .callout-label {
-      color: color-mix(in srgb, var(--ink) 72%, var(--mustard));
-      font-family: var(--mono);
-      font-size: 0.65rem;
-      font-weight: 850;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .callout p { margin: 0; }
-
-    .workflow {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 0.65rem;
-      margin: 2.5rem 0;
-      counter-reset: workflow;
-    }
-
-    .workflow-step {
-      min-height: 11rem;
-      padding: 1.1rem;
-      border-top: 3px solid var(--teal);
-      background: var(--paper-raised);
-      box-shadow: 0 5px 20px rgba(34, 43, 40, 0.05);
-      counter-increment: workflow;
-    }
-
-    .workflow-step::before {
-      display: block;
-      margin-bottom: 1.5rem;
-      color: var(--orange);
-      content: "0" counter(workflow);
-      font-family: var(--mono);
-      font-size: 0.7rem;
-      font-weight: 800;
-    }
-
-    .workflow-step strong { display: block; margin-bottom: 0.4rem; font-size: 0.9rem; }
-    .workflow-step p { margin: 0; color: var(--ink-soft); font-size: 0.79rem; }
-
-    .code-layout {
-      display: grid;
-      grid-template-columns: minmax(15rem, 0.7fr) minmax(0, 1.3fr);
-      gap: 1rem;
-      align-items: stretch;
-      margin: 2.5rem 0;
-    }
-
-    .code-context {
-      padding: clamp(1.3rem, 3vw, 2.2rem);
-      border-radius: var(--radius) 0 0 var(--radius);
-      background: var(--teal-deep);
-      color: #fff;
-    }
-
-    [data-theme="night"] .code-context { color: #13201e; }
-
-    .code-context .mini-label {
-      display: block;
-      margin-bottom: 3rem;
-      font-family: var(--mono);
-      font-size: 0.67rem;
-      font-weight: 800;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      opacity: 0.76;
-    }
-
-    .code-context h3 {
-      margin: 0 0 1rem;
-      font-size: clamp(1.7rem, 3vw, 2.6rem);
-    }
-
-    .code-context p { margin: 0; opacity: 0.82; }
-
-    .code-panel {
-      position: relative;
-      min-width: 0;
-      border-radius: 0 var(--radius) var(--radius) 0;
-      background: #17201f;
-      color: #edf3ef;
-      overflow: hidden;
-    }
-
-    .code-panel-header {
-      display: flex;
-      align-items: center;
+      align-items: baseline;
       justify-content: space-between;
-      gap: 1rem;
-      min-height: 3rem;
-      padding: 0.5rem 0.9rem 0.5rem 1.2rem;
-      border-bottom: 1px solid #34423f;
-      color: #acbbb6;
-      font-family: var(--mono);
-      font-size: 0.67rem;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand strong { font-size: 1.1rem; letter-spacing: .03em; }
+    .brand span { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .12em; }
+    nav { margin-top: 14px; }
+    nav a {
+      display: block;
+      padding: 7px 9px;
+      border-left: 2px solid transparent;
+      color: var(--muted);
+      font-size: .86rem;
+      line-height: 1.3;
+      text-decoration: none;
+    }
+    nav a:hover { border-left-color: var(--green); color: var(--ink); background: var(--green-soft); }
+    .aside-note {
+      margin: 16px 0 0;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .78rem;
     }
 
-    .copy-button {
-      padding: 0.36rem 0.62rem;
-      border: 1px solid #53615e;
-      border-radius: 999px;
-      background: transparent;
-      color: #e6ece9;
-      cursor: pointer;
-      font-family: var(--sans);
-      font-size: 0.68rem;
-      font-weight: 750;
+    main { min-width: 0; }
+    section { scroll-margin-top: 22px; margin-top: 72px; }
+    section:first-child { margin-top: 0; }
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--green);
+      font: 700 .76rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .1em;
+      text-transform: uppercase;
     }
+    h1, h2, h3 { line-height: 1.18; letter-spacing: -.025em; }
+    h1 { max-width: 900px; margin: 0; font-size: clamp(2.35rem, 5.2vw, 4.8rem); }
+    h2 { margin: 0 0 12px; font-size: clamp(1.7rem, 3vw, 2.6rem); }
+    h3 { margin: 0 0 8px; font-size: 1.08rem; }
+    .lede { max-width: 790px; margin: 22px 0 0; color: #34413a; font-size: 1.18rem; }
+    .section-intro { max-width: 800px; margin: 0 0 24px; color: var(--muted); font-size: 1.02rem; }
 
-    .copy-button:hover { border-color: var(--mustard); color: var(--mustard); }
+    .problem {
+      margin-top: 32px;
+      padding: 22px 24px;
+      border: 1px solid var(--strong-line);
+      border-left: 5px solid var(--green);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .problem p { margin: 0; }
+    .problem p + p { margin-top: 11px; }
+    .problem strong { color: var(--green); }
+    .terms {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .term { padding: 14px 15px; border: 1px solid var(--line); border-radius: 7px; background: rgba(255,255,255,.55); }
+    .term b { display: block; margin-bottom: 4px; }
+    .term span { color: var(--muted); font-size: .88rem; }
 
-    pre {
-      margin: 0;
-      padding: 1.35rem;
+    .diagram {
       overflow-x: auto;
-      font: 0.76rem/1.65 var(--mono);
+      margin: 24px 0;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .diagram svg { display: block; width: 100%; min-width: 760px; height: auto; }
+    .diagram-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .diagram-title strong { font-size: .95rem; }
+    .diagram-title span { color: var(--muted); font-size: .78rem; }
+    .box { fill: #fffdf8; stroke: #87928b; stroke-width: 1.4; rx: 7; }
+    .box-green { fill: #dcece4; stroke: #176b4d; }
+    .box-blue { fill: #e1ebf4; stroke: #285f8f; }
+    .box-amber { fill: #f3e7cf; stroke: #8d5d12; }
+    .box-red { fill: #f4dfdc; stroke: #9a3e36; }
+    .svg-title { fill: #17211d; font: 700 15px ui-sans-serif, system-ui, sans-serif; }
+    .svg-copy { fill: #4c5952; font: 12px ui-sans-serif, system-ui, sans-serif; }
+    .svg-code { fill: #33413a; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .edge { fill: none; stroke: #53615a; stroke-width: 1.6; marker-end: url(#arrow); }
+    .edge-green { stroke: #176b4d; }
+    .edge-blue { stroke: #285f8f; }
+    .edge-dashed { stroke-dasharray: 5 5; }
+    .edge-label { fill: #5b665f; font: 10.5px ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    .callout-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 20px 0; }
+    .callout { padding: 17px 18px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,253,248,.76); }
+    .callout p { margin: 7px 0 0; color: var(--muted); font-size: .91rem; }
+    .callout strong { color: var(--ink); }
+    .callout.green { border-top: 4px solid var(--green); }
+    .callout.blue { border-top: 4px solid var(--blue); }
+    .callout.amber { border-top: 4px solid var(--amber); }
+    .callout.red { border-top: 4px solid var(--red); }
+
+    .config-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); gap: 18px; align-items: start; }
+    pre {
+      overflow: auto;
+      margin: 0;
+      padding: 18px 19px;
+      border-radius: 8px;
+      color: var(--code-ink);
+      background: var(--code);
+      font-size: .82rem;
+      line-height: 1.52;
       tab-size: 2;
     }
+    .mapping { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .mapping-row { padding: 13px 15px; border-bottom: 1px solid var(--line); }
+    .mapping-row:last-child { border-bottom: 0; }
+    .mapping-row b { display: block; font-size: .87rem; }
+    .mapping-row span { display: block; margin-top: 3px; color: var(--muted); font-size: .82rem; }
 
-    code { font-family: var(--mono); }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { padding: 12px 13px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #ecece5; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
+    tbody tr:nth-child(even) { background: rgba(255, 253, 248, .58); }
+    td p { margin: 0; }
+    td p + p { margin-top: 4px; }
+    .state { display: inline-block; padding: 2px 7px; border-radius: 999px; font: 700 .73rem ui-monospace, monospace; white-space: nowrap; }
+    .state.ok { color: var(--green); background: var(--green-soft); }
+    .state.stop { color: var(--red); background: var(--red-soft); }
+    .state.wait { color: var(--amber); background: var(--amber-soft); }
+    .state.info { color: var(--blue); background: var(--blue-soft); }
 
-    :not(pre) > code {
-      padding: 0.1rem 0.32rem;
+    details {
+      margin: 14px 0;
       border: 1px solid var(--line);
-      border-radius: 0.3rem;
-      background: var(--paper-deep);
-      font-size: 0.84em;
+      border-radius: 8px;
+      background: rgba(255,253,248,.82);
     }
+    summary { cursor: pointer; padding: 13px 16px; font-weight: 700; }
+    summary:hover { background: rgba(220,236,228,.5); }
+    .detail-body { padding: 0 16px 16px; color: #37443d; }
+    .detail-body > :first-child { margin-top: 0; }
+    .detail-body > :last-child { margin-bottom: 0; }
 
-    .tok-key { color: #82d8ca; }
-    .tok-value { color: #f1c974; }
-    .tok-comment { color: #84938e; }
-    .tok-command { color: #f49976; }
-
-    details.deep-dive {
-      margin-top: 1.2rem;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      background: color-mix(in srgb, var(--paper-raised) 82%, transparent);
-      overflow: clip;
-    }
-
-    details.deep-dive summary {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      min-height: 4rem;
-      padding: 1rem 1.2rem;
-      cursor: pointer;
-      font-weight: 800;
-      list-style: none;
-    }
-
-    details.deep-dive summary::-webkit-details-marker { display: none; }
-
-    details.deep-dive summary::after {
-      flex: 0 0 auto;
-      color: var(--orange);
-      content: "+";
-      font-family: var(--mono);
-      font-size: 1.25rem;
-      transition: transform 160ms ease;
-    }
-
-    details.deep-dive[open] summary::after { transform: rotate(45deg); }
-
-    details.deep-dive[open] summary {
-      border-bottom: 1px solid var(--line);
-      background: var(--paper-deep);
-    }
-
-    .details-body { padding: clamp(1.2rem, 3vw, 2rem); }
-    .details-body > :first-child { margin-top: 0; }
-    .details-body > :last-child { margin-bottom: 0; }
-
-    .compact-list {
-      display: grid;
-      gap: 0.75rem;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-    }
-
-    .compact-list li {
-      display: grid;
-      grid-template-columns: minmax(8rem, 0.34fr) minmax(0, 1fr);
-      gap: 1rem;
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .compact-list li:last-child { padding-bottom: 0; border-bottom: 0; }
-    .compact-list strong { font-size: 0.88rem; }
-    .compact-list span { color: var(--ink-soft); font-size: 0.86rem; }
-
-    .flow-strip {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 0;
-      margin: 2rem 0;
-      counter-reset: flow;
-    }
-
-    .flow-node {
-      position: relative;
-      min-height: 10rem;
-      padding: 1.15rem 1rem;
-      border: 1px solid var(--line);
-      background: var(--paper-raised);
+    .flow-list { counter-reset: flow; margin: 20px 0; padding: 0; list-style: none; }
+    .flow-list li { position: relative; margin-left: 21px; padding: 0 0 18px 30px; border-left: 2px solid var(--line); }
+    .flow-list li:last-child { border-left-color: transparent; padding-bottom: 0; }
+    .flow-list li::before {
       counter-increment: flow;
-    }
-
-    .flow-node:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
-    .flow-node:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-    .flow-node + .flow-node { border-left: 0; }
-
-    .flow-node:not(:last-child)::after {
+      content: counter(flow);
       position: absolute;
-      z-index: 2;
-      top: 50%;
-      right: -0.62rem;
+      left: -15px;
+      top: -2px;
       display: grid;
-      width: 1.25rem;
-      height: 1.25rem;
       place-items: center;
-      border: 1px solid var(--line);
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
-      background: var(--paper-raised);
-      color: var(--orange);
-      content: "→";
-      font-size: 0.7rem;
-      transform: translateY(-50%);
+      color: white;
+      background: var(--green);
+      font: 700 .78rem ui-monospace, monospace;
     }
+    .flow-list b { display: block; }
+    .flow-list span { color: var(--muted); font-size: .9rem; }
 
-    .flow-node .flow-type {
-      display: block;
-      margin-bottom: 1.7rem;
-      color: var(--teal-deep);
-      font-family: var(--mono);
-      font-size: 0.65rem;
-      font-weight: 800;
+    .source-map { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .source-group { padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .source-group h3 { padding-bottom: 9px; border-bottom: 1px solid var(--line); }
+    .source-group ul { margin: 9px 0 0; padding-left: 19px; }
+    .source-group li { margin: 6px 0; color: var(--muted); font-size: .87rem; }
+
+    footer { margin-top: 70px; padding-top: 22px; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+    .skip { position: absolute; left: -9999px; top: auto; }
+    .skip:focus { left: 12px; top: 12px; z-index: 10; padding: 8px 10px; background: white; }
+
+    @media (max-width: 980px) {
+      .page { grid-template-columns: 1fr; width: min(100% - 30px, 1040px); }
+      aside { position: static; max-height: none; }
+      nav { display: grid; grid-template-columns: repeat(2, 1fr); }
+      .aside-note { display: none; }
     }
-
-    .flow-node strong { display: block; margin-bottom: 0.35rem; font-size: 0.86rem; }
-    .flow-node p { margin: 0; color: var(--ink-soft); font-size: 0.75rem; }
-
-    .split-feature {
-      display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.85fr);
-      gap: 1rem;
-      margin: 2rem 0;
-    }
-
-    .feature-main,
-    .feature-side {
-      padding: clamp(1.35rem, 3vw, 2.2rem);
-      border-radius: var(--radius);
-    }
-
-    .feature-main { background: var(--ink); color: var(--paper-raised); }
-    .feature-side { border: 1px solid var(--line); background: var(--paper-raised); }
-
-    .feature-main .feature-kicker,
-    .feature-side .feature-kicker {
-      display: block;
-      margin-bottom: 2.5rem;
-      color: var(--mustard);
-      font-family: var(--mono);
-      font-size: 0.67rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .feature-side .feature-kicker { color: var(--orange); }
-    .feature-main h3, .feature-side h3 { margin: 0 0 0.8rem; font-size: clamp(1.6rem, 3vw, 2.5rem); }
-    .feature-main p { color: color-mix(in srgb, var(--paper-raised) 75%, transparent); }
-    .feature-side p { color: var(--ink-soft); }
-
-    .case-lifecycle {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 0.55rem;
-      margin: 2rem 0;
-      counter-reset: lifecycle;
-    }
-
-    .case-stage {
-      position: relative;
-      min-height: 12.5rem;
-      padding: 1rem;
-      border: 1px solid var(--line);
-      border-radius: 0.5rem;
-      background: var(--paper-raised);
-      counter-increment: lifecycle;
-    }
-
-    .case-stage::before {
-      display: block;
-      margin-bottom: 2rem;
-      color: var(--orange);
-      content: counter(lifecycle, decimal-leading-zero);
-      font-family: var(--mono);
-      font-size: 0.68rem;
-      font-weight: 850;
-    }
-
-    .case-stage strong { display: block; margin-bottom: 0.45rem; font-size: 0.83rem; }
-    .case-stage p { margin: 0; color: var(--ink-soft); font-size: 0.74rem; }
-
-    .case-stage .stage-artifact {
-      position: absolute;
-      right: 0.8rem;
-      bottom: 0.8rem;
-      left: 0.8rem;
-      padding-top: 0.55rem;
-      border-top: 1px solid var(--line);
-      color: var(--teal-deep);
-      font-family: var(--mono);
-      font-size: 0.61rem;
-    }
-
-    .state-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 0.75rem;
-      margin-top: 1.2rem;
-    }
-
-    .state-card {
-      padding: 1.1rem;
-      border-top: 3px solid var(--teal);
-      background: var(--paper-deep);
-    }
-
-    .state-card:nth-child(2) { border-color: var(--orange); }
-    .state-card:nth-child(3) { border-color: var(--plum); }
-    .state-card:nth-child(4) { border-color: var(--mustard); }
-    .state-card strong { display: block; margin-bottom: 0.4rem; font-size: 0.82rem; }
-    .state-card p { margin: 0; color: var(--ink-soft); font-size: 0.75rem; }
-
-    .contract-stack {
-      display: grid;
-      gap: 0;
-      margin: 2rem 0;
-    }
-
-    .contract-row {
-      display: grid;
-      grid-template-columns: 4rem minmax(11rem, 0.55fr) minmax(0, 1fr) minmax(9rem, 0.45fr);
-      gap: 1rem;
-      align-items: center;
-      min-height: 6.8rem;
-      padding: 1.1rem 1.2rem;
-      border: 1px solid var(--line);
-      background: color-mix(in srgb, var(--paper-raised) 90%, transparent);
-    }
-
-    .contract-row + .contract-row { border-top: 0; }
-    .contract-row:first-child { border-radius: var(--radius) var(--radius) 0 0; }
-    .contract-row:last-child { border-radius: 0 0 var(--radius) var(--radius); }
-
-    .contract-row .contract-index {
-      color: var(--orange);
-      font-family: var(--mono);
-      font-size: 0.72rem;
-      font-weight: 800;
-    }
-
-    .contract-row strong { font-size: 0.88rem; }
-    .contract-row p { margin: 0; color: var(--ink-soft); font-size: 0.82rem; }
-    .contract-row .contract-owner {
-      justify-self: end;
-      padding: 0.3rem 0.5rem;
-      border-radius: 999px;
-      background: var(--plum-pale);
-      color: var(--plum);
-      font-family: var(--mono);
-      font-size: 0.62rem;
-      font-weight: 800;
-      white-space: nowrap;
-    }
-
-    .repo-map {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 0.8rem;
-      margin-top: 2rem;
-    }
-
-    .repo-block {
-      min-height: 15rem;
-      padding: 1.1rem;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      background: var(--paper-raised);
-    }
-
-    .repo-block code {
-      display: block;
-      min-height: 3.4rem;
-      margin-bottom: 1.2rem;
-      color: var(--teal-deep);
-      font-size: 0.73rem;
-      font-weight: 800;
-    }
-
-    .repo-block strong { display: block; margin-bottom: 0.5rem; font-size: 0.85rem; }
-    .repo-block p { margin: 0 0 1rem; color: var(--ink-soft); font-size: 0.76rem; }
-    .repo-block a { font-size: 0.72rem; font-weight: 800; }
-
-    .source-list {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.8rem;
-      margin: 2rem 0 0;
-      padding: 0;
-      list-style: none;
-    }
-
-    .source-list a {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      min-height: 4.3rem;
-      padding: 0.9rem 1rem;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      background: var(--paper-raised);
-      color: var(--ink);
-      font-size: 0.82rem;
-      font-weight: 800;
-      text-decoration: none;
-    }
-
-    .source-list a::after { color: var(--orange); content: "↗"; }
-    .source-list a:hover { border-color: var(--teal); color: var(--teal-deep); }
-
-    .footer {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 2rem;
-      align-items: end;
-      padding-top: 4rem;
-      border-top: 1px solid var(--line);
-    }
-
-    .footer strong {
-      display: block;
-      max-width: 16ch;
-      font-family: var(--serif);
-      font-size: clamp(1.8rem, 4vw, 3.5rem);
-      letter-spacing: -0.035em;
-      line-height: 1.05;
-    }
-
-    .footer p { max-width: 38rem; color: var(--ink-soft); }
-
-    .mobile-bar { display: none; }
-
-    @media (max-width: 1120px) {
-      :root { --nav-width: 14.5rem; }
-      .architecture-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
-      .architecture-block,
-      .architecture-block:first-child,
-      .architecture-block:last-child { border: 1px solid var(--line); border-radius: var(--radius-sm); }
-      .architecture-block + .architecture-block { border-left: 1px solid var(--line); }
-      .architecture-block:nth-child(2)::after { display: none; }
-      .card-grid.cols-5, .repo-map { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .case-lifecycle { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .flow-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
-      .flow-node, .flow-node:first-child, .flow-node:last-child { border: 1px solid var(--line); border-radius: var(--radius-sm); }
-      .flow-node + .flow-node { border-left: 1px solid var(--line); }
-      .flow-node::after { display: none !important; }
-    }
-
-    @media (max-width: 800px) {
-      html, body { max-width: 100%; overflow-x: clip; }
-      .page-shell {
-        display: block;
-        width: 100vw;
-        max-width: 100vw;
-        min-width: 0;
-        overflow: hidden;
-      }
-      .side-nav {
-        position: fixed;
-        z-index: 40;
-        top: 3.6rem;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        width: auto;
-        height: auto;
-        padding: 1.4rem;
-        border-right: 0;
-        transform: translateY(-120%);
-        transition: transform 180ms ease;
-      }
-      .side-nav.open { transform: translateY(0); }
-      .side-nav .brand { display: none; }
-      .mobile-bar {
-        position: sticky;
-        z-index: 45;
-        top: 0;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        min-height: 3.6rem;
-        padding: 0.65rem 1rem;
-        border-bottom: 1px solid var(--line);
-        background: color-mix(in srgb, var(--paper-raised) 90%, transparent);
-        backdrop-filter: blur(16px);
-      }
-      .mobile-bar strong { font-family: var(--serif); }
-      .mobile-bar button {
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        background: transparent;
-        color: var(--ink);
-        cursor: pointer;
-        padding: 0.35rem 0.7rem;
-      }
-      main {
-        width: 100vw;
-        max-width: 100vw;
-        min-width: 0;
-        padding-inline: 1rem;
-        overflow: hidden;
-      }
-      .hero { min-height: auto; padding-top: 4.5rem; }
-      .hero::after { top: 4rem; width: 42vw; opacity: 0.25; }
-      .section-head { grid-template-columns: 1fr; gap: 1.5rem; }
-      .route-grid,
-      .card-grid.cols-2,
-      .card-grid.cols-3,
-      .card-grid.cols-4,
-      .card-grid.cols-5,
-      .repo-map,
-      .source-list { grid-template-columns: 1fr; }
-      .workflow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .code-layout { grid-template-columns: 1fr; }
-      .code-context, .code-panel { border-radius: var(--radius); }
-      .split-feature { grid-template-columns: 1fr; }
-      .case-lifecycle { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .contract-row { grid-template-columns: 2.3rem minmax(0, 1fr); }
-      .contract-row p { grid-column: 2; }
-      .contract-row .contract-owner { grid-column: 2; justify-self: start; }
-      .compact-list li { grid-template-columns: 1fr; gap: 0.3rem; }
-      .footer { grid-template-columns: 1fr; }
-    }
-
-    @media (max-width: 520px) {
-      h1 {
-        max-width: 100%;
-        font-size: clamp(2.6rem, 13vw, 3.6rem);
-        overflow-wrap: break-word;
-      }
-      .architecture-rail,
-      .workflow,
-      .flow-strip,
-      .case-lifecycle,
-      .state-grid { grid-template-columns: 1fr; }
-      .architecture-block::after { display: none !important; }
-      .architecture-block { min-height: 17rem; }
-      .hero-problem { grid-template-columns: 1fr; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      html { scroll-behavior: auto; }
-      *, *::before, *::after { transition-duration: 0.01ms !important; }
-    }
-
-    @media print {
-      .side-nav, .mobile-bar, .reading-progress, .copy-button, .nav-actions { display: none !important; }
-      .page-shell { display: block; }
-      main { width: 100%; padding: 0; }
-      body { background: #fff; }
-      body::before, .hero::after { display: none; }
-      details.deep-dive:not([open]) > :not(summary) { display: block; }
-      .section { break-inside: avoid; }
+    @media (max-width: 680px) {
+      body { font-size: 15px; }
+      .page { width: min(100% - 20px, 1040px); padding-top: 10px; }
+      aside { padding: 12px; }
+      nav { grid-template-columns: 1fr; }
+      .terms, .callout-grid, .config-layout, .source-map { grid-template-columns: 1fr; }
+      section { margin-top: 52px; }
+      .problem { padding: 18px; }
+      .diagram { padding: 10px; }
     }
   </style>
 </head>
 <body>
-  <div class="reading-progress" aria-hidden="true"></div>
-
-  <div class="mobile-bar">
-    <strong>TEAx field guide</strong>
-    <button id="menuToggle" type="button" aria-controls="sideNav" aria-expanded="false">Sections</button>
-  </div>
-
-  <div class="page-shell">
-    <aside class="side-nav" id="sideNav" aria-label="Page navigation">
-      <a class="brand" href="#top">
-        <span class="brand-mark">T</span>
-        <span class="brand-text">
-          <strong>TEAx</strong>
-          <small>study field guide</small>
-        </span>
-      </a>
-
-      <div class="nav-label">Read top-down</div>
+  <a class="skip" href="#content">Skip to explanation</a>
+  <div class="page">
+    <aside aria-label="Page navigation">
+      <div class="brand"><strong>TEAx</strong><span>study guide</span></div>
       <nav>
-        <a href="#problem" data-number="01">The problem</a>
-        <a href="#mental-model" data-number="02">Four-layer model</a>
-        <a href="#use-it" data-number="03">Run a study</a>
-        <a href="#pipeline" data-number="04">Pipeline layer</a>
-        <a href="#evaluation" data-number="05">Evaluation layer</a>
-        <a href="#study" data-number="06">Study layer</a>
-        <a href="#durability" data-number="07">Durability</a>
-        <a href="#contracts" data-number="08">Data contracts</a>
-        <a href="#contribute" data-number="09">Contributor map</a>
+        <a href="#problem">1. The problem</a>
+        <a href="#assembly">2. Object assembly</a>
+        <a href="#interfaces">3. External interfaces</a>
+        <a href="#pipeline">4. Model DAG</a>
+        <a href="#runner">5. Runner branches</a>
+        <a href="#persistence">6. Durable commit</a>
+        <a href="#query">7. Query join</a>
+        <a href="#code">8. Code map</a>
       </nav>
-
-      <div class="nav-actions">
-        <button class="quiet-button" id="expandAll" type="button">＋ Expand deep dives</button>
-        <button class="quiet-button" id="themeToggle" type="button">Switch contrast</button>
-      </div>
+      <p class="aside-note">The main path is short. Open the disclosure sections for invariants, failure semantics, and code links.</p>
     </aside>
 
-    <main id="top">
-      <header class="hero" id="problem" data-section>
-        <p class="eyebrow">From model logic to a trustworthy study</p>
-        <h1>Run the model once. Then <em>search it</em> safely.</h1>
-        <p class="hero-lede">
-          Techno-economic analysis is rarely one calculation. Inputs move through several models,
-          each candidate must be checked against constraints, and a serious study may evaluate the
-          same pipeline hundreds of times. TEAx gives that work typed boundaries, repeatable
-          execution, durable evidence, and a safe way to resume after interruption.
-        </p>
+    <main id="content">
+      <section id="problem">
+        <p class="eyebrow">Problem first</p>
+        <h1>How TEAx turns one model into a resumable study</h1>
+        <p class="lede">A TEAx pipeline can evaluate one typed input. A study has to evaluate many inputs without confusing a changed model, a reordered search space, a crashed write, or a policy bug with a valid scientific result.</p>
 
-        <div class="hero-problem">
-          <span class="problem-mark" aria-hidden="true">?</span>
-          <div>
-            <strong>The core question TEAx makes answerable</strong>
-            <p>For this candidate design, what did the model compute, which constraints held, which study decision followed, and can we prove those results belong together?</p>
-          </div>
+        <div class="problem">
+          <p><strong>The loop is the easy part.</strong> The hard part is preserving the meaning of every case across retries and process restarts.</p>
+          <p>TEAx solves that by giving candidate identity, model execution, interpretation, and persistence separate contracts. The runner coordinates them. The store refuses incompatible work; when a case has evidence, it commits the case only after that evidence is durable.</p>
         </div>
 
-        <div class="hero-actions">
-          <a class="button" href="#mental-model">See the architecture <span aria-hidden="true">↓</span></a>
-          <a class="button secondary" href="#use-it">Run the CLI <span aria-hidden="true">→</span></a>
-        </div>
-      </header>
-
-      <section class="section" id="mental-model" data-section>
-        <div class="section-head">
-          <div>
-            <span class="section-index">02 / mental model</span>
-            <h2>Four layers. One chain of trust.</h2>
-          </div>
-          <p class="section-intro">
-            Read the architecture as a zoom lens. <strong>The pipeline computes.</strong> The evaluator
-            turns one run into stable evidence. The study decides which cases to try and how to
-            interpret them. The store and query surface make the history durable and useful.
-          </p>
+        <div class="terms" aria-label="Three terms used throughout this guide">
+          <div class="term"><b>Candidate</b><span>A validated parameter assignment with a stable positional ID.</span></div>
+          <div class="term"><b>Evidence</b><span>What the sealed model produced, before study policy interprets it.</span></div>
+          <div class="term"><b>Assessment</b><span>The study policy's disposition and objective values for that evidence.</span></div>
         </div>
 
-        <div class="architecture-rail" aria-label="The four TEAx architecture layers">
-          <article class="architecture-block">
-            <h3>Typed pipeline</h3>
-            <p>Composes domain modules into a validated DAG. One entry payload moves through named, typed channels to declared outputs.</p>
-            <span class="output-label">produces → RunResult</span>
-          </article>
-          <article class="architecture-block">
-            <h3>Model evaluator</h3>
-            <p>Verifies a sealed generated package, prepares its graph once, and projects one case into runtime-owned evidence.</p>
-            <span class="output-label">produces → ModelEvidence</span>
-          </article>
-          <article class="architecture-block">
-            <h3>Study engine</h3>
-            <p>Proposes candidates, builds typed inputs, evaluates them, and applies a study policy in one fixed order.</p>
-            <span class="output-label">produces → assessed case</span>
-          </article>
-          <article class="architecture-block">
-            <h3>Store + query</h3>
-            <p>Commits evidence crash-safely, prevents mixed lineages, resumes idempotently, and joins verdicts to readable constraint context.</p>
-            <span class="output-label">exposes → CaseView / JSONL</span>
-          </article>
-        </div>
-        <p class="architecture-caption">The boundary between layers is a data contract, not shared internal state.</p>
-
-        <div class="route-grid" aria-label="Suggested reading routes">
-          <a class="route-card" href="#use-it">
-            <span>Operator route</span>
-            <strong>I need to run a study</strong>
-            <p>Start with the YAML and four CLI commands.</p>
-          </a>
-          <a class="route-card" href="#contracts">
-            <span>Modeler route</span>
-            <strong>I need to understand the data</strong>
-            <p>Follow ownership from candidate input to query result.</p>
-          </a>
-          <a class="route-card" href="#contribute">
-            <span>Contributor route</span>
-            <strong>I need to change the code</strong>
-            <p>Use the package map and source links as entry points.</p>
-          </a>
-        </div>
-      </section>
-
-      <section class="section" id="use-it" data-section>
-        <div class="section-head">
-          <div>
-            <span class="section-index">03 / primary interface</span>
-            <h2>Run a study in five moves.</h2>
-          </div>
-          <p class="section-intro">
-            The main external surface is <code>teax-study</code>. It reads a declarative YAML file,
-            loads a sealed generated model package, and binds one SQLite store to that exact model
-            and study definition. The same config is required again for run, resume, and inspect.
-          </p>
-        </div>
-
-        <div class="workflow" aria-label="Five steps to run a TEAx study">
-          <article class="workflow-step">
-            <strong>Install simkit</strong>
-            <p>Install the framework so the <code>teax-study</code> console script is available.</p>
-          </article>
-          <article class="workflow-step">
-            <strong>Bring a sealed package</strong>
-            <p>Point at a generated package containing a pipeline, schemas, contract catalog, and seal.</p>
-          </article>
-          <article class="workflow-step">
-            <strong>Describe the search</strong>
-            <p>Declare an ordered grid, fixed values, objective policy, budget, and retention.</p>
-          </article>
-          <article class="workflow-step">
-            <strong>Create, then run</strong>
-            <p>Bind the store first. Run or resume candidates under a single-writer lease.</p>
-          </article>
-          <article class="workflow-step">
-            <strong>Inspect JSONL</strong>
-            <p>Filter cases by parameter, output, constraint, state, or disposition.</p>
-          </article>
-        </div>
-
-        <div class="code-layout">
-          <div class="code-context">
-            <span class="mini-label">study.yaml</span>
-            <h3>The study definition is executable intent.</h3>
-            <p>The ordered grid is part of identity. Fixed fields complete the entry model. The policy names which outputs matter and how satisfied cases should feed the search.</p>
-          </div>
-          <div class="code-panel">
-            <div class="code-panel-header">
-              <span>example study configuration</span>
-              <button class="copy-button" type="button" data-copy="studyConfig">Copy</button>
-            </div>
-            <pre id="studyConfig"><code><span class="tok-key">study_id:</span> <span class="tok-value">plant-budget-grid</span>
-<span class="tok-key">package:</span>
-  <span class="tok-key">dir:</span> <span class="tok-value">./generated/plant_model</span>
-  <span class="tok-key">name:</span> <span class="tok-value">plant_model</span>
-  <span class="tok-key">spec:</span> <span class="tok-value">pipelines/pipeline.yaml</span>
-
-<span class="tok-key">entry_channel:</span> <span class="tok-value">plant_params</span>
-<span class="tok-key">entry_model:</span> <span class="tok-value">PlantParams</span>
-
-<span class="tok-comment"># Ordered [field name, domain] pairs</span>
-<span class="tok-key">grid:</span>
-  - [<span class="tok-value">plant_budget</span>, [<span class="tok-value">1000.0</span>, <span class="tok-value">3000.0</span>, <span class="tok-value">6000.0</span>]]
-  - [<span class="tok-value">plant_width</span>,  [<span class="tok-value">2.0</span>, <span class="tok-value">3.0</span>]]
-
-<span class="tok-key">fixed:</span>
-  <span class="tok-key">plant_length:</span> <span class="tok-value">4.0</span>
-  <span class="tok-key">unit_cost:</span> <span class="tok-value">250.0</span>
-
-<span class="tok-key">policy:</span>
-  <span class="tok-key">name:</span> <span class="tok-value">objective/v1</span>
-  <span class="tok-key">objectives:</span>
-    - { <span class="tok-key">output:</span> <span class="tok-value">cost</span>, <span class="tok-key">role:</span> <span class="tok-value">minimize</span> }
-  <span class="tok-key">response_roles:</span> {}
-
-<span class="tok-key">budget:</span> <span class="tok-value">null</span>
-<span class="tok-key">retention:</span> <span class="tok-value">keep</span></code></pre>
-          </div>
-        </div>
-
-        <div class="code-layout">
-          <div class="code-context">
-            <span class="mini-label">terminal</span>
-            <h3>One config. Four explicit verbs.</h3>
-            <p><code>create</code> establishes lineage. <code>run</code> does work. <code>resume</code> repeats the same deterministic sequence and skips committed candidates. <code>inspect</code> is read-only.</p>
-          </div>
-          <div class="code-panel">
-            <div class="code-panel-header">
-              <span>CLI quick start</span>
-              <button class="copy-button" type="button" data-copy="cliCommands">Copy</button>
-            </div>
-            <pre id="cliCommands"><code><span class="tok-comment"># Development install</span>
-<span class="tok-command">pip install -e packages/teax-simkit</span>
-
-<span class="tok-comment"># Bind a new store to this model + study definition</span>
-<span class="tok-command">teax-study create --config study.yaml --store runs/plant.db</span>
-
-<span class="tok-comment"># Evaluate the declared candidate sequence</span>
-<span class="tok-command">teax-study run --config study.yaml --store runs/plant.db</span>
-
-<span class="tok-comment"># Safe after interruption; already committed cases are skipped</span>
-<span class="tok-command">teax-study resume --config study.yaml --store runs/plant.db</span>
-
-<span class="tok-comment"># One CaseView per JSON line; filters can be combined</span>
-<span class="tok-command">teax-study inspect --config study.yaml --store runs/plant.db \
-  --state completed --disposition feed-strategy</span></code></pre>
-          </div>
-        </div>
-
-        <div class="callout">
-          <span class="callout-label">Why create is separate</span>
-          <p>The store records the executable, model contract, study definition, schema versions, and strategy identity at creation. A changed config or package is refused later instead of silently mixing results. Point at a new store to begin a new lineage.</p>
-        </div>
-
-        <details class="deep-dive">
-          <summary>Configuration field guide</summary>
-          <div class="details-body">
-            <ul class="compact-list">
-              <li><strong><code>package</code></strong><span><code>dir</code> locates the sealed tree, <code>name</code> is its declared import name, and <code>spec</code> locates the pipeline inside it. Moving the directory does not change study identity; changing the package seal does.</span></li>
-              <li><strong><code>entry_channel</code> + <code>entry_model</code></strong><span>Name the pipeline channel to populate and the model class exported by the loaded package. Grid and fixed fields are validated into this model before evaluation.</span></li>
-              <li><strong><code>grid</code></strong><span>A list of <code>[field, domain]</code> pairs, intentionally not a mapping. Declaration order controls row-major candidate order and is fingerprinted.</span></li>
-              <li><strong><code>policy</code></strong><span><code>objective/v1</code> extracts named scalar outputs. Satisfied cases feed the strategy unless a configured threshold says to penalize them; violated cases are rejected; indeterminate cases are retained at the boundary.</span></li>
-              <li><strong><code>budget</code> + <code>retention</code></strong><span>An optional budget caps the candidate sequence and becomes part of identity. <code>gc_after</code> collects unreferenced staged artifacts after a run; committed evidence stays referenced.</span></li>
-            </ul>
-            <p><a href="../packages/teax-simkit/simkit/study/config.py">Read the typed config and definition builder →</a></p>
-          </div>
-        </details>
-
-        <details class="deep-dive">
-          <summary>Inspect filters and output shape</summary>
-          <div class="details-body">
-            <p><code>inspect</code> accepts <code>--parameter</code>, <code>--output</code>, <code>--constraint</code>, <code>--state</code>, and <code>--disposition</code>. Every supplied filter must match. Each JSON line carries candidate identity, canonical inputs, numeric outputs, per-constraint verdicts, aggregate headline, policy assessment, executable fingerprint, evidence digest, and joined catalog context.</p>
-            <div class="callout">
-              <span class="callout-label">Interface boundary</span>
-              <p>The CLI is the supported operator surface. The Python classes beneath it are clean seams for extension and testing, but the config + CLI path is the complete persistent workflow.</p>
-            </div>
-            <p><a href="../packages/teax-simkit/simkit/study/cli.py">Read the console interface →</a> · <a href="../packages/teax-simkit/simkit/study/query.py">Read the query projection →</a></p>
-          </div>
-        </details>
-      </section>
-
-      <section class="section" id="pipeline" data-section>
-        <div class="section-head">
-          <div>
-            <span class="section-index">04 / layer one</span>
-            <h2>The pipeline computes one case.</h2>
-          </div>
-          <p class="section-intro">
-            The original TEAx foundation remains the engine underneath studies. A YAML specification
-            wires small domain modules into a directed acyclic graph (DAG). Typed channels make every
-            handoff explicit, and entry/exit points define the boundary of the model as a whole.
-          </p>
-        </div>
-
-        <div class="flow-strip" aria-label="Core pipeline data flow">
-          <article class="flow-node">
-            <span class="flow-type">FILES / VALUES</span>
-            <strong>EntryPoint</strong>
-            <p>Validates that required inputs exist and loads them into declared channels.</p>
-          </article>
-          <article class="flow-node">
-            <span class="flow-type">TYPE + NAME</span>
-            <strong>Typed channels</strong>
-            <p>Carry immutable Pydantic models or supported primitives between modules.</p>
-          </article>
-          <article class="flow-node">
-            <span class="flow-type">INPUT → OUTPUT</span>
-            <strong>Module DAG</strong>
-            <p>Runs functional modules in topological order with validated bindings.</p>
-          </article>
-          <article class="flow-node">
-            <span class="flow-type">DECLARED SURFACE</span>
-            <strong>ExitPoint</strong>
-            <p>Selects channels to expose and, in normal pipeline mode, persist.</p>
-          </article>
-          <article class="flow-node">
-            <span class="flow-type">RESULT + ORIGIN</span>
-            <strong>RunResult</strong>
-            <p>Returns outputs, module versions, a config hash, manifest, and provenance.</p>
-          </article>
-        </div>
-
-        <div class="split-feature">
-          <article class="feature-main">
-            <span class="feature-kicker">Core module contract</span>
-            <h3>Small pieces with strict edges.</h3>
-            <p>A module declares typed input and output models, validates and fills defaults, then runs. The internal algorithm can evolve without changing its neighbors as long as the boundary contract remains true.</p>
-          </article>
-          <article class="feature-side">
-            <span class="feature-kicker">Why it matters to studies</span>
-            <h3>The whole pipeline becomes one model.</h3>
-            <p>Once EntryPoint and ExitPoint describe its external shape, the evaluator can treat the graph as a repeatable function for each candidate.</p>
-          </article>
-        </div>
-
-        <details class="deep-dive">
-          <summary>Module, channel, registry, and I/O responsibilities</summary>
-          <div class="details-body">
-            <div class="card-grid cols-4">
-              <article class="info-card">
-                <span class="card-number">01 / module</span>
-                <h3>Own domain logic</h3>
-                <p><code>ModuleBase</code> exposes validation/defaulting and execution. Modules carry a name and version for provenance.</p>
-                <span class="purpose-label">purpose: compute</span>
-              </article>
-              <article class="info-card">
-                <span class="card-number">02 / channel</span>
-                <h3>Own the handoff</h3>
-                <p>A channel is a named value with a declared type. Field references can select one field from an upstream model.</p>
-                <span class="purpose-label">purpose: connect</span>
-              </article>
-              <article class="info-card">
-                <span class="card-number">03 / registry</span>
-                <h3>Own what is available</h3>
-                <p>External domain packages register modules. Introspection derives their input and output schemas from type hints.</p>
-                <span class="purpose-label">purpose: discover</span>
-              </article>
-              <article class="info-card">
-                <span class="card-number">04 / router</span>
-                <h3>Own serialization</h3>
-                <p>Entry loaders and output writers keep file formats outside domain logic. JSON is automatic for registered schemas.</p>
-                <span class="purpose-label">purpose: translate</span>
-              </article>
-            </div>
-            <p><a href="../packages/teax-simkit/simkit/core/base.py">Module contract →</a> · <a href="../packages/teax-simkit/simkit/core/pipeline.py">Pipeline entry point →</a> · <a href="../packages/teax-simkit/simkit/core/pipeline_executor.py">Executor →</a></p>
-          </div>
-        </details>
-
-        <details class="deep-dive">
-          <summary>The direct Python interface for a single pipeline run</summary>
-          <div class="details-body">
-            <div class="code-panel" style="border-radius: var(--radius-sm)">
-              <div class="code-panel-header">
-                <span>Python API</span>
-                <button class="copy-button" type="button" data-copy="pythonPipeline">Copy</button>
-              </div>
-              <pre id="pythonPipeline"><code><span class="tok-key">from</span> battery_tea <span class="tok-key">import</span> create_battery_registry
-<span class="tok-key">from</span> battery_tea.schemas <span class="tok-key">import</span> Geography, RateInfo
-<span class="tok-key">from</span> simkit.core.pipeline <span class="tok-key">import</span> execute_pipeline
-
-result = execute_pipeline(
-    <span class="tok-value">"pipeline.yaml"</span>,
-    output_dir=<span class="tok-value">"outputs/"</span>,
-    registry=create_battery_registry(),
-    custom_schema_types=[Geography, RateInfo],
-)
-
-print(result.outputs)
-print(result.provenance)</code></pre>
-            </div>
-            <p>This interface is still the right choice when you want one ordinary pipeline execution, without sealed-package evaluation, constraint evidence, or study persistence.</p>
-          </div>
-        </details>
-      </section>
-
-      <section class="section" id="evaluation" data-section>
-        <div class="section-head">
-          <div>
-            <span class="section-index">05 / layer two</span>
-            <h2>The evaluator makes one run comparable.</h2>
-          </div>
-          <p class="section-intro">
-            A raw pipeline result is specific to its generated model. The evaluation layer creates a
-            stable runtime-owned envelope around it. This is the key translation: <strong>typed model
-            input in, immutable evidence out.</strong>
-          </p>
-        </div>
-
-        <div class="card-grid cols-4">
-          <article class="info-card">
-            <span class="card-number">01 / verify</span>
-            <h3>Load the sealed package</h3>
-            <p>Verify declared name, covered file hashes, extras, missing files, and runtime contract compatibility before import.</p>
-            <span class="purpose-label">trust the executable</span>
-          </article>
-          <article class="info-card">
-            <span class="card-number">02 / prepare</span>
-            <h3>Build the graph once</h3>
-            <p>Resolve schemas, registry, entry types, output handlers, and pipeline topology before any case loop begins.</p>
-            <span class="purpose-label">fail early</span>
-          </article>
-          <article class="info-card">
-            <span class="card-number">03 / evaluate</span>
-            <h3>Run in a fresh context</h3>
-            <p>Each candidate gets a new execution context, so channels from one case cannot leak into the next.</p>
-            <span class="purpose-label">isolate cases</span>
-          </article>
-          <article class="info-card">
-            <span class="card-number">04 / project</span>
-            <h3>Emit ModelEvidence</h3>
-            <p>Normalize constraint responses, select numeric outputs, stamp provenance, and retain the generated report unchanged.</p>
-            <span class="purpose-label">compare results</span>
-          </article>
-        </div>
-
-        <div class="callout">
-          <span class="callout-label">Invariant that matters</span>
-          <p>The evaluator does not import a specific generated report class. It reads only a small duck-typed surface: report headline and results, plus each result’s constraint ID and status. Future generated packages can change their internal classes without coupling TEAx to them.</p>
-        </div>
-
-        <details class="deep-dive">
-          <summary>What exactly is ModelEvidence?</summary>
-          <div class="details-body">
-            <ul class="compact-list">
-              <li><strong><code>responses</code></strong><span>Constraint ID to <code>satisfied</code>, <code>violated</code>, or <code>indeterminate</code>, plus reserved key <code>headline</code>. The aggregate may also be <code>not_assessed</code>.</span></li>
-              <li><strong><code>outputs</code></strong><span>Selected scalar numeric outputs unwrapped into ordinary floats. These are the values a study policy can name as objectives.</span></li>
-              <li><strong><code>provenance</code></strong><span>Executable fingerprint, evidence schema version, evaluator version, and canonical input digest. Study and candidate IDs are deliberately excluded because the runner owns them.</span></li>
-              <li><strong><code>report</code></strong><span>The generated constraint report retained as an opaque object. Projection attaches it unchanged.</span></li>
-            </ul>
-            <p><a href="../packages/teax-simkit/simkit/evaluation/evidence.py">Evidence contract →</a> · <a href="../packages/teax-simkit/simkit/evaluation/projection.py">Projection logic →</a></p>
-          </div>
-        </details>
-
-        <details class="deep-dive">
-          <summary>Prepared versus file-backed evaluation</summary>
-          <div class="details-body">
-            <div class="card-grid cols-2">
-              <article class="info-card">
-                <span class="card-number">FAST PATH</span>
-                <h3>PreparedEvaluator</h3>
-                <p>Accepts already-typed in-memory entry models and captures outputs in memory. It loads the package and builds the graph once, then creates a fresh context per case. This is the study backend.</p>
-              </article>
-              <article class="info-card">
-                <span class="card-number">AUDIT PATH</span>
-                <h3>FileBackedEvaluator</h3>
-                <p>Copies the pipeline spec into owned scratch space, reads entry JSON, and persists normal pipeline outputs. It leaves a file trail without writing into the sealed package tree.</p>
-              </article>
-            </div>
-            <p>A parity test requires both paths to agree. That test licenses the faster in-memory path for normal studies while preserving a slower audit backend when a per-case file trail is needed.</p>
-            <p><a href="../packages/teax-simkit/simkit/evaluation/evaluator.py">Compare both evaluators →</a></p>
-          </div>
-        </details>
-
-        <details class="deep-dive">
-          <summary>Evaluation failures versus model verdicts</summary>
-          <div class="details-body">
-            <p>Failures are classified by where the machinery failed: <code>entry_validation</code>, <code>preparation</code>, <code>module_execution</code>, or <code>output_write</code>. An <code>indeterminate</code> constraint is different. The machinery succeeded, but the model could not produce a finite answer. It is valid evidence and remains searchable.</p>
-            <div class="callout">
-              <span class="callout-label">Rule of thumb</span>
-              <p>If the model ran and said “I cannot determine this constraint,” preserve the answer. If the execution machinery broke, route a failure.</p>
-            </div>
-          </div>
-        </details>
-      </section>
-
-      <section class="section" id="study" data-section>
-        <div class="section-head">
-          <div>
-            <span class="section-index">06 / layer three</span>
-            <h2>The study repeats with discipline.</h2>
-          </div>
-          <p class="section-intro">
-            The study layer owns orchestration around the evaluator. Every candidate follows one
-            fixed lifecycle. Keeping this order explicit is what makes resume, failure routing, and
-            later strategy extensions understandable.
-          </p>
-        </div>
-
-        <div class="case-lifecycle" aria-label="Six-stage lifecycle for a study candidate">
-          <article class="case-stage">
-            <strong>Propose</strong>
-            <p>The strategy yields a positional proposal ID and raw field values.</p>
-            <span class="stage-artifact">raw proposal</span>
-          </article>
-          <article class="case-stage">
-            <strong>Validate + bridge</strong>
-            <p>Canonicalize allowed values, merge fixed fields, and build the typed entry model.</p>
-            <span class="stage-artifact">typed input</span>
-          </article>
-          <article class="case-stage">
-            <strong>Evaluate</strong>
-            <p>Run the prepared model graph once in a fresh execution context.</p>
-            <span class="stage-artifact">ModelEvidence</span>
-          </article>
-          <article class="case-stage">
-            <strong>Assess</strong>
-            <p>The policy reads evidence without mutating it and chooses a disposition.</p>
-            <span class="stage-artifact">assessment</span>
-          </article>
-          <article class="case-stage">
-            <strong>Stage + commit</strong>
-            <p>Write evidence durably, then atomically commit the case and references.</p>
-            <span class="stage-artifact">case record</span>
-          </article>
-          <article class="case-stage">
-            <strong>Observe</strong>
-            <p>Advance the strategy feedback seam after the case becomes durable.</p>
-            <span class="stage-artifact">next candidate</span>
-          </article>
-        </div>
-
-        <div class="split-feature">
-          <article class="feature-main">
-            <span class="feature-kicker">Current search strategy</span>
-            <h3>Deterministic grid, row by row.</h3>
-            <p><code>GridStrategy</code> computes a Cartesian product in the order variables and domain values were declared. The same config emits the same positional sequence across fresh processes. An optional bound creates a distinct study lineage.</p>
-          </article>
-          <article class="feature-side">
-            <span class="feature-kicker">Current policy</span>
-            <h3>Evidence becomes a disposition.</h3>
-            <p><code>objective/v1</code> extracts configured outputs and maps the headline to <code>reject</code>, <code>penalize</code>, <code>keep-for-boundary</code>, or <code>feed-strategy</code>.</p>
-          </article>
-        </div>
-
-        <details class="deep-dive">
-          <summary>What happens to invalid, failed, and completed work?</summary>
-          <div class="details-body">
-            <div class="state-grid">
-              <article class="state-card">
-                <strong>Invalid proposal</strong>
-                <p>Recorded as a proposal only. It never becomes a candidate or case, because no canonical model input existed.</p>
-              </article>
-              <article class="state-card">
-                <strong>Execution failed</strong>
-                <p>Module or output execution failed. The terminal case stores failure detail and has no evidence digest.</p>
-              </article>
-              <article class="state-card">
-                <strong>Assessment failed</strong>
-                <p>Evaluation produced real evidence, but the configured policy could not interpret it. Both facts are preserved.</p>
-              </article>
-              <article class="state-card">
-                <strong>Completed</strong>
-                <p>Evidence and policy assessment both succeeded. The case carries one of four dispositions.</p>
-              </article>
-            </div>
-            <p>Preparation faults and bridge defects fail loudly instead of becoming ordinary cases. They indicate a broken study definition or integration boundary, not a candidate-specific outcome.</p>
-            <p><a href="../packages/teax-simkit/simkit/study/runner.py">Read the fixed-order runner →</a></p>
-          </div>
-        </details>
-
-        <details class="deep-dive">
-          <summary>Policy mapping and objective rules</summary>
-          <div class="details-body">
-            <ul class="compact-list">
-              <li><strong><code>violated</code></strong><span>Disposition is <code>reject</code>.</span></li>
-              <li><strong><code>indeterminate</code> / <code>not_assessed</code></strong><span>Disposition is <code>keep-for-boundary</code>. These cases carry useful information about the model’s evaluable boundary.</span></li>
-              <li><strong><code>satisfied</code>, within threshold</strong><span>Disposition is <code>feed-strategy</code>. Objective values remain raw and available to the next search layer.</span></li>
-              <li><strong><code>satisfied</code>, beyond threshold</strong><span>Disposition is <code>penalize</code>. The assessment records the raw penalty value.</span></li>
-              <li><strong>Missing configured output or response</strong><span>The policy raises <code>AssessmentFailed</code>. Evidence stays intact and the case records <code>assessment_failed</code>.</span></li>
-            </ul>
-            <p><a href="../packages/teax-simkit/simkit/study/policy.py">Read the policy seam →</a></p>
-          </div>
-        </details>
-      </section>
-
-      <section class="section" id="durability" data-section>
-        <div class="section-head">
-          <div>
-            <span class="section-index">07 / layer four</span>
-            <h2>The store protects the meaning of a result.</h2>
-          </div>
-          <p class="section-intro">
-            Durability is more than “the database did not disappear.” A trustworthy study must not
-            mix two model versions, expose half-written evidence, let two runners race, or duplicate
-            completed candidates after a crash. <strong>StudyStore makes those promises explicit.</strong>
-          </p>
-        </div>
-
-        <div class="card-grid cols-4">
-          <article class="info-card">
-            <span class="card-number">01 / lineage</span>
-            <h3>Compatibility binding</h3>
-            <p>The store is permanently bound to fingerprints for the executable, contract, study definition, schemas, and strategy.</p>
-            <span class="purpose-label">prevents mixed datasets</span>
-          </article>
-          <article class="info-card">
-            <span class="card-number">02 / writer</span>
-            <h3>Fenced single-runner lease</h3>
-            <p>One live runner writes at a time. A reclaimed lease gets a new identity, so the old writer can no longer commit.</p>
-            <span class="purpose-label">prevents races</span>
-          </article>
-          <article class="info-card">
-            <span class="card-number">03 / evidence</span>
-            <h3>Content-addressed staging</h3>
-            <p>Evidence is fully written and synced before atomic rename. The case references it only after the final file exists.</p>
-            <span class="purpose-label">prevents partial reads</span>
-          </article>
-          <article class="info-card">
-            <span class="card-number">04 / resume</span>
-            <h3>Candidate idempotency</h3>
-            <p>Committed candidates are detected and skipped. Re-running the same sequence does not duplicate logical cases.</p>
-            <span class="purpose-label">makes resume safe</span>
-          </article>
-        </div>
-
-        <div class="callout">
-          <span class="callout-label">Durability boundary</span>
-          <p>The store is crash-safe for a killed process on a single host using a local filesystem. SQLite runs in WAL mode with <code>synchronous=FULL</code>. The implementation does not claim power-loss safety or network-filesystem safety.</p>
-        </div>
-
-        <details class="deep-dive">
-          <summary>The artifact commit protocol, step by step</summary>
-          <div class="details-body">
-            <div class="flow-strip" aria-label="Content-addressed artifact commit protocol">
-              <article class="flow-node">
-                <span class="flow-type">1 / ENCODE</span>
-                <strong>Canonical bytes</strong>
-                <p>Encode evidence once and compute its SHA-256 digest from those exact bytes.</p>
-              </article>
-              <article class="flow-node">
-                <span class="flow-type">2 / STAGE</span>
-                <strong>Lease-owned temp</strong>
-                <p>Write under the active lease’s staging directory and <code>fsync</code> the file.</p>
-              </article>
-              <article class="flow-node">
-                <span class="flow-type">3 / PUBLISH</span>
-                <strong>Atomic rename</strong>
-                <p>Rename to <code>artifacts/&lt;digest&gt;.json</code>, then sync the directory.</p>
-              </article>
-              <article class="flow-node">
-                <span class="flow-type">4 / COMMIT</span>
-                <strong>Case transaction</strong>
-                <p>Insert the case and artifact reference in one fenced database transaction.</p>
-              </article>
-              <article class="flow-node">
-                <span class="flow-type">5 / CLEAN</span>
-                <strong>Collect orphans</strong>
-                <p>GC can remove staged files left by dead leases and unreferenced final artifacts.</p>
-              </article>
-            </div>
-            <p>A reader can see a durable artifact without a case if the process dies just before commit; that artifact is harmless garbage. A reader must never see a committed case pointing at a missing or half-written artifact.</p>
-            <p><a href="../packages/teax-simkit/simkit/study/store.py">Read the store contract and protocol →</a></p>
-          </div>
-        </details>
-
-        <details class="deep-dive">
-          <summary>How query turns stored bytes back into useful results</summary>
-          <div class="details-body">
-            <p><code>StudyQuery</code> walks cases in commit order, decodes each evidence digest once, and joins each constraint verdict through the package catalog: <code>constraint_id → source_usage → source_record</code>. That adds the authored predicate, owner, definition, membership kind, and negation flag without changing the evidence itself.</p>
-            <div class="callout">
-              <span class="callout-label">Fingerprint boundary</span>
-              <p>A constraint ID is scoped to one executable fingerprint. TEAx does not automatically merge results across model versions. Optional tracking keys may correlate a logical subject by name, but they do not make two versioned predicates identical.</p>
-            </div>
-          </div>
-        </details>
-      </section>
-
-      <section class="section" id="contracts" data-section>
-        <div class="section-head">
-          <div>
-            <span class="section-index">08 / data contracts</span>
-            <h2>Every object has one job.</h2>
-          </div>
-          <p class="section-intro">
-            The cleanest way to understand TEAx data is to ask who is allowed to say what. Candidate
-            input, model evidence, policy assessment, and query presentation are separate because
-            each comes from a different authority.
-          </p>
-        </div>
-
-        <div class="contract-stack" role="list" aria-label="Major TEAx data contracts">
-          <article class="contract-row" role="listitem">
-            <span class="contract-index">01</span>
-            <strong>StudyConfig</strong>
-            <p>Declares which package, entry model, search space, policy, budget, and retention make up the study.</p>
-            <span class="contract-owner">owned by operator</span>
-          </article>
-          <article class="contract-row" role="listitem">
-            <span class="contract-index">02</span>
-            <strong>Typed entry model</strong>
-            <p>Represents one canonical candidate in the exact input shape the prepared pipeline expects.</p>
-            <span class="contract-owner">owned by package</span>
-          </article>
-          <article class="contract-row" role="listitem">
-            <span class="contract-index">03</span>
-            <strong>ModelEvidence</strong>
-            <p>Records what the model said: verdicts, selected outputs, provenance, and its opaque report.</p>
-            <span class="contract-owner">owned by evaluator</span>
-          </article>
-          <article class="contract-row" role="listitem">
-            <span class="contract-index">04</span>
-            <strong>Assessment + CaseRecord</strong>
-            <p>Records how this study interpreted the evidence and which terminal execution state occurred.</p>
-            <span class="contract-owner">owned by study</span>
-          </article>
-          <article class="contract-row" role="listitem">
-            <span class="contract-index">05</span>
-            <strong>CaseView</strong>
-            <p>Combines a stored case with decoded evidence and catalog context for humans and downstream tools.</p>
-            <span class="contract-owner">owned by query</span>
-          </article>
-        </div>
-
-        <div class="callout">
-          <span class="callout-label">Separation that matters</span>
-          <p>A policy cannot rewrite model evidence. The evaluator cannot stamp a study decision. The query cannot merge model lineages. Those limits keep “what the model reported,” “what the study decided,” and “how a result is displayed” independently auditable.</p>
-        </div>
-
-        <details class="deep-dive">
-          <summary>Identity: proposal, candidate, attempt, case, and evidence digest</summary>
-          <div class="details-body">
-            <ul class="compact-list">
-              <li><strong>Proposal ID</strong><span>Names one positional raw proposal from the deterministic strategy sequence, including invalid proposals.</span></li>
-              <li><strong>Candidate ID</strong><span>Names one valid canonical candidate by study and sequence position. Invalid proposals never receive one.</span></li>
-              <li><strong>Attempt ID</strong><span>Names one execution attempt for a candidate. Retryable store faults can produce multiple attempts without multiple cases.</span></li>
-              <li><strong>Case record</strong><span>The single committed terminal result for a valid candidate: completed, execution failed, or assessment failed.</span></li>
-              <li><strong>Evidence digest</strong><span>The content address of canonical evidence bytes. Identical evidence can share an artifact without collapsing distinct candidates.</span></li>
+        <details>
+          <summary>What goes wrong without these boundaries?</summary>
+          <div class="detail-body">
+            <ul>
+              <li>A changed package can append results to an old database and make unlike cases look comparable.</li>
+              <li>A crash between writing JSON and recording its row can leave partial or orphaned data.</li>
+              <li>A rejected constraint result can be mislabeled as a model failure.</li>
+              <li>A restart can rerun an already committed case unless candidate IDs and completion checks are deterministic.</li>
             </ul>
           </div>
         </details>
+      </section>
 
-        <details class="deep-dive">
-          <summary>Compatibility: what forces a new study lineage?</summary>
-          <div class="details-body">
-            <p>A store compares all compatibility fields exactly: study ID, executable fingerprint, model-contract fingerprint, semantic study-definition fingerprint, input/evidence schema versions, strategy identity, and strategy config fingerprint. Changing any one means the old store cannot be reopened through the normal workflow.</p>
-            <p>Package location is deliberately excluded from the semantic definition. Relocating the same sealed bytes is operational, not scientific. The executable seal captures the identity that matters.</p>
-            <p><a href="../packages/teax-simkit/simkit/study/compatibility.py">Read the compatibility value object →</a></p>
+      <section id="assembly">
+        <p class="eyebrow">The object graph</p>
+        <h2>What is assembled before the first candidate runs</h2>
+        <p class="section-intro">The runner is a coordinator with three injected collaborators. Two inputs create those collaborators: the study YAML defines the experiment, and the sealed package defines executable behavior.</p>
+
+        <div class="diagram">
+          <div class="diagram-title"><strong>Construction-time dependencies</strong><span>arrows mean “constructs or supplies”</span></div>
+          <svg viewBox="0 0 940 520" role="img" aria-labelledby="assembly-title assembly-desc">
+            <title id="assembly-title">TEAx study object dependency graph</title>
+            <desc id="assembly-desc">Study YAML creates a StudyDefinition and StudyStore. A generated package creates a PreparedEvaluator. The definition, evaluator, and store all feed the StudyRunner.</desc>
+            <defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><polygon points="0 0, 8 3.5, 0 7" fill="#53615a"/></marker></defs>
+
+            <rect class="box box-blue" x="40" y="38" width="240" height="88"/>
+            <text class="svg-title" x="58" y="68">study.yaml</text>
+            <text class="svg-copy" x="58" y="91">package selector, grid, fixed fields,</text>
+            <text class="svg-copy" x="58" y="109">objectives, budget, retention</text>
+
+            <rect class="box box-amber" x="660" y="38" width="240" height="88"/>
+            <text class="svg-title" x="678" y="68">sealed generated package</text>
+            <text class="svg-copy" x="678" y="91">pipeline YAML, generated schemas,</text>
+            <text class="svg-copy" x="678" y="109">modules, seal and constraint catalog</text>
+
+            <rect class="box box-blue" x="40" y="205" width="250" height="126"/>
+            <text class="svg-title" x="58" y="235">StudyDefinition</text>
+            <text class="svg-code" x="58" y="260">strategy + validator + policy</text>
+            <text class="svg-code" x="58" y="279">entry channel + entry model</text>
+            <text class="svg-code" x="58" y="298">semantic + executable fingerprints</text>
+            <text class="svg-copy" x="58" y="318">The experiment's executable contract.</text>
+
+            <rect class="box box-amber" x="650" y="205" width="250" height="126"/>
+            <text class="svg-title" x="668" y="235">PreparedEvaluator</text>
+            <text class="svg-code" x="668" y="260">loaded package + module graph</text>
+            <text class="svg-code" x="668" y="279">expected entry channel types</text>
+            <text class="svg-code" x="668" y="298">evaluate(typed_inputs)</text>
+            <text class="svg-copy" x="668" y="318">One isolated model execution surface.</text>
+
+            <rect class="box" x="345" y="205" width="250" height="126"/>
+            <text class="svg-title" x="363" y="235">StudyStore</text>
+            <text class="svg-code" x="363" y="260">SQLite metadata + artifact files</text>
+            <text class="svg-code" x="363" y="279">lease + fenced commits + resume</text>
+            <text class="svg-code" x="363" y="298">compatibility binding</text>
+            <text class="svg-copy" x="363" y="318">The durable boundary.</text>
+
+            <rect class="box box-green" x="287" y="407" width="366" height="82"/>
+            <text class="svg-title" x="307" y="437">StudyRunner</text>
+            <text class="svg-code" x="307" y="460">propose → validate → bridge → evaluate → assess → commit</text>
+            <text class="svg-copy" x="307" y="480">Owns routing and retry behavior; imports no generated model code.</text>
+
+            <path class="edge edge-blue" d="M160 126 L160 205"/>
+            <text class="edge-label" x="170" y="170">build config objects</text>
+            <path class="edge" d="M280 82 C445 82 300 170 430 205"/>
+            <text class="edge-label" x="315" y="121">open store</text>
+            <path class="edge" d="M165 331 C165 390 325 360 360 407"/>
+            <path class="edge" d="M470 331 L470 407"/>
+            <path class="edge" d="M775 331 C775 390 615 360 580 407"/>
+            <path class="edge edge-green edge-dashed" d="M290 268 L345 268"/>
+            <text class="edge-label" x="297" y="257">bind/check</text>
+            <path class="edge edge-blue" d="M780 126 L780 205"/>
+            <text class="edge-label" x="790" y="170">load once</text>
+            <path class="edge edge-dashed" d="M650 235 C600 180 330 175 290 235"/>
+            <text class="edge-label" x="392" y="174">entry schema + executable fingerprint</text>
+          </svg>
+        </div>
+
+        <div class="callout-grid">
+          <div class="callout green"><strong>The definition determines compatibility.</strong><p>Grid order, fixed values, policy, budget, schemas, strategy identity, and the package seal contribute to the lineage the store accepts.</p></div>
+          <div class="callout blue"><strong>The evaluator is prepared once.</strong><p>Package loading and graph construction happen before the per-case loop. A preparation fault is therefore a study startup fault, not a failed candidate.</p></div>
+        </div>
+
+        <details>
+          <summary>Why the runner uses a CandidateBridge</summary>
+          <div class="detail-body">
+            <p>The strategy and validator work with plain parameter mappings. The generated pipeline expects a Pydantic model on a named entry channel. The bridge constructs exactly that typed input: <code>{entry_channel: entry_model(**candidate)}</code>.</p>
+            <p>The evaluator then checks the channel name and model type against the prepared pipeline entry. If that check returns an <code>ENTRY_VALIDATION</code> failure, the runner raises <code>StudyBridgeDefect</code>. That is a broken study boundary, not ordinary bad candidate data.</p>
+            <p><a href="../packages/teax-simkit/simkit/study/bridge.py">Open the bridge implementation</a></p>
           </div>
         </details>
       </section>
 
-      <section class="section" id="contribute" data-section>
-        <div class="section-head">
-          <div>
-            <span class="section-index">09 / contributor map</span>
-            <h2>Start at the seam you need to change.</h2>
+      <section id="interfaces">
+        <p class="eyebrow">External surfaces</p>
+        <h2>The YAML chooses the model, search space, and interpretation</h2>
+        <p class="section-intro">Most users touch one configuration file and four CLI commands. Python callers can construct the same objects directly when they need a custom strategy.</p>
+
+        <div class="config-layout">
+          <pre aria-label="Example TEAx study configuration"><span style="color:#9ad6b8">study_id</span>: toy-grid-demo
+<span style="color:#9ad6b8">package</span>:
+  <span style="color:#a9c9e8">dir</span>: ./generated/wi014_s4
+  <span style="color:#a9c9e8">name</span>: wi014_s4
+  <span style="color:#a9c9e8">spec</span>: pipelines/pipeline.yaml
+
+<span style="color:#9ad6b8">entry_channel</span>: toy_plant_params
+<span style="color:#9ad6b8">entry_model</span>: ToyPlantParams
+
+<span style="color:#9ad6b8">grid</span>:
+  - [toy_plant__Toy_Plant__plant_budget,
+     [1000.0, 3000.0, 6000.0]]
+<span style="color:#9ad6b8">fixed</span>:
+  toy_plant__Toy_Plant__plant_length: 4.0
+  toy_plant__Toy_Plant__plant_width: 3.0
+  toy_plant__Toy_Plant__plant_unit_cost: 250.0
+
+<span style="color:#9ad6b8">policy</span>:
+  <span style="color:#a9c9e8">name</span>: objective/v1
+  <span style="color:#a9c9e8">objectives</span>:
+    - <span style="color:#a9c9e8">output</span>: toy_plant__demo_plant__cost_calc__cost
+      <span style="color:#a9c9e8">role</span>: minimize
+  <span style="color:#a9c9e8">response_roles</span>: {}
+
+<span style="color:#9ad6b8">budget</span>: null
+<span style="color:#9ad6b8">retention</span>: keep</pre>
+
+          <div class="mapping" aria-label="Configuration fields and the objects they control">
+            <div class="mapping-row"><b><code>package</code> + entry fields</b><span>Load the sealed graph and tell the bridge which generated model to construct.</span></div>
+            <div class="mapping-row"><b><code>grid</code> + <code>fixed</code></b><span>Build the proposal strategy and numeric validator. Pair-list order is part of candidate identity.</span></div>
+            <div class="mapping-row"><b><code>policy</code></b><span>Name objectives and constraint roles that assessment must resolve.</span></div>
+            <div class="mapping-row"><b><code>budget</code></b><span>Optionally wrap the strategy with a proposal limit.</span></div>
+            <div class="mapping-row"><b><code>retention</code></b><span>Select artifact retention behavior for the store.</span></div>
           </div>
-          <p class="section-intro">
-            Contributors do not need to load the whole system at once. Pick the contract closest to
-            the behavior you are changing, read its tests beside it, then move one layer outward to
-            see who consumes the result.
-          </p>
         </div>
 
-        <div class="repo-map" aria-label="Repository package map">
-          <article class="repo-block">
-            <code>simkit/core/</code>
-            <strong>Pipeline mechanics</strong>
-            <p>Module base classes, registries, graph validation, serial execution, channel context.</p>
-            <a href="../packages/teax-simkit/simkit/core/">Browse core →</a>
-          </article>
-          <article class="repo-block">
-            <code>simkit/config/ + io/</code>
-            <strong>Types and boundaries</strong>
-            <p>Pydantic schemas, pipeline YAML, environment resolution, readers, writers, output routing.</p>
-            <a href="../packages/teax-simkit/simkit/config/">Browse config →</a>
-          </article>
-          <article class="repo-block">
-            <code>simkit/evaluation/</code>
-            <strong>One-case evidence</strong>
-            <p>Sealed loading, prepared/file-backed evaluators, failure taxonomy, projection, evidence.</p>
-            <a href="../packages/teax-simkit/simkit/evaluation/">Browse evaluation →</a>
-          </article>
-          <article class="repo-block">
-            <code>simkit/study/</code>
-            <strong>Many-case lifecycle</strong>
-            <p>Config, strategy, bridge, policy, runner, identity, compatibility, store, query, CLI.</p>
-            <a href="../packages/teax-simkit/simkit/study/">Browse study →</a>
-          </article>
-          <article class="repo-block">
-            <code>battery_tea/</code>
-            <strong>Example domain</strong>
-            <p>A concrete battery TEA built from schemas and modules. Use it to learn the extension pattern.</p>
-            <a href="../packages/battery-tea-demo/README.md">Read the demo →</a>
-          </article>
+        <div class="diagram" style="margin-top:18px">
+          <div class="diagram-title"><strong>CLI surface</strong><span><code>run</code> and <code>resume</code> enter the same execution path</span></div>
+          <table>
+            <thead><tr><th>Command</th><th>What it does</th><th>What it does not do</th></tr></thead>
+            <tbody>
+              <tr><td><code>teax-study create</code></td><td>Create the study directory and bind its compatibility metadata.</td><td>Run candidates.</td></tr>
+              <tr><td><code>teax-study run</code></td><td>Acquire the lease and evaluate uncommitted candidate IDs.</td><td>Overwrite a committed case.</td></tr>
+              <tr><td><code>teax-study resume</code></td><td>Use the same runner; deterministic IDs and <code>has_case</code> provide resume behavior.</td><td>Use a separate checkpoint format.</td></tr>
+              <tr><td><code>teax-study inspect</code></td><td>Filter cases and emit joined <code>CaseView</code> records as JSONL.</td><td>Mutate the study.</td></tr>
+            </tbody>
+          </table>
         </div>
 
-        <details class="deep-dive" open>
-          <summary>Suggested source-reading paths</summary>
-          <div class="details-body">
-            <div class="card-grid cols-3">
-              <article class="info-card">
-                <span class="card-number">CHANGE THE MODEL RUN</span>
-                <h3>Pipeline path</h3>
-                <p>Start at <a href="../packages/teax-simkit/simkit/core/pipeline.py">pipeline.py</a>, move to <a href="../packages/teax-simkit/simkit/core/pipeline_executor.py">pipeline_executor.py</a>, then read core tests and the battery demo.</p>
-              </article>
-              <article class="info-card">
-                <span class="card-number">CHANGE EVIDENCE</span>
-                <h3>Evaluation path</h3>
-                <p>Start at <a href="../packages/teax-simkit/simkit/evaluation/evidence.py">evidence.py</a> and <a href="../packages/teax-simkit/simkit/evaluation/projection.py">projection.py</a>, then verify both evaluator backends stay in parity.</p>
-              </article>
-              <article class="info-card">
-                <span class="card-number">CHANGE STUDY BEHAVIOR</span>
-                <h3>Study path</h3>
-                <p>Start at <a href="../packages/teax-simkit/simkit/study/definition.py">definition.py</a> and <a href="../packages/teax-simkit/simkit/study/runner.py">runner.py</a>. Treat store and compatibility invariants as contracts.</p>
-              </article>
-            </div>
+        <pre style="margin-top:18px" aria-label="Minimal TEAx study command sequence">teax-study create --config study.yaml --store results/study.sqlite3
+teax-study run    --config study.yaml --store results/study.sqlite3
+
+<span style="color:#9ad6b8"># After an interruption:</span>
+teax-study resume --config study.yaml --store results/study.sqlite3
+
+<span style="color:#9ad6b8"># One JSON object per matching case:</span>
+teax-study inspect --config study.yaml --store results/study.sqlite3 \
+  --state completed --disposition feed-strategy</pre>
+
+        <details>
+          <summary>Compatibility: when TEAx requires a new store</summary>
+          <div class="detail-body">
+            <p>TEAx refuses the existing store when semantic configuration, strategy identity, schema fingerprint, or executable fingerprint changes. Examples include reordering grid dimensions, changing a domain or fixed value, changing the policy or budget, and rebuilding the package with a different seal.</p>
+            <p>The package's filesystem location is excluded from the semantic configuration fingerprint. Moving identical sealed code does not create a new scientific lineage; changing the sealed executable does.</p>
+            <p><a href="../packages/teax-simkit/simkit/study/config.py">Open configuration construction</a> · <a href="../packages/teax-simkit/simkit/study/definition.py">Open the definition contract</a></p>
+          </div>
+        </details>
+      </section>
+
+      <section id="pipeline">
+        <p class="eyebrow">Inside the sealed model</p>
+        <h2>The model is a channel DAG, not a list of steps</h2>
+        <p class="section-intro">The generated pipeline routes named, typed channels between modules. A module can combine original inputs with outputs from earlier modules. One output can feed several downstream consumers.</p>
+
+        <div class="diagram">
+          <div class="diagram-title"><strong>The repository's live toy pipeline fixture</strong><span>edge labels are the fields each module consumes</span></div>
+          <svg viewBox="0 0 1080 620" role="img" aria-labelledby="dag-title dag-desc">
+            <title id="dag-title">Toy plant generated pipeline DAG</title>
+            <desc id="dag-desc">ToyPlantParams fans out to area, cost and constraint modules. Cost combines area with unit cost. Constraint evaluation combines cost with budget. The exit receives results from four channels.</desc>
+            <defs><marker id="arrow-dag" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><polygon points="0 0, 8 3.5, 0 7" fill="#53615a"/></marker></defs>
+
+            <rect class="box box-blue" x="36" y="226" width="205" height="116"/>
+            <text class="svg-title" x="54" y="256">ToyPlantParams</text>
+            <text class="svg-code" x="54" y="280">length · width</text>
+            <text class="svg-code" x="54" y="300">unit_cost · budget</text>
+            <text class="svg-copy" x="54" y="325">entry channel</text>
+
+            <rect class="box" x="325" y="42" width="210" height="98"/>
+            <text class="svg-title" x="343" y="72">Panel_AreaModule</text>
+            <text class="svg-code" x="343" y="96">length × width</text>
+            <text class="svg-copy" x="343" y="120">output: area</text>
+
+            <rect class="box" x="325" y="229" width="210" height="98"/>
+            <text class="svg-title" x="343" y="259">Panel_CostModule</text>
+            <text class="svg-code" x="343" y="283">area × unit_cost</text>
+            <text class="svg-copy" x="343" y="307">output: cost</text>
+
+            <rect class="box box-amber" x="620" y="229" width="225" height="112"/>
+            <text class="svg-title" x="638" y="259">AffordableConstraint</text>
+            <text class="svg-code" x="638" y="283">budget + cost</text>
+            <text class="svg-copy" x="638" y="307">output: ConstraintEvaluation</text>
+            <text class="svg-copy" x="638" y="325">pass / fail / indeterminate</text>
+
+            <rect class="box box-amber" x="620" y="425" width="225" height="92"/>
+            <text class="svg-title" x="638" y="455">Report aggregator</text>
+            <text class="svg-code" x="638" y="479">ConstraintEvaluation</text>
+            <text class="svg-copy" x="638" y="499">output: constraint_report</text>
+
+            <rect class="box box-green" x="910" y="176" width="140" height="238"/>
+            <text class="svg-title" x="930" y="207">ExitPoint</text>
+            <text class="svg-copy" x="930" y="235">captures</text>
+            <text class="svg-code" x="930" y="260">area</text>
+            <text class="svg-code" x="930" y="281">cost</text>
+            <text class="svg-code" x="930" y="302">evaluation</text>
+            <text class="svg-code" x="930" y="323">report</text>
+            <text class="svg-copy" x="930" y="356">Projection later</text>
+            <text class="svg-copy" x="930" y="374">turns these into</text>
+            <text class="svg-copy" x="930" y="392">ModelEvidence.</text>
+
+            <path d="M241 246 C280 200 280 94 325 94" fill="none" stroke="#285f8f" stroke-width="1.7" marker-end="url(#arrow-dag)"/>
+            <text class="edge-label" x="251" y="153">length + width</text>
+
+            <path d="M241 277 L325 277" fill="none" stroke="#285f8f" stroke-width="1.7" marker-end="url(#arrow-dag)"/>
+            <text class="edge-label" x="248" y="267">unit_cost</text>
+
+            <path d="M430 140 L430 229" fill="none" stroke="#53615a" stroke-width="1.7" marker-end="url(#arrow-dag)"/>
+            <text class="edge-label" x="440" y="188">area.root</text>
+
+            <path d="M241 319 C410 390 520 310 620 310" fill="none" stroke="#285f8f" stroke-width="1.7" marker-end="url(#arrow-dag)"/>
+            <text class="edge-label" x="412" y="355">budget</text>
+
+            <path d="M535 278 L620 278" fill="none" stroke="#53615a" stroke-width="1.7" marker-end="url(#arrow-dag)"/>
+            <text class="edge-label" x="550" y="268">cost.root</text>
+
+            <path d="M732 341 L732 425" fill="none" stroke="#8d5d12" stroke-width="1.7" marker-end="url(#arrow-dag)"/>
+            <text class="edge-label" x="742" y="387">evaluation</text>
+
+            <path d="M535 91 C760 91 820 186 910 223" fill="none" stroke="#53615a" stroke-width="1.5" marker-end="url(#arrow-dag)"/>
+            <text class="edge-label" x="680" y="105">area</text>
+            <path d="M535 250 C690 180 820 230 910 269" fill="none" stroke="#53615a" stroke-width="1.5" marker-end="url(#arrow-dag)"/>
+            <text class="edge-label" x="774" y="216">cost</text>
+            <path d="M845 286 L910 300" fill="none" stroke="#8d5d12" stroke-width="1.5" marker-end="url(#arrow-dag)"/>
+            <text class="edge-label" x="849" y="278">evaluation</text>
+            <path d="M845 471 C900 471 885 352 910 344" fill="none" stroke="#8d5d12" stroke-width="1.5" marker-end="url(#arrow-dag)"/>
+            <text class="edge-label" x="858" y="454">report</text>
+          </svg>
+        </div>
+
+        <div class="callout-grid">
+          <div class="callout blue"><strong>Fan-out preserves the original input.</strong><p>The entry payload supplies dimensions to the area module, unit cost to the cost module, and budget to the constraint module. It is not consumed by the first reader.</p></div>
+          <div class="callout amber"><strong>Fan-in expresses a real dependency.</strong><p>Cost cannot run until area exists. The affordability constraint cannot run until cost exists, but it also needs the original budget.</p></div>
+        </div>
+
+        <details>
+          <summary>Encapsulation example: six inputs and four outputs behind one module</summary>
+          <div class="detail-body">
+            <p>The battery demo has a different graph shape. Its outer pipeline sees <code>SynchronousSim</code> as one module. Inside that boundary, forecasting, guidance, and dynamics exchange values on a shared time grid.</p>
+            <table>
+              <thead><tr><th>Inputs into the boundary</th><th>Outputs from the boundary</th><th>Why the boundary exists</th></tr></thead>
+              <tbody><tr>
+                <td><code>SyncTimeGrid</code><br><code>BatteryState</code><br><code>PriceTrajectory</code><br><code>MockForecastConfig</code><br><code>GuidanceConfig</code><br><code>DynamicSimConfig</code></td>
+                <td><code>SyncSimOutputs</code><br><code>MockForecastSeries</code><br><code>SyncGuidanceSeries</code><br><code>SyncTelemetrySeries</code></td>
+                <td>The internal components advance together. The outer DAG only needs the typed boundary, not their step-by-step coordination.</td>
+              </tr></tbody>
+            </table>
+            <p><a href="../packages/battery-tea-demo/battery_tea/tests/fixtures/pipeline_configs/synchronous_sim_stubbed.yaml">Open the battery pipeline configuration</a> · <a href="../packages/battery-tea-demo/battery_tea/modules/synchronous_sim/module.py">Open the encapsulated module</a></p>
           </div>
         </details>
 
-        <details class="deep-dive">
-          <summary>Tests that explain the behavior</summary>
-          <div class="details-body">
-            <ul class="compact-list">
-              <li><strong>Evaluator parity + isolation</strong><span><a href="../packages/teax-simkit/simkit/tests/evaluation/test_parity.py">test_parity.py</a> and <a href="../packages/teax-simkit/simkit/tests/evaluation/test_isolation.py">test_isolation.py</a> explain why the prepared evaluator is both fast and case-safe.</span></li>
-              <li><strong>CLI + resume</strong><span><a href="../packages/teax-simkit/simkit/tests/study/test_cli_end_to_end.py">test_cli_end_to_end.py</a> compares a crashed/resumed run with an uninterrupted reference and proves idempotency.</span></li>
-              <li><strong>Crash seams</strong><span><a href="../packages/teax-simkit/simkit/tests/study/test_crash_regimes.py">test_crash_regimes.py</a> exercises failure before and during artifact commit.</span></li>
-              <li><strong>Compatibility</strong><span><a href="../packages/teax-simkit/simkit/tests/study/test_compatibility.py">test_compatibility.py</a> shows which changes are refused and why declared grid order matters.</span></li>
-              <li><strong>Query surface</strong><span><a href="../packages/teax-simkit/simkit/tests/study/test_query.py">test_query.py</a> and <a href="../packages/teax-simkit/simkit/tests/study/test_cli_inspect.py">test_cli_inspect.py</a> define the readable result shape and filters.</span></li>
+        <details>
+          <summary>How graph execution becomes evidence</summary>
+          <div class="detail-body">
+            <ol>
+              <li>The prepared evaluator accepts typed entry-channel inputs.</li>
+              <li>The pipeline executor schedules modules when their required channels exist.</li>
+              <li>The exit point captures selected channel values.</li>
+              <li>Projection creates <code>ModelEvidence</code>: constraint responses, numeric outputs, evaluator provenance, and the opaque generated report.</li>
+            </ol>
+            <p>The framework does not import the generated report class. It reads the small attribute surface it needs. This lets generated packages remain isolated from framework code.</p>
+            <p><a href="../packages/teax-simkit/simkit/tests/evaluation/fixtures/sealed_package/package_live/pipelines/pipeline.yaml">Open the depicted pipeline YAML</a> · <a href="../packages/teax-simkit/simkit/core/pipeline_graph.py">Graph construction</a> · <a href="../packages/teax-simkit/simkit/core/pipeline_executor.py">Graph execution</a> · <a href="../packages/teax-simkit/simkit/evaluation/projection.py">Evidence projection</a></p>
+          </div>
+        </details>
+      </section>
+
+      <section id="runner">
+        <p class="eyebrow">The control flow</p>
+        <h2>A proposal may be rejected before it becomes a candidate; a candidate may be skipped, fail, or complete</h2>
+        <p class="section-intro">These outcomes are kept distinct because they answer different questions. A proposal rejected by input validation never becomes a candidate. A model that returns a failed constraint can still be a successfully completed case.</p>
+
+        <div class="diagram">
+          <div class="diagram-title"><strong>A. Admission and resume</strong><span>six blocks; terminal labels sit on their branch</span></div>
+          <svg viewBox="0 0 1040 390" role="img" aria-labelledby="admission-title admission-desc">
+            <title id="admission-title">Proposal admission and resume branches</title>
+            <desc id="admission-desc">A strategy proposes raw parameters. Invalid proposals are recorded and stop. Valid proposals receive a candidate ID. Candidates already in the store are skipped; others are bridged to a typed input.</desc>
+            <defs><marker id="arrow-admit" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><polygon points="0 0, 8 3.5, 0 7" fill="#53615a"/></marker></defs>
+
+            <rect class="box box-blue" x="30" y="137" width="165" height="88"/>
+            <text class="svg-title" x="48" y="168">Strategy</text>
+            <text class="svg-code" x="48" y="191">propose()</text>
+            <text class="svg-copy" x="48" y="211">proposal_id + raw values</text>
+
+            <polygon class="box box-amber" points="285,116 400,181 285,246 170,181"/>
+            <text class="svg-title" x="248" y="174">Validator</text>
+            <text class="svg-copy" x="233" y="196">typed values?</text>
+
+            <rect class="box box-red" x="217" y="292" width="218" height="70"/>
+            <text class="svg-title" x="235" y="321">Invalid proposal record</text>
+            <text class="svg-copy" x="235" y="343">append-only; no candidate or case</text>
+
+            <rect class="box" x="474" y="137" width="188" height="88"/>
+            <text class="svg-title" x="492" y="168">Mint candidate ID</text>
+            <text class="svg-code" x="492" y="192">candidate-000042</text>
+            <text class="svg-copy" x="492" y="211">position in proposal sequence</text>
+
+            <polygon class="box box-blue" points="758,116 873,181 758,246 643,181"/>
+            <text class="svg-title" x="718" y="174">Store</text>
+            <text class="svg-copy" x="704" y="196">has_case(id)?</text>
+
+            <rect class="box box-green" x="846" y="291" width="166" height="70"/>
+            <text class="svg-title" x="864" y="320">CandidateBridge</text>
+            <text class="svg-copy" x="864" y="342">build typed entry input</text>
+
+            <path d="M195 181 L170 181" fill="none" stroke="#53615a" stroke-width="1.6" marker-end="url(#arrow-admit)" transform="translate(115 0)"/>
+            <path d="M400 181 L474 181" fill="none" stroke="#176b4d" stroke-width="1.7" marker-end="url(#arrow-admit)"/>
+            <text class="edge-label" x="420" y="169">valid</text>
+            <path d="M300 243 C300 270 326 270 326 292" fill="none" stroke="#9a3e36" stroke-width="1.7" marker-end="url(#arrow-admit)"/>
+            <text class="edge-label" x="308" y="274">invalid</text>
+            <path d="M662 181 L643 181" fill="none" stroke="#53615a" stroke-width="1.6" marker-end="url(#arrow-admit)" transform="translate(96 0)"/>
+            <path d="M758 116 L758 63 L927 63" fill="none" stroke="#285f8f" stroke-width="1.7"/>
+            <text class="svg-title" x="805" y="51">skip</text>
+            <text class="svg-copy" x="805" y="78">case already committed</text>
+            <path d="M793 217 C813 251 850 270 886 291" fill="none" stroke="#176b4d" stroke-width="1.7" marker-end="url(#arrow-admit)"/>
+            <text class="edge-label" x="813" y="257">not present</text>
+          </svg>
+        </div>
+
+        <p>The candidate ID is based on position in the proposal sequence, not a hash of the values. Invalid positions leave gaps because they never become candidates. That is why grid dimension order belongs to compatibility. On resume, the strategy recreates the same sequence and the store skips IDs with committed cases.</p>
+
+        <div class="diagram">
+          <div class="diagram-title"><strong>B. Evaluation boundary</strong><span>where the failure occurs decides whether a case is written</span></div>
+          <svg viewBox="0 0 1040 430" role="img" aria-labelledby="evaluation-title evaluation-desc">
+            <title id="evaluation-title">Evaluation failure branches</title>
+            <desc id="evaluation-desc">The candidate bridge and evaluator can surface contract defects, preparation faults, per-case execution failures, or model evidence.</desc>
+            <defs><marker id="arrow-eval" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><polygon points="0 0, 8 3.5, 0 7" fill="#53615a"/></marker></defs>
+
+            <rect class="box box-green" x="35" y="166" width="175" height="86"/>
+            <text class="svg-title" x="53" y="197">CandidateBridge</text>
+            <text class="svg-copy" x="53" y="221">plain values → typed model</text>
+            <text class="svg-copy" x="53" y="239">on named entry channel</text>
+
+            <rect class="box box-blue" x="319" y="166" width="190" height="86"/>
+            <text class="svg-title" x="337" y="197">PreparedEvaluator</text>
+            <text class="svg-code" x="337" y="221">evaluate(inputs)</text>
+            <text class="svg-copy" x="337" y="239">run graph + project exit</text>
+
+            <rect class="box box-red" x="92" y="330" width="225" height="75"/>
+            <text class="svg-title" x="110" y="359">StudyBridgeDefect</text>
+            <text class="svg-copy" x="110" y="382">raise loudly; no case is committed</text>
+
+            <rect class="box box-red" x="589" y="31" width="225" height="75"/>
+            <text class="svg-title" x="607" y="60">Preparation fault</text>
+            <text class="svg-copy" x="607" y="83">startup failure; no candidate case</text>
+
+            <rect class="box box-amber" x="589" y="171" width="225" height="75"/>
+            <text class="svg-title" x="607" y="200">Module execution fault</text>
+            <text class="svg-copy" x="607" y="223">commit execution_failed case</text>
+
+            <rect class="box box-green" x="589" y="311" width="225" height="75"/>
+            <text class="svg-title" x="607" y="340">ModelEvidence</text>
+            <text class="svg-copy" x="607" y="363">responses + outputs + provenance</text>
+
+            <path d="M210 209 L319 209" fill="none" stroke="#176b4d" stroke-width="1.7" marker-end="url(#arrow-eval)"/>
+            <path d="M387 252 C360 302 250 292 230 330" fill="none" stroke="#9a3e36" stroke-width="1.7" marker-end="url(#arrow-eval)"/>
+            <text class="edge-label" x="275" y="288">ENTRY_VALIDATION</text>
+            <path d="M509 181 C550 150 550 69 589 69" fill="none" stroke="#9a3e36" stroke-width="1.7" marker-end="url(#arrow-eval)"/>
+            <text class="edge-label" x="515" y="127">PREPARATION</text>
+            <path d="M509 209 L589 209" fill="none" stroke="#8d5d12" stroke-width="1.7" marker-end="url(#arrow-eval)"/>
+            <text class="edge-label" x="517" y="198">MODULE_EXECUTION</text>
+            <path d="M509 238 C550 270 550 349 589 349" fill="none" stroke="#176b4d" stroke-width="1.7" marker-end="url(#arrow-eval)"/>
+            <text class="edge-label" x="520" y="300">success</text>
+          </svg>
+        </div>
+
+        <div class="diagram">
+          <div class="diagram-title"><strong>C. Evidence and policy are separate records</strong><span>a failed constraint is still valid evidence</span></div>
+          <svg viewBox="0 0 1020 250" role="img" aria-labelledby="policy-title policy-desc">
+            <title id="policy-title">Evidence assessment branches</title>
+            <desc id="policy-desc">Model evidence feeds the objective policy. A policy error produces assessment failed with preserved evidence. Otherwise it produces a completed case and a disposition.</desc>
+            <defs><marker id="arrow-policy" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><polygon points="0 0, 8 3.5, 0 7" fill="#53615a"/></marker></defs>
+            <rect class="box box-green" x="40" y="80" width="190" height="88"/>
+            <text class="svg-title" x="58" y="111">ModelEvidence</text>
+            <text class="svg-copy" x="58" y="135">immutable model facts</text>
+            <text class="svg-copy" x="58" y="153">including indeterminate responses</text>
+            <rect class="box box-blue" x="324" y="80" width="190" height="88"/>
+            <text class="svg-title" x="342" y="111">ObjectivePolicy</text>
+            <text class="svg-copy" x="342" y="135">objectives + response roles</text>
+            <text class="svg-copy" x="342" y="153">does not mutate evidence</text>
+            <rect class="box box-red" x="630" y="24" width="320" height="78"/>
+            <text class="svg-title" x="648" y="54">assessment_failed</text>
+            <text class="svg-copy" x="648" y="78">policy broke; evidence digest is still committed</text>
+            <rect class="box box-green" x="630" y="146" width="320" height="78"/>
+            <text class="svg-title" x="648" y="176">completed</text>
+            <text class="svg-copy" x="648" y="200">reject · penalize · keep-for-boundary · feed-strategy</text>
+            <path d="M230 124 L324 124" fill="none" stroke="#176b4d" stroke-width="1.7" marker-end="url(#arrow-policy)"/>
+            <path d="M514 109 C565 92 575 63 630 63" fill="none" stroke="#9a3e36" stroke-width="1.7" marker-end="url(#arrow-policy)"/>
+            <text class="edge-label" x="536" y="77">raises</text>
+            <path d="M514 139 C565 156 575 185 630 185" fill="none" stroke="#176b4d" stroke-width="1.7" marker-end="url(#arrow-policy)"/>
+            <text class="edge-label" x="540" y="178">returns assessment</text>
+          </svg>
+        </div>
+
+        <table aria-label="Runner outcome semantics">
+          <thead><tr><th>Observed event</th><th>Durable result</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>Validator rejects raw values</td><td><span class="state info">proposal only</span></td><td>No candidate was admitted, so no case exists.</td></tr>
+            <tr><td>Evaluator rejects the bridged entry contract</td><td><span class="state stop">raise</span></td><td>The configured channel or generated-model boundary is defective.</td></tr>
+            <tr><td>A model module raises</td><td><span class="state wait">execution_failed</span></td><td>This candidate failed during execution. There is no evidence digest.</td></tr>
+            <tr><td>Policy raises on valid evidence</td><td><span class="state stop">assessment_failed</span></td><td>The model ran. Evidence is retained so the policy failure can be repaired and inspected.</td></tr>
+            <tr><td>Policy rejects a constraint response</td><td><span class="state ok">completed / reject</span></td><td>The case completed normally. Rejection is an interpretation, not an execution failure.</td></tr>
+          </tbody>
+        </table>
+
+        <details>
+          <summary>Current strategy and runner limits</summary>
+          <div class="detail-body">
+            <ul>
+              <li>The CLI exposes grid search. Python callers can also use <code>PreparedListStrategy</code>.</li>
+              <li><code>CandidateBridge</code> currently targets one entry channel. Multi-entry support remains open.</li>
+              <li>The current strategies do not adapt from <code>observe()</code>; the hook is present for future adaptive strategies.</li>
+              <li>The store lease supports one local writer on a single host. It is not a distributed scheduler.</li>
+            </ul>
+            <p><a href="../packages/teax-simkit/simkit/study/runner.py">Open runner control flow</a> · <a href="../packages/teax-simkit/simkit/study/policy.py">Open policy semantics</a></p>
+          </div>
+        </details>
+      </section>
+
+      <section id="persistence">
+        <p class="eyebrow">The commit protocol</p>
+        <h2>SQLite and the filesystem cannot share a transaction</h2>
+        <p class="section-intro">Evidence can be too large for the case table, so TEAx stores canonical JSON as content-addressed files and indexes it in SQLite. The ordering below ensures a database row never points at a partial artifact.</p>
+
+        <div class="diagram">
+          <div class="diagram-title"><strong>One successful case commit</strong><span>the final SQLite transaction is fenced by the active lease</span></div>
+          <svg viewBox="0 0 1100 535" role="img" aria-labelledby="commit-title commit-desc">
+            <title id="commit-title">StudyStore two-lane commit protocol</title>
+            <desc id="commit-desc">The artifact lane writes canonical evidence to staging, fsyncs, renames by digest and fsyncs the directory. Only then does the SQLite lane insert the case in a fenced transaction.</desc>
+            <defs><marker id="arrow-commit" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><polygon points="0 0, 8 3.5, 0 7" fill="#53615a"/></marker></defs>
+
+            <text class="svg-title" x="24" y="98">artifact files</text>
+            <text class="svg-copy" x="24" y="118">canonical JSON</text>
+            <text class="svg-title" x="24" y="342">SQLite</text>
+            <text class="svg-copy" x="24" y="362">WAL + FULL sync</text>
+            <line x1="150" y1="40" x2="150" y2="480" stroke="#c9cec7" stroke-width="1"/>
+
+            <rect class="box box-blue" x="190" y="64" width="205" height="102"/>
+            <text class="svg-title" x="208" y="94">Write staging file</text>
+            <text class="svg-code" x="208" y="118">staging/{lease}/{attempt}.tmp</text>
+            <text class="svg-copy" x="208" y="142">write bytes → fsync(file)</text>
+
+            <rect class="box box-green" x="516" y="64" width="230" height="102"/>
+            <text class="svg-title" x="534" y="94">Publish final artifact</text>
+            <text class="svg-code" x="534" y="118">artifacts/{sha256}.json</text>
+            <text class="svg-copy" x="534" y="142">atomic rename → fsync(dir)</text>
+
+            <rect class="box" x="190" y="313" width="205" height="102"/>
+            <text class="svg-title" x="208" y="343">Lease + attempt</text>
+            <text class="svg-code" x="208" y="367">runner_lease</text>
+            <text class="svg-code" x="208" y="386">attempt_transitions</text>
+            <text class="svg-copy" x="208" y="405">heartbeat before long work</text>
+
+            <rect class="box box-green" x="844" y="313" width="225" height="102"/>
+            <text class="svg-title" x="862" y="343">Fenced case insert</text>
+            <text class="svg-code" x="862" y="367">cases.evidence_digest</text>
+            <text class="svg-code" x="862" y="386">terminal transition</text>
+            <text class="svg-copy" x="862" y="405">COMMIT only if lease still owns</text>
+
+            <path d="M395 115 L516 115" fill="none" stroke="#176b4d" stroke-width="1.7" marker-end="url(#arrow-commit)"/>
+            <text class="edge-label" x="418" y="104">digest + rename</text>
+            <path d="M292 313 L292 166" fill="none" stroke="#285f8f" stroke-width="1.6" marker-end="url(#arrow-commit)"/>
+            <text class="edge-label" x="304" y="241">active lease scopes staging</text>
+            <path d="M746 115 C826 115 782 364 844 364" fill="none" stroke="#176b4d" stroke-width="1.8" marker-end="url(#arrow-commit)"/>
+            <text class="edge-label" x="765" y="227">artifact durable first</text>
+            <path d="M395 364 L844 364" fill="none" stroke="#53615a" stroke-width="1.5" marker-end="url(#arrow-commit)"/>
+            <text class="edge-label" x="516" y="353">verify lease token in same transaction</text>
+
+            <line x1="447" y1="46" x2="447" y2="448" stroke="#9a3e36" stroke-width="1.5" stroke-dasharray="5 5"/>
+            <text class="svg-title" x="408" y="474" fill="#9a3e36">crash A</text>
+            <text class="svg-copy" x="370" y="494">temp only; dead-lease GC removes it</text>
+
+            <line x1="793" y1="46" x2="793" y2="448" stroke="#9a3e36" stroke-width="1.5" stroke-dasharray="5 5"/>
+            <text class="svg-title" x="754" y="474" fill="#9a3e36">crash B</text>
+            <text class="svg-copy" x="713" y="494">complete orphan; GC or digest reuse</text>
+          </svg>
+        </div>
+
+        <ol class="flow-list">
+          <li><b>Serialize evidence canonically and hash the bytes.</b><span>Equivalent evidence gets the same SHA-256 digest. Candidate identity is deliberately absent from the evidence object.</span></li>
+          <li><b>Write under the active lease's staging directory.</b><span>The file is flushed and fsynced before it can become visible as a final artifact.</span></li>
+          <li><b>Rename to the digest path and fsync the artifact directory.</b><span>Atomic rename publishes either the complete file or nothing at the final path.</span></li>
+          <li><b>Insert the case in a fenced SQLite transaction.</b><span>The row references the already-durable digest. A stale runner cannot commit after losing its lease.</span></li>
+        </ol>
+
+        <div class="callout-grid">
+          <div class="callout red"><strong>Crash before publish.</strong><p>There may be a truncated staging file, but no final artifact and no case row. Dead-lease garbage collection removes the temp file.</p></div>
+          <div class="callout amber"><strong>Crash after publish, before case insert.</strong><p>There may be a complete orphan artifact. A retry reuses its digest, and garbage collection can remove unreachable files.</p></div>
+          <div class="callout blue"><strong>Crash after case insert.</strong><p>The committed case wins. Resume sees <code>has_case(candidate_id)</code> and does not evaluate it again, even if forensic transitions ended early.</p></div>
+          <div class="callout green"><strong>Replicates may share bytes.</strong><p>Two candidates with identical evidence can reference one artifact. Their inputs, state, and assessment remain separate case rows.</p></div>
+        </div>
+
+        <details>
+          <summary>Durability scope and database schema</summary>
+          <div class="detail-body">
+            <p>The store asserts SQLite WAL mode and <code>synchronous=FULL</code> each time it opens. The protocol is designed for process crashes on a local filesystem. It does not claim power-loss guarantees for every storage device, safe operation on NFS, or multi-host coordination.</p>
+            <table>
+              <thead><tr><th>Table</th><th>Purpose</th></tr></thead>
+              <tbody>
+                <tr><td><code>compatibility</code></td><td>Bound semantic, executable, schema, and strategy identities.</td></tr>
+                <tr><td><code>proposals</code></td><td>Append-only record of valid and invalid strategy output.</td></tr>
+                <tr><td><code>attempt_transitions</code></td><td>Forensic history of started and terminal attempt states.</td></tr>
+                <tr><td><code>cases</code></td><td>One terminal record per candidate, including canonical inputs, assessment, and optional evidence digest.</td></tr>
+                <tr><td><code>runner_lease</code></td><td>Single-writer ownership, heartbeat, and fencing token.</td></tr>
+              </tbody>
+            </table>
+            <p><a href="../packages/teax-simkit/simkit/study/store.py">Open the store and commit protocol</a> · <a href="../packages/teax-simkit/simkit/tests/study/test_crash_regimes.py">Open crash-regime tests</a></p>
+          </div>
+        </details>
+      </section>
+
+      <section id="query">
+        <p class="eyebrow">Reading results</p>
+        <h2>Inspect builds a case view from three sources</h2>
+        <p class="section-intro">No single file contains the whole answer. The case row holds study identity and assessment. The evidence artifact holds model output. The sealed package catalog explains which source declaration produced a constraint.</p>
+
+        <div class="diagram">
+          <div class="diagram-title"><strong>The query fan-in</strong><span>joined in memory; evidence is memoized by digest</span></div>
+          <svg viewBox="0 0 1040 470" role="img" aria-labelledby="query-title query-desc">
+            <title id="query-title">StudyQuery joins SQLite cases, evidence artifacts, and the constraint catalog</title>
+            <desc id="query-desc">Three data sources feed StudyQuery, which returns a CaseView with candidate, evidence, assessment, and constraint source context.</desc>
+            <defs><marker id="arrow-query" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><polygon points="0 0, 8 3.5, 0 7" fill="#53615a"/></marker></defs>
+
+            <rect class="box box-blue" x="35" y="35" width="250" height="112"/>
+            <text class="svg-title" x="53" y="66">SQLite case row</text>
+            <text class="svg-code" x="53" y="90">candidate_id · state · inputs</text>
+            <text class="svg-code" x="53" y="109">assessment · evidence_digest</text>
+            <text class="svg-copy" x="53" y="130">study-specific facts</text>
+
+            <rect class="box box-green" x="35" y="180" width="250" height="112"/>
+            <text class="svg-title" x="53" y="211">Evidence artifact</text>
+            <text class="svg-code" x="53" y="235">responses · outputs · provenance</text>
+            <text class="svg-code" x="53" y="254">opaque generated report</text>
+            <text class="svg-copy" x="53" y="275">loaded by evidence_digest</text>
+
+            <rect class="box box-amber" x="35" y="325" width="250" height="112"/>
+            <text class="svg-title" x="53" y="356">constraint_catalog.json</text>
+            <text class="svg-code" x="53" y="380">constraint_id → source_usage</text>
+            <text class="svg-code" x="53" y="399">source_record + predicate context</text>
+            <text class="svg-copy" x="53" y="420">shipped with the sealed package</text>
+
+            <rect class="box" x="408" y="161" width="230" height="146"/>
+            <text class="svg-title" x="426" y="192">StudyQuery</text>
+            <text class="svg-code" x="426" y="216">filter cases</text>
+            <text class="svg-code" x="426" y="237">memoize evidence by digest</text>
+            <text class="svg-code" x="426" y="258">resolve constraint source</text>
+            <text class="svg-copy" x="426" y="286">one compatibility-bound store</text>
+
+            <rect class="box box-green" x="758" y="129" width="245" height="210"/>
+            <text class="svg-title" x="776" y="160">CaseView</text>
+            <text class="svg-code" x="776" y="187">candidate + canonical inputs</text>
+            <text class="svg-code" x="776" y="209">terminal state + disposition</text>
+            <text class="svg-code" x="776" y="231">objectives + verdicts</text>
+            <text class="svg-code" x="776" y="253">numeric outputs + headline</text>
+            <text class="svg-code" x="776" y="275">constraint source context</text>
+            <text class="svg-code" x="776" y="297">executable_fingerprint</text>
+            <text class="svg-copy" x="776" y="321">JSONL from teax-study inspect</text>
+
+            <path d="M285 91 C350 91 350 185 408 195" fill="none" stroke="#285f8f" stroke-width="1.7" marker-end="url(#arrow-query)"/>
+            <path d="M285 236 L408 236" fill="none" stroke="#176b4d" stroke-width="1.7" marker-end="url(#arrow-query)"/>
+            <path d="M285 381 C350 381 350 287 408 276" fill="none" stroke="#8d5d12" stroke-width="1.7" marker-end="url(#arrow-query)"/>
+            <path d="M638 234 L758 234" fill="none" stroke="#176b4d" stroke-width="1.8" marker-end="url(#arrow-query)"/>
+          </svg>
+        </div>
+
+        <div class="callout-grid">
+          <div class="callout green"><strong>Evidence is reusable; assessment is study-specific.</strong><p>The artifact says what the model produced. The case row says how this study interpreted it.</p></div>
+          <div class="callout amber"><strong>Constraint IDs become explainable.</strong><p>The catalog maps a runtime response back to its generated source usage and predicate context without bloating every artifact.</p></div>
+        </div>
+
+        <details>
+          <summary>What inspect can filter and why fingerprints stay attached</summary>
+          <div class="detail-body">
+            <p>The query surface filters by parameter, numeric output, constraint response, terminal state, and disposition. The CLI prints one JSON object per line, which is pipe-friendly. The current query implementation materializes the selected <code>CaseView</code> list before printing it.</p>
+            <p>Every result carries the executable fingerprint. One <code>StudyQuery</code> reads one compatibility-bound store; it does not combine stores with different fingerprints just because their field names match.</p>
+            <p><a href="../packages/teax-simkit/simkit/study/query.py">Open the query join</a> · <a href="../packages/teax-simkit/simkit/tests/study/test_query.py">Open query behavior tests</a></p>
+          </div>
+        </details>
+      </section>
+
+      <section id="code">
+        <p class="eyebrow">Contributor entry points</p>
+        <h2>Find the code by question</h2>
+        <p class="section-intro">Start with the boundary that owns your question. The tests beside each boundary are usually the fastest way to learn its exact contract.</p>
+
+        <div class="source-map">
+          <div class="source-group">
+            <h3>How is a study defined?</h3>
+            <ul>
+              <li><a href="../packages/teax-simkit/simkit/study/config.py">study/config.py</a> — YAML parsing and object construction</li>
+              <li><a href="../packages/teax-simkit/simkit/study/definition.py">study/definition.py</a> — compatibility-bearing contract</li>
+              <li><a href="../packages/teax-simkit/simkit/study/policy.py">study/policy.py</a> — evidence interpretation</li>
+              <li><a href="../packages/teax-simkit/simkit/tests/study/test_compatibility.py">test_compatibility.py</a> — lineage rejection cases</li>
             </ul>
           </div>
-        </details>
+          <div class="source-group">
+            <h3>How does one candidate run?</h3>
+            <ul>
+              <li><a href="../packages/teax-simkit/simkit/study/runner.py">study/runner.py</a> — branch and retry coordination</li>
+              <li><a href="../packages/teax-simkit/simkit/study/bridge.py">study/bridge.py</a> — mapping to generated entry model</li>
+              <li><a href="../packages/teax-simkit/simkit/evaluation/evaluator.py">evaluation/evaluator.py</a> — prepared single-case execution</li>
+              <li><a href="../packages/teax-simkit/simkit/tests/study/test_runner_failures.py">test_runner_failures.py</a> — failure ownership</li>
+            </ul>
+          </div>
+          <div class="source-group">
+            <h3>How does the model graph work?</h3>
+            <ul>
+              <li><a href="../packages/teax-simkit/simkit/core/pipeline.py">core/pipeline.py</a> — pipeline orchestration</li>
+              <li><a href="../packages/teax-simkit/simkit/core/pipeline_graph.py">core/pipeline_graph.py</a> — channel dependency graph</li>
+              <li><a href="../packages/teax-simkit/simkit/evaluation/evidence.py">evaluation/evidence.py</a> — stable evidence model</li>
+              <li><a href="../packages/teax-simkit/simkit/tests/evaluation/test_parity.py">test_parity.py</a> — evaluator/pipeline parity</li>
+            </ul>
+          </div>
+          <div class="source-group">
+            <h3>How are results kept and read?</h3>
+            <ul>
+              <li><a href="../packages/teax-simkit/simkit/study/store.py">study/store.py</a> — lease, persistence, resume, GC</li>
+              <li><a href="../packages/teax-simkit/simkit/study/query.py">study/query.py</a> — three-source case view</li>
+              <li><a href="../packages/teax-simkit/simkit/tests/study/test_crash_regimes.py">test_crash_regimes.py</a> — commit crash windows</li>
+              <li><a href="../packages/teax-simkit/simkit/tests/study/test_cli_end_to_end.py">test_cli_end_to_end.py</a> — complete user path</li>
+            </ul>
+          </div>
+        </div>
 
-        <h3 class="display-type" style="font-size: clamp(1.8rem, 4vw, 3rem); margin: 4rem 0 1rem;">Primary references</h3>
-        <ul class="source-list">
-          <li><a href="evaluation-and-study.md">Evaluation and study layer guide</a></li>
-          <li><a href="../tea_simulation_design_doc.md">Original simulation design principles</a></li>
-          <li><a href="../README.md">Pipeline user guide and YAML syntax</a></li>
-          <li><a href="rootmodel-and-primitives.md">Root models and primitive channels</a></li>
-        </ul>
+        <details>
+          <summary>A practical reading order for a first contribution</summary>
+          <div class="detail-body">
+            <ol>
+              <li>Run or read <a href="../packages/teax-simkit/simkit/tests/study/test_cli_end_to_end.py"><code>test_cli_end_to_end.py</code></a> to see the public path.</li>
+              <li>Read <a href="../packages/teax-simkit/simkit/study/runner.py"><code>runner.py</code></a> with the outcome table above open.</li>
+              <li>Follow one success into <a href="../packages/teax-simkit/simkit/evaluation/evaluator.py"><code>evaluator.py</code></a> and one commit into <a href="../packages/teax-simkit/simkit/study/store.py"><code>store.py</code></a>.</li>
+              <li>Use the focused failure, crash, and compatibility tests before changing a boundary.</li>
+            </ol>
+          </div>
+        </details>
       </section>
 
-      <footer class="footer">
-        <div>
-          <strong>One model. Many candidates. Evidence you can keep.</strong>
-          <p>This guide follows the current implementation in <code>teax-simkit</code>. Use the linked source and tests as the final authority when extending a contract.</p>
-        </div>
-        <a class="button secondary" href="#top">Back to top ↑</a>
+      <footer>
+        <p>This page describes the study architecture on the <code>constraint-exec-epic</code> branch. The linked implementation and tests are the authority when behavior changes.</p>
       </footer>
     </main>
   </div>
-
-  <script>
-    (() => {
-      const root = document.documentElement;
-      const progress = document.querySelector('.reading-progress');
-      const sections = [...document.querySelectorAll('[data-section]')];
-      const navLinks = [...document.querySelectorAll('.side-nav nav a')];
-      const details = [...document.querySelectorAll('details.deep-dive')];
-      const expandButton = document.getElementById('expandAll');
-      const themeButton = document.getElementById('themeToggle');
-      const menuButton = document.getElementById('menuToggle');
-      const sideNav = document.getElementById('sideNav');
-
-      // Make an initial deep link land immediately. In-page navigation keeps
-      // the document's smooth scrolling behavior after this first jump.
-      if (window.location.hash) {
-        const initialTarget = document.querySelector(window.location.hash);
-        if (initialTarget) {
-          root.style.scrollBehavior = 'auto';
-          initialTarget.scrollIntoView();
-          window.setTimeout(() => { root.style.removeProperty('scroll-behavior'); }, 0);
-        }
-      }
-
-      const updateProgress = () => {
-        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
-        const percent = scrollable > 0 ? Math.min(100, (window.scrollY / scrollable) * 100) : 0;
-        progress.style.setProperty('--reading-progress', `${percent}%`);
-      };
-
-      const updateExpandLabel = () => {
-        const allOpen = details.every((item) => item.open);
-        expandButton.textContent = allOpen ? '− Collapse deep dives' : '＋ Expand deep dives';
-        expandButton.dataset.mode = allOpen ? 'collapse' : 'expand';
-      };
-
-      expandButton.addEventListener('click', () => {
-        const shouldOpen = expandButton.dataset.mode !== 'collapse';
-        details.forEach((item) => { item.open = shouldOpen; });
-        updateExpandLabel();
-      });
-
-      details.forEach((item) => item.addEventListener('toggle', updateExpandLabel));
-
-      let savedTheme = null;
-      try { savedTheme = localStorage.getItem('teax-explainer-theme'); } catch (_error) { /* file privacy mode */ }
-      if (savedTheme === 'night') root.dataset.theme = 'night';
-
-      themeButton.addEventListener('click', () => {
-        const next = root.dataset.theme === 'night' ? 'day' : 'night';
-        if (next === 'night') root.dataset.theme = 'night';
-        else delete root.dataset.theme;
-        try { localStorage.setItem('teax-explainer-theme', next); } catch (_error) { /* file privacy mode */ }
-      });
-
-      document.querySelectorAll('[data-copy]').forEach((button) => {
-        button.addEventListener('click', async () => {
-          const target = document.getElementById(button.dataset.copy);
-          try {
-            await navigator.clipboard.writeText(target.innerText);
-            const original = button.textContent;
-            button.textContent = 'Copied';
-            window.setTimeout(() => { button.textContent = original; }, 1400);
-          } catch (_error) {
-            button.textContent = 'Select text';
-          }
-        });
-      });
-
-      const observer = new IntersectionObserver((entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (!visible) return;
-        navLinks.forEach((link) => {
-          link.classList.toggle('active', link.getAttribute('href') === `#${visible.target.id}`);
-        });
-      }, { rootMargin: '-18% 0px -64% 0px', threshold: [0.05, 0.2, 0.5] });
-
-      sections.forEach((section) => observer.observe(section));
-      window.addEventListener('scroll', updateProgress, { passive: true });
-      updateProgress();
-      updateExpandLabel();
-
-      menuButton.addEventListener('click', () => {
-        const open = sideNav.classList.toggle('open');
-        menuButton.setAttribute('aria-expanded', String(open));
-      });
-
-      navLinks.forEach((link) => link.addEventListener('click', () => {
-        sideNav.classList.remove('open');
-        menuButton.setAttribute('aria-expanded', 'false');
-      }));
-    })();
-  </script>
 </body>
 </html>
