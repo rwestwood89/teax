@@ -50,7 +50,11 @@ individual cases against that fixed graph:
 - `PreparedEvaluator` is the fast, in-memory path: entry values are supplied as
   already-typed Pydantic models, outputs are captured in memory, and every
   `evaluate()` call gets a fresh execution context (no channel bleed between
-  cases).
+  cases). Callers obtain the entry types from the `entry_models` property
+  (`evaluator.py`, CE-F3): an entry-channel-name → typed-model-class map derived
+  from the pipeline spec at prepare time — never a hardcoded generated class
+  name. Build the `evaluate()` inputs by instantiating the model each channel
+  maps to.
 - `FileBackedEvaluator` is the audit backend: entry values come from a JSON
   file, outputs persist to disk, and every case leaves an on-disk trail. It
   never writes into the sealed, seal-checked package tree itself — it copies
