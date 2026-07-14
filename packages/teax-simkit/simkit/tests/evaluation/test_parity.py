@@ -13,7 +13,7 @@ import math
 
 import pytest
 
-from .conftest import AREA_CH, COST_CH, ENTRY_FIXTURES_DIR
+from .conftest import AREA_CH, COST_CH, ENTRY_CH, ENTRY_FIXTURES_DIR
 
 CASES = {
     "satisfied": "satisfied",
@@ -41,7 +41,7 @@ def _load_raw(fixture_name: str) -> dict:
 def test_backends_agree(prepared, file_backed, case):
     fixture_name = CASES[case]
     raw = _load_raw(fixture_name)
-    params = prepared.ToyPlantParams(**raw)
+    params = prepared.entry_models[ENTRY_CH](**raw)
 
     in_memory = prepared.evaluate({"toy_plant_params": params})
     file_result = file_backed.evaluate(ENTRY_FIXTURES_DIR / f"{fixture_name}.json")
@@ -54,7 +54,7 @@ def test_backends_agree(prepared, file_backed, case):
 
 def test_f_output_exercises_nan_aware_rule_on_a_compared_output(prepared, file_backed):
     raw = _load_raw("f_output")
-    params = prepared.ToyPlantParams(**raw)
+    params = prepared.entry_models[ENTRY_CH](**raw)
 
     in_memory = prepared.evaluate({"toy_plant_params": params})
     file_result = file_backed.evaluate(ENTRY_FIXTURES_DIR / "f_output.json")
@@ -67,7 +67,7 @@ def test_f_output_exercises_nan_aware_rule_on_a_compared_output(prepared, file_b
 
 def test_f_budget_compared_outputs_are_finite(prepared, file_backed):
     raw = _load_raw("f_budget")
-    params = prepared.ToyPlantParams(**raw)
+    params = prepared.entry_models[ENTRY_CH](**raw)
 
     in_memory = prepared.evaluate({"toy_plant_params": params})
     file_result = file_backed.evaluate(ENTRY_FIXTURES_DIR / "f_budget.json")

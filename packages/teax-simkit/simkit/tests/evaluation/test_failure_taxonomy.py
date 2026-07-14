@@ -31,7 +31,7 @@ def test_module_exception_is_module_execution(prepared):  # SC3 (a)
     original = registry.get(module_type)
     registry._modules[module_type] = dataclasses.replace(original, factory=_BrokenAreaModule)
     try:
-        params = prepared.ToyPlantParams(toy_plant__Toy_Plant__plant_budget=5000.0, **FIXED)
+        params = prepared.entry_models[ENTRY_CH](toy_plant__Toy_Plant__plant_budget=5000.0, **FIXED)
         with pytest.raises(EvaluationFailed) as excinfo:
             prepared.evaluate({ENTRY_CH: params})
         assert excinfo.value.failure.phase is EvaluationPhase.MODULE_EXECUTION
@@ -52,7 +52,7 @@ def test_entry_rejection_is_entry_validation(prepared):  # SC3 (b) — different
 
 
 def test_indeterminate_is_evidence_not_failure(prepared):  # SC3 (c) / INV5
-    params = prepared.ToyPlantParams(toy_plant__Toy_Plant__plant_budget=float("nan"), **FIXED)
+    params = prepared.entry_models[ENTRY_CH](toy_plant__Toy_Plant__plant_budget=float("nan"), **FIXED)
     evidence = prepared.evaluate({ENTRY_CH: params})  # returns, does not raise
     assert evidence.responses["headline"] == "indeterminate"
 

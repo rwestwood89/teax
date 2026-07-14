@@ -66,6 +66,32 @@ assert "wi014_s4" not in sys.modules
 """
 
 
+def test_no_fixture_class_names_in_simkit_source():
+    """CE-F3 regression: simkit source must never reference a generated
+    package's model-specific symbols by name (the import-scan leg cannot see
+    a hardcoded attribute access like ``package.ToyPlantParams``). Generic
+    runtime vocabulary the generator emits for every package
+    (ConstraintEvaluation/ConstraintReport/Float) is exempt — those are the
+    shared contract, not a fixture leak."""
+    fixture_only_names = [
+        "wi014_s4",
+        "ToyPlantParams",
+        "Panel_Area",
+        "Panel_Cost",
+        "DemoPlantAffordable",
+    ]
+    simkit_root = EVAL_DIR.parent
+    offenders = []
+    for source_file in simkit_root.rglob("*.py"):
+        if "tests" in source_file.parts:
+            continue
+        text = source_file.read_text()
+        for name in fixture_only_names:
+            if name in text:
+                offenders.append(f"{source_file.relative_to(simkit_root)}: {name}")
+    assert not offenders, f"fixture-specific names leaked into simkit source: {offenders}"
+
+
 def test_construct_evidence_with_generated_package_absent():
     # Run in a fresh subprocess: within the test *session*, wi014_s4 may
     # already be in sys.modules (other evaluation tests load it via the

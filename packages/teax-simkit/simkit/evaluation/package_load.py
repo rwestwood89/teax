@@ -56,7 +56,7 @@ class ProvisionalPackageLoader:
     """Loads a sealed package tree under its declared import name.
 
     The package's internal imports are absolute to its declared name (e.g.
-    ``from wi014_s4. ...``), so the on-disk directory is exposed under that
+    ``from my_plant_pkg. ...``), so the on-disk directory is exposed under that
     name via a symlink placed in ``link_root`` (caller-supplied — this loader
     has no opinion on where that lives).
     """

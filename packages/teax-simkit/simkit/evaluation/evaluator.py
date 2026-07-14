@@ -102,9 +102,12 @@ class PreparedEvaluator:
                 )
             ) from error
         self._source = MappingEntrySource.from_spec(spec, schema_types)
-        # Convenience access to the entry channel's type; this evaluator is
-        # bound to one pipeline, so the entry model is known at prepare time.
-        self.ToyPlantParams = self.package.ToyPlantParams
+
+    @property
+    def entry_models(self) -> Mapping[str, type[BaseModel]]:
+        """Entry channel name -> typed model class, derived from the pipeline
+        spec at prepare time — never a hardcoded generated class name (CE-F3)."""
+        return self._source.expected_types
 
     def evaluate(self, typed_inputs: Mapping[str, BaseModel]) -> ModelEvidence:
         validated = self._source.validate(typed_inputs)

@@ -239,7 +239,7 @@ def build_definition(prepared_evaluator: PreparedEvaluator, policy) -> StudyDefi
     return StudyDefinition(
         study_id=STUDY_ID,
         entry_channel=ENTRY_CH,
-        entry_model=prepared_evaluator.ToyPlantParams,
+        entry_model=prepared_evaluator.entry_models[ENTRY_CH],
         strategy=PreparedListStrategy(PROPOSALS),
         validate_proposal=validate_proposal,
         policy=policy,
