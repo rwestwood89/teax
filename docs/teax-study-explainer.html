@@ -289,7 +289,7 @@
     <div class="page hero">
       <p class="eyebrow">TEAx repository guide</p>
       <h1>From typed domain modules to repeatable model studies</h1>
-      <p class="lede">TEAx separates the mechanics of connecting and running models from the domain code that gives those models meaning. This guide follows one battery analysis through that boundary, then shows how the same runtime executes a sealed constraint package and supplies durable evidence to a study.</p>
+      <p class="lede">TEAx separates the mechanics of connecting and running models from the domain code that gives those models meaning. This guide follows one concrete domain analysis through that boundary, then shows how the same runtime executes a sealed constraint package and supplies durable evidence to a study.</p>
       <div class="audience">
         <div><strong>If you want to use TEAx</strong>You will see which interface runs one domain pipeline, which interface evaluates a sealed package, and when the study CLI is appropriate.</div>
         <div><strong>If you want to contribute</strong>You will see where each contract lives, which tests define it, and which package should own a proposed change.</div>
@@ -300,7 +300,7 @@
   <nav aria-label="Page sections">
     <div class="page">
       <a href="#why">Why TEAx exists</a>
-      <a href="#one-run">One battery run</a>
+      <a href="#one-run">One example run</a>
       <a href="#architecture">Repository architecture</a>
       <a href="#graph">Pipeline graph</a>
       <a href="#evaluation">Evaluation</a>
@@ -316,13 +316,13 @@
       <h2>A techno-economic analysis is assembled from models that change at different rates</h2>
       <p>A battery analysis may combine input normalization, equipment sizing, hourly dispatch, a cost model, and a financial calculation. A different analysis may use none of those implementations, while still needing the same work around them: validate inputs, connect producers to consumers, determine a legal execution order, preserve intermediate values, and write traceable results.</p>
       <p>The original design therefore treats an analysis as a composition of functional modules with explicit typed inputs and outputs. A researcher can call a module directly in a notebook while its behavior is still being developed. Once the module boundaries are stable, the same modules can be selected and connected in YAML for an automated run. That progression matters because TEAx does not require early experiments to adopt a pipeline before their interfaces are understood.</p>
-      <p>The repository implements that split with two packages. <code>teax-simkit</code> owns generic execution, configuration, I/O, evaluation, and study machinery. <code>battery-tea-demo</code> owns battery schemas, defaults, modules, and fixtures. The framework has tests that reject battery-specific imports, so a second domain package can use the runtime without inheriting battery assumptions.</p>
+      <p>The repository implements that split by keeping generic execution, configuration, I/O, evaluation, and study machinery in <code>teax-simkit</code>. Domain packages supply their own schemas, defaults, modules, and registry; <code>battery-tea-demo</code> is the checked-in example. The framework has tests that reject imports from that example, so another domain package can use the runtime without inheriting its assumptions.</p>
 
       <div class="callout">
         <strong>What a user supplies and receives.</strong> For an ordinary run, a user supplies typed input artifacts, a domain registry, domain schema types, and a pipeline YAML file. TEAx returns selected in-memory outputs, module-version and configuration provenance, and, by default, a run directory containing output artifacts and a manifest.
       </div>
 
-      <p>That description is still abstract. The battery demo shows how the boundary works when values begin to move.</p>
+      <p>That description is still abstract. A configured example shows how the boundary works when values begin to move.</p>
 
       <details>
         <summary>Intent sources and present-day scope</summary>
@@ -335,8 +335,8 @@
 
     <section id="one-run">
       <p class="question">What happens during one actual analysis?</p>
-      <h2>A battery run turns three entry artifacts into five published results</h2>
-      <p>The repository’s <a href="../packages/battery-tea-demo/battery_tea/tests/fixtures/pipeline_configs/demo_linear_alt.yaml">battery pipeline fixture</a> starts with a geography, an 8,760-hour load profile, and financial parameters. The entry point loads each artifact into a Pydantic model and places that model on a named channel. A channel is the runtime slot through which one produced value can reach any number of downstream inputs.</p>
+      <h2>One example turns three entry artifacts into five published results</h2>
+      <p>The <a href="../packages/battery-tea-demo/battery_tea/tests/fixtures/pipeline_configs/demo_linear_alt.yaml">configured example</a> starts with a geography, an 8,760-hour load profile, and financial parameters. The entry point loads each artifact into a Pydantic model and places that model on a named channel. A channel is the runtime slot through which one produced value can reach any number of downstream inputs.</p>
 
       <pre><code>modules:
   entry_point:
@@ -505,17 +505,16 @@
           <path class="wire-eval" d="M870 315 L870 370"/>
           <text class="edge-label" x="885" y="347">Evaluator</text>
         </svg>
-        <figcaption id="component-caption">Dependency direction follows current code. The battery package depends on framework base classes and builds a registry for them. Configuration and that registry meet in core, which creates the runtime graph. Evaluation reuses the core executor for a generated package. Studies depend on the evaluator protocol and its evidence envelope; the core pipeline does not depend on studies.</figcaption>
+        <figcaption id="component-caption">Dependency direction follows current code. A domain package depends on framework base classes and builds a registry for them. Configuration and that registry meet in core, which creates the runtime graph. Evaluation reuses the core executor for a generated package. Studies depend on the evaluator protocol and its evidence envelope; the core pipeline does not depend on studies.</figcaption>
       </figure>
 
       <table>
         <thead><tr><th>Boundary</th><th>It owns</th><th>Why a user or contributor cares</th></tr></thead>
         <tbody>
-          <tr><td><code>simkit.config</code></td><td>Generic Pydantic models, pipeline-spec parsing, primitive type names, environment paths.</td><td>A schema placed here becomes framework vocabulary. Battery-only concepts belong in <code>battery_tea.schemas</code>.</td></tr>
-          <tr><td><code>simkit.core</code></td><td>Module interface, introspection, registry, validation, graph construction, and execution.</td><td>Changes here affect every domain package and should be tested with generic toy modules as well as the battery integration.</td></tr>
+          <tr><td><code>simkit.config</code></td><td>Generic Pydantic models, pipeline-spec parsing, primitive type names, environment paths.</td><td>A schema placed here becomes framework vocabulary. Domain-only concepts belong in their domain package.</td></tr>
+          <tr><td><code>simkit.core</code></td><td>Module interface, introspection, registry, validation, graph construction, and execution.</td><td>Changes here affect every domain package and should be tested with generic toy modules as well as a domain integration.</td></tr>
           <tr><td><code>simkit.io</code></td><td>Entry readers, output handlers, artifact directories, and manifests.</td><td>Channel types are not automatically serializable. A domain must register output handlers or use the JSON-schema helper.</td></tr>
-          <tr><td><code>battery_tea</code></td><td>Battery types, heuristics, synchronous components, registry names, defaults, and battery-specific adapters.</td><td>New battery behavior should not broaden the framework contract unless another domain also needs the mechanism.</td></tr>
-          <tr><td><code>simkit.evaluation</code></td><td>Package seal verification, prepared execution, evidence projection, and failure phases.</td><td>This is the single-case boundary for generated constraint models. It is not required for an ordinary battery pipeline.</td></tr>
+          <tr><td><code>simkit.evaluation</code></td><td>Package seal verification, prepared execution, evidence projection, and failure phases.</td><td>This is the single-case boundary for generated constraint models. It is not required for an ordinary configured pipeline.</td></tr>
           <tr><td><code>simkit.study</code></td><td>Candidate generation, policy, persistence, resume, query, and the <code>teax-study</code> CLI.</td><td>Use it when many cases must share identity and durable progress. It consumes evaluation rather than replacing pipeline execution.</td></tr>
         </tbody>
       </table>
@@ -947,7 +946,7 @@ pytest</code></pre>
         </div>
       </details>
 
-      <p>The practical dividing line is now visible. If a change alters what a battery value means, it belongs in the battery package. If it alters how any typed value is registered, connected, scheduled, loaded, or written, it belongs in the framework. If it alters one sealed model’s evidence boundary, begin in evaluation. If it alters candidate identity, policy, resume, or durable results, begin in study.</p>
+      <p>The practical dividing line is now visible. If a change alters what a domain value means, it belongs in that domain package. If it alters how any typed value is registered, connected, scheduled, loaded, or written, it belongs in the framework. If it alters one sealed model’s evidence boundary, begin in evaluation. If it alters candidate identity, policy, resume, or durable results, begin in study.</p>
     </section>
   </main>
 
