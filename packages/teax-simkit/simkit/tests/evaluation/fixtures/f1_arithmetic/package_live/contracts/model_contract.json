@@ -1,0 +1,107 @@
+{
+  "constraint_catalog": {
+    "concrete_entries": [
+      {
+        "constraint_id": "f1_division_check",
+        "evaluation_channel": "f1_division_check__evaluation",
+        "expected_value": true,
+        "is_negated": false,
+        "membership_kind": "assert",
+        "owner_instance_path": "toy_plant__fixture",
+        "predicate_ir": "{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"a\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"b\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"/\",\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"literal\",\"literal\":{\"kind\":\"LiteralRational\",\"result_type\":\"real\",\"value\":0.0},\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\">\",\"schema_version\":\"expression-ir/v1\"}",
+        "usage_qualified_name": "f1_arithmetic::Fixture::f1_division_check"
+      },
+      {
+        "constraint_id": "f2_power_check",
+        "evaluation_channel": "f2_power_check__evaluation",
+        "expected_value": true,
+        "is_negated": false,
+        "membership_kind": "assert",
+        "owner_instance_path": "toy_plant__fixture",
+        "predicate_ir": "{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"a\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"b\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"**\",\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"literal\",\"literal\":{\"kind\":\"LiteralRational\",\"result_type\":\"real\",\"value\":0.0},\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\">\",\"schema_version\":\"expression-ir/v1\"}",
+        "usage_qualified_name": "f1_arithmetic::Fixture::f2_power_check"
+      },
+      {
+        "constraint_id": "f3_nested_check",
+        "evaluation_channel": "f3_nested_check__evaluation",
+        "expected_value": true,
+        "is_negated": false,
+        "membership_kind": "assert",
+        "owner_instance_path": "toy_plant__fixture",
+        "predicate_ir": "{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"a\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"b\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"/\",\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"literal\",\"literal\":{\"kind\":\"LiteralRational\",\"result_type\":\"real\",\"value\":0.0},\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\">\",\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"a\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"literal\",\"literal\":{\"kind\":\"LiteralRational\",\"result_type\":\"real\",\"value\":-1.0},\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\">\",\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"and\",\"schema_version\":\"expression-ir/v1\"}",
+        "usage_qualified_name": "f1_arithmetic::Fixture::f3_nested_check"
+      }
+    ],
+    "excluded_records": [],
+    "fingerprint": "fc026ea0a166bfa5c3afb2d15e88b5f417f7a011aadf74c0d64031d2b80d65f1",
+    "source_records": []
+  },
+  "evaluation_semantics": "kleene-three-valued",
+  "outputs": [
+    {
+      "channel_name": "f1_division_check__evaluation",
+      "field_name": "evaluation",
+      "python_type": "ConstraintEvaluation"
+    },
+    {
+      "channel_name": "f2_power_check__evaluation",
+      "field_name": "evaluation",
+      "python_type": "ConstraintEvaluation"
+    },
+    {
+      "channel_name": "f3_nested_check__evaluation",
+      "field_name": "evaluation",
+      "python_type": "ConstraintEvaluation"
+    },
+    {
+      "channel_name": "constraint_report",
+      "field_name": "constraint_report",
+      "python_type": "ConstraintReport"
+    }
+  ],
+  "parameters": [
+    {
+      "default_value": 2.0,
+      "entry_type": "design_attribute",
+      "param_group": "toy_plant_params",
+      "python_type": "float",
+      "qualified_name": "toy_plant__Toy_Plant__division_a"
+    },
+    {
+      "default_value": 1.0,
+      "entry_type": "design_attribute",
+      "param_group": "toy_plant_params",
+      "python_type": "float",
+      "qualified_name": "toy_plant__Toy_Plant__division_b"
+    },
+    {
+      "default_value": 2.0,
+      "entry_type": "design_attribute",
+      "param_group": "toy_plant_params",
+      "python_type": "float",
+      "qualified_name": "toy_plant__Toy_Plant__nested_a"
+    },
+    {
+      "default_value": 1.0,
+      "entry_type": "design_attribute",
+      "param_group": "toy_plant_params",
+      "python_type": "float",
+      "qualified_name": "toy_plant__Toy_Plant__nested_b"
+    },
+    {
+      "default_value": 2.0,
+      "entry_type": "design_attribute",
+      "param_group": "toy_plant_params",
+      "python_type": "float",
+      "qualified_name": "toy_plant__Toy_Plant__power_a"
+    },
+    {
+      "default_value": 2.0,
+      "entry_type": "design_attribute",
+      "param_group": "toy_plant_params",
+      "python_type": "float",
+      "qualified_name": "toy_plant__Toy_Plant__power_b"
+    }
+  ],
+  "semantic_fingerprint": "67463b8218c51c7ebded14001c799d9fcaca8977938f1501978d345af3f29e59"
+}

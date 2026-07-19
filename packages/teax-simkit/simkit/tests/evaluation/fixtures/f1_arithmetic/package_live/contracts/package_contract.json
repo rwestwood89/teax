@@ -1,0 +1,38 @@
+{
+  "artifact_hashes": {
+    "IMPLEMENTATION_BACKLOG.md": "96f4dd7040797cfdeb3aa348426e73974afaaa65cdea3934fcc946df58b39a53",
+    "__init__.py": "847bbdab8aa3c11344a52bf36906a72d56a7b6a0a4bbbf5077deac83fe748963",
+    "contracts/model_contract.json": "8ee8eacc37fdba59fade7c8156f64bf4683e1cefb2b727e5098921b703ed5f5a",
+    "contracts/verify.py": "24eb3565b0a7a682cf8a2510c871d7af9baa938fdaac6b5e826f88045a400276",
+    "handwritten/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "inputs/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "inputs/toy_plant_params.json": "e66d718bd5207a8144453dbc2454fa6bb5817cf9217cdfaa28e4d1a921775908",
+    "modules/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "modules/constraints/__init__.py": "0fc3fea2d8e92bff93b86e656a302cf2800727bd2c3f9ff8d264930dcc73c8e1",
+    "modules/constraints/constraintreportaggregatormodule.py": "d347a5ff40547430203b4bb5442e918f7c0a213303487292e96ec77b8af70acf",
+    "modules/constraints/predicates.py": "8cd578f6f485644b2ce661a406fe7092dfd1083069f0f9ce684a041f23af34cf",
+    "modules/toy_plant/__init__.py": "0fc3fea2d8e92bff93b86e656a302cf2800727bd2c3f9ff8d264930dcc73c8e1",
+    "modules/toy_plant/fixturef1divisioncheckconstraintmodule.py": "3df13626cc3fd3215b22abcb4a2b0888991c0334734857e651674266855aec2d",
+    "modules/toy_plant/fixturef2powercheckconstraintmodule.py": "1ee141d3ed0902d3b12ced46da5ff749b697772fbc5fcecc55c20a058dac70b2",
+    "modules/toy_plant/fixturef3nestedcheckconstraintmodule.py": "e15010231c19a5c359de001912418d39a311f3fecde15d13ad35e5fce8697924",
+    "pipelines/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "pipelines/pipeline.yaml": "c8eb612719a115e32ed209e67288bbbd8b813c44c093985300858764745b4acb",
+    "primitives.py": "1bc6be58e5290b102d762227c33f138ecc4f9feaa00fa2f4cfd02f87f5f71998",
+    "schemas/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "schemas/constraint_types.py": "d7604d2dd2b575760e0f722481d9d49df953a94a59c7c2316ff4e1e12bea4740",
+    "schemas/toy_plant_params.py": "301763cb5296bf1022f39468307a51feb7a171b055becec5bb6faea2a9b7f5d4",
+    "tests/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "tests/test_implementations_runnable.py": "b2e28f248930b80ff5ea04e9fe57bd51603ce7d244e1cc687bab89d554830e09"
+  },
+  "coverage_policy": {
+    "exclude_globs": [
+      "contracts/package_contract.json",
+      "**/__pycache__/**"
+    ],
+    "runtime_output_globs": []
+  },
+  "executable_fingerprint": "7b623bf0920c61c711ef204b882cdde0a0908caaee8b1556a799d4f4c8f403e9",
+  "generator_version": "0.1.0",
+  "package_name": "f1_arithmetic_constraints",
+  "runtime_contract_version": "1.0.0"
+}

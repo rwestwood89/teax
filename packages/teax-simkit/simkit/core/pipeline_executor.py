@@ -41,6 +41,7 @@ class PipelineExecutionContext:
         self.channels: Dict[str, Any] = {}
         self.module_versions: Dict[str, str] = {}
         self.entry_artifacts: Dict[str, Path] = {}
+        self.failed_module_key: str | None = None
 
     def set_channel(self, name: str, value: Any) -> None:
         self.channels[name] = value
@@ -114,6 +115,7 @@ class SerialPipelineExecutor:
         pipeline_metadata: object | None = None,
         persist_outputs: bool = True,
     ) -> RunResult:
+        context.failed_module_key = None
         spec = graph.spec
         exit_spec = next((m for m in spec.modules.values() if m.is_exit), None)
         if exit_spec is None:  # pragma: no cover - validator guarantees an exit module
@@ -137,7 +139,11 @@ class SerialPipelineExecutor:
                         # Optional exit outputs may not be produced; skip here, router will record absence.
                         continue
                 break
-            self._execute_module(module_key, module_spec, context)
+            try:
+                self._execute_module(module_key, module_spec, context)
+            except Exception:
+                context.failed_module_key = module_key
+                raise
         else:  # pragma: no cover - spec validator guarantees an exit node
             raise RuntimeError("Pipeline specification is missing an exit module")
 

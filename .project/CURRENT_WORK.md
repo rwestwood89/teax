@@ -1,10 +1,17 @@
 # Current Work
 
-**Last Updated**: 2026-07-13
+**Last Updated**: 2026-07-18
 
 ## Active Work
 
-(none — CONSTRAINT-EXEC closed; next teax work arrives via the CE-F2 follow-on or the docs sweep)
+### GAP-CLOSE-F1-TEAX-NORMALIZATION: Exceptional arithmetic failure normalization
+
+- Certified against Revision 3 by independent audit. Both evaluators report the exact failed
+  generated constraint module while preserving the original arithmetic exception as the direct
+  cause, with no partial evidence or candidate output.
+- Locked fixture regeneration was byte-identical. Independent validation passed 43 evaluation,
+  277 teax-simkit framework, and 346 repository tests. Audit:
+  `.project/active/gap-close-f1-normalization/audit.md`.
 
 ## Recently Completed
 

@@ -35,7 +35,10 @@ def test_module_exception_is_module_execution(prepared):  # SC3 (a)
         with pytest.raises(EvaluationFailed) as excinfo:
             prepared.evaluate({ENTRY_CH: params})
         assert excinfo.value.failure.phase is EvaluationPhase.MODULE_EXECUTION
+        assert excinfo.value.failure.module_or_channel == "toy_plant__demo_plant__area_calc"
+        assert excinfo.value.failure.cause == "RuntimeError: simulated module failure"
         assert excinfo.value.failure.retryable is False
+        assert excinfo.value.failure.partial_artifacts == ()
     finally:
         registry._modules[module_type] = original
 

@@ -1,4 +1,4 @@
-# CONSTRAINT-EXEC: model evaluator, crash-safe study layer, CLI (Items 0, 10–12)
+# CONSTRAINT-EXEC: evaluator, crash-safe study layer, CLI, and F1 normalization
 
 **Merge order: independent** — no code coupling to the agentic-mbse/sysml-codegen pair
 (their PRs document their own ordering). fusion-tea's `main` push comes last.
@@ -20,6 +20,9 @@ The teax study layer of the CONSTRAINT-EXEC epic (canonical epic archived in sys
 - **Item 12 — Policy/query/CLI:** four-disposition policy over immutable evidence; query
   distinguishes case states × verdict classes; define → run → interrupt → resume → query from
   the CLI.
+- **GAP-CLOSE F1 follow-on — arithmetic failure normalization:** prepared and file-backed
+  evaluators report the exact failed generated constraint module, preserve the native arithmetic
+  exception as the direct cause, and return or persist no partial candidate evidence.
 
 ## Post-run fixes (owner session, 2026-07-13)
 
@@ -34,8 +37,8 @@ The teax study layer of the CONSTRAINT-EXEC epic (canonical epic archived in sys
 
 - Items 10–12 audit-certified with orchestrator-executed probes; independent findings audit
   (sysml-codegen `.project/completed/20260713_epic_constraint_execution_audit_independent.md`)
-  re-ran the suite. **262 passed — fully green** (first time; the 4 path failures predated the
-  epic). Known follow-on: CE-F2 (multi-channel `CandidateBridge`), registered in sysml-codegen
-  BACKLOG.
+  re-ran the suite. The GAP-CLOSE F1 follow-on is independently certified, including byte-identical
+  locked fixture regeneration and both evaluator routes. Final pre-PR validation: **346 passed**.
+  Known follow-on: CE-F2 (multi-channel `CandidateBridge`), registered in sysml-codegen BACKLOG.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

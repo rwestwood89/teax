@@ -6,7 +6,7 @@ import json
 import math
 import shutil
 from pathlib import Path
-from typing import Any, Mapping, Protocol
+from typing import Any, Mapping, NoReturn, Protocol
 
 from pydantic import BaseModel
 
@@ -51,6 +51,19 @@ def _input_digest(typed_inputs: Mapping[str, BaseModel]) -> str:
     payload = {channel: _json_safe(model.model_dump(mode="json")) for channel, model in typed_inputs.items()}
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _normalize_run_failure(
+    error: Exception, context: PipelineExecutionContext
+) -> NoReturn:
+    """Raise the evaluator's fixed run-failure record from the original error."""
+    raise EvaluationFailed(
+        EvaluationFailure(
+            phase=EvaluationPhase.MODULE_EXECUTION,
+            module_or_channel=context.failed_module_key,
+            cause=f"{type(error).__name__}: {error}",
+        )
+    ) from error
 
 
 class _MappingContext(PipelineExecutionContext):
@@ -115,12 +128,7 @@ class PreparedEvaluator:
         try:
             result = self._executor.run(self._graph, context, persist_outputs=False)
         except Exception as error:
-            raise EvaluationFailed(
-                EvaluationFailure(
-                    phase=EvaluationPhase.MODULE_EXECUTION,
-                    cause=f"{type(error).__name__}: {error}",
-                )
-            ) from error
+            _normalize_run_failure(error, context)
         report = result.outputs[REPORT_CHANNEL]
         provenance = EvidenceProvenance(
             executable_fingerprint=self.fingerprint,
@@ -191,12 +199,7 @@ class FileBackedEvaluator:
                 self._graph, context, base_output_dir=self._output_dir, persist_outputs=True
             )
         except Exception as error:
-            raise EvaluationFailed(
-                EvaluationFailure(
-                    phase=EvaluationPhase.MODULE_EXECUTION,
-                    cause=f"{type(error).__name__}: {error}",
-                )
-            ) from error
+            _normalize_run_failure(error, context)
         report = result.outputs[REPORT_CHANNEL]
         provenance = EvidenceProvenance(
             executable_fingerprint=self.fingerprint,

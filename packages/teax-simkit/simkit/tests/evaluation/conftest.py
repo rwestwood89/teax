@@ -8,6 +8,10 @@ import pytest
 from simkit.evaluation.evaluator import FileBackedEvaluator, PreparedEvaluator
 from simkit.evaluation.package_load import ProvisionalPackageLoader
 
+# Generated package self-tests require import under the sealed declared name.
+# They are package artifacts, not tests owned by this repository's evaluation suite.
+collect_ignore_glob = ["fixtures/**/package_live/tests/test_*.py"]
+
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "sealed_package" / "package_live"
 SPEC_PATH = FIXTURE_DIR / "pipelines" / "pipeline.yaml"
 ENTRY_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "entries"
