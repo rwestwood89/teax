@@ -10,7 +10,8 @@ join directly, so a consumer must never recover them by
 
 This scans teax's study/evaluation *product* source (tests and fixtures excluded — a fixture may
 legitimately author any shape). The reconstruction was fusion's deleted materializer and teax's old
-``_Catalog`` source-record join; this guard fails loudly if either idiom reappears.
+``_Catalog`` source-record join (now the embedded-catalog reader ``_EmbeddedCatalog``, renamed per
+audit F-B); this guard fails loudly if either idiom reappears.
 """
 from __future__ import annotations
 

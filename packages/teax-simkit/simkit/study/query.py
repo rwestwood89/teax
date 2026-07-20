@@ -7,6 +7,16 @@ carries source form, usage identity, owner QN, and the definition→usage join
 directly — so the view is built from the entry itself, with no standalone
 `constraint_catalog.json` and no reconstruction. Every result carries its
 `executable_fingerprint`; results are never merged across fingerprints (INV-5).
+
+Item 8 rename (audit F-B): the alternate-schema names this file used to carry —
+`CatalogView` (the alternate-schema dataclass) and `_Catalog` (the standalone
+`constraint_catalog.json` reader with a `source_usage → source_record` join) — are
+gone. They are the two TEAx deletion-table rows in the Item 8 spec
+(`.project/active/constraint-lifecycle-catalog-store/spec.md`, §Deletion inventory).
+Rather than survive as repurposed names, they are renamed to describe their new role:
+`EmbeddedCatalogView` and `_EmbeddedCatalog`, which read codegen's embedded catalog from
+`model_contract.json`. No standalone file, no reconstruction; the INV-6 source-scan guard
+(`tests/study/test_no_reconstruction.py`) enforces that the deleted idioms stay gone.
 """
 from __future__ import annotations
 
@@ -21,7 +31,7 @@ from .store import StudyStore
 
 
 @dataclass(frozen=True)
-class CatalogView:
+class EmbeddedCatalogView:
     constraint_id: str
     source_form: str
     membership_kind: str | None
@@ -44,25 +54,26 @@ class CaseView:
     assessment: Mapping[str, Any] | None
     executable_fingerprint: str
     evidence_digest: str | None
-    catalog: Mapping[str, CatalogView]  # constraint_id -> joined static detail
+    catalog: Mapping[str, EmbeddedCatalogView]  # constraint_id -> joined static detail
 
 
-class _Catalog:
+class _EmbeddedCatalog:
     """Reads codegen's embedded catalog from the model contract and views entries by id.
 
     Every field the view needs is carried on the concrete entry itself (Item 8): source form,
     owner QN, the definition→usage join, and predicate IR. No standalone catalog file, no
-    `source_usage -> source_record` reconstruction.
+    `source_usage -> source_record` reconstruction. (Renamed from the alternate-schema `_Catalog`
+    per Item 8 audit F-B — see module docstring.)
     """
 
     def __init__(self, package_dir: str | Path) -> None:
         self._entries = load_model_contract(package_dir).concrete_entries
 
-    def view_for(self, constraint_id: str) -> CatalogView | None:
+    def view_for(self, constraint_id: str) -> EmbeddedCatalogView | None:
         entry = self._entries.get(constraint_id)
         if entry is None:
             return None
-        return CatalogView(
+        return EmbeddedCatalogView(
             constraint_id=constraint_id,
             source_form=entry["source_form"],
             membership_kind=entry["membership_kind"],
@@ -76,7 +87,7 @@ class _Catalog:
 class StudyQuery:
     def __init__(self, store: StudyStore, package_dir: str | Path) -> None:
         self.store = store
-        self._catalog = _Catalog(package_dir)
+        self._catalog = _EmbeddedCatalog(package_dir)
         self._evidence_cache: dict[str, dict[str, Any]] = {}
         self._store_fingerprint = self.store.conn.execute(
             "SELECT executable_fingerprint FROM compatibility"
