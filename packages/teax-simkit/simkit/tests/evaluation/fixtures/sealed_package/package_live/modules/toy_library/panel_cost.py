@@ -17,9 +17,9 @@ Inputs:
 Outputs:
     - cost: cost result
 
-SysML Source: /home/reid/1cfe/sysml-codegen/tests/fixtures/wi014_toy/toy_library.sysml:26
+SysML Source: root-0/toy_library.sysml:26
 
-SysML Source: /home/reid/1cfe/sysml-codegen/tests/fixtures/wi014_toy/toy_library.sysml:26
+SysML Source: root-0/toy_library.sysml:26
 
 GAP: Code generator does NOT implement calc logic - only wrapper structure.
 Handwritten implementation required in handwritten/toy_library/panel_cost_impl.py
@@ -60,9 +60,9 @@ Inputs:
 Outputs:
     - cost: cost result
 
-SysML Source: /home/reid/1cfe/sysml-codegen/tests/fixtures/wi014_toy/toy_library.sysml:26
+SysML Source: root-0/toy_library.sysml:26
 
-    SysML Source: /home/reid/1cfe/sysml-codegen/tests/fixtures/wi014_toy/toy_library.sysml:26
+    SysML Source: root-0/toy_library.sysml:26
 
     Calculation Specification:
         cost = area * unit_cost

@@ -3,8 +3,8 @@ from simkit.core.pipeline_registry import PipelineModuleRegistry
 
 from wi014_s4.modules.toy_library.panel_area import Panel_AreaModule
 from wi014_s4.modules.toy_library.panel_cost import Panel_CostModule
-from wi014_s4.modules.constraints.constraint_report_aggregator import ConstraintReportAggregatorModule
-from wi014_s4.modules.toy_plant.demo_plant_affordable import DemoPlantAffordableConstraintModule
+from wi014_s4.modules.constraints.constraintreportaggregatormodule import ConstraintReportAggregatorModule
+from wi014_s4.modules.toy_plant.demoplantaffordableconstraintmodule import DemoPlantAffordableConstraintModule
 
 from wi014_s4.schemas.constraint_types import ConstraintEvaluation as ConstraintEvaluation, ConstraintReport as ConstraintReport
 from wi014_s4.schemas.toy_plant_params import ToyPlantParams as ToyPlantParams

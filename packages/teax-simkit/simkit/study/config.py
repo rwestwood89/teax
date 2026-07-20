@@ -9,7 +9,6 @@ seal), so moving the package tree must not start a new study lineage.
 """
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any, Literal, Mapping
 
@@ -22,6 +21,7 @@ from simkit.evaluation.evaluator import PreparedEvaluator
 from .bounded_strategy import BoundedStrategy
 from .definition import ProposalValidator, StudyDefinition
 from .identity import digest_of
+from .model_contract import load_model_contract
 from .policy import POLICY_REGISTRY, ObjectiveSpec
 from .strategy import GridStrategy
 
@@ -77,11 +77,13 @@ def load_study_config(path: str | Path) -> StudyConfig:
 
 
 def _model_contract_fingerprint(config: StudyConfig) -> str:
-    """A digest of the fixture catalog's bytes, standing in for a
-    `ModelContract` fingerprint until Item 9 (design.md#implementation-notes).
+    """Codegen's real ``semantic_fingerprint``, read from the embedded model contract (Item 8).
+
+    Replaces the pre-Item-8 stand-in (a sha256 of the standalone catalog file's bytes). Binding
+    store compatibility to the real semantic identity means a study store never silently rebinds
+    across a model-meaning change; the read also fails closed on catalog-schema skew (INV-4).
     """
-    catalog_path = Path(config.package.dir) / "contracts" / "constraint_catalog.json"
-    return hashlib.sha256(catalog_path.read_bytes()).hexdigest()
+    return load_model_contract(config.package.dir).semantic_fingerprint
 
 
 def _synthesize_validator(config: StudyConfig) -> ProposalValidator:

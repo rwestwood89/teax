@@ -95,10 +95,9 @@ def cmd_inspect(args: argparse.Namespace) -> int:
         print(f"no store at '{args.store}' — run 'create' first", file=sys.stderr)
         return 1
     config = load_study_config(args.config)
-    catalog_path = Path(config.package.dir) / "contracts" / "constraint_catalog.json"
     store = StudyStore(args.store)
     try:
-        query = StudyQuery(store, catalog_path)
+        query = StudyQuery(store, config.package.dir)
         cases = query.cases(
             parameter=args.parameter, output=args.output, constraint=args.constraint,
             state=args.state, disposition=args.disposition,

@@ -2,9 +2,11 @@
 
 Reads `cases` rows from the store, decodes each referenced evidence artifact
 once (memoized by `evidence_digest`), and joins per-constraint verdicts to
-the fixture catalog by `constraint_id -> source_usage -> source_record`
-(design.md#architecture). Every result carries its `executable_fingerprint`;
-results are never merged across fingerprints (INV-5).
+codegen's embedded catalog by `constraint_id` (Item 8). The catalog entry now
+carries source form, usage identity, owner QN, and the definition→usage join
+directly — so the view is built from the entry itself, with no standalone
+`constraint_catalog.json` and no reconstruction. Every result carries its
+`executable_fingerprint`; results are never merged across fingerprints (INV-5).
 """
 from __future__ import annotations
 
@@ -14,6 +16,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .evidence_io import decode_evidence
+from .model_contract import load_model_contract
 from .store import StudyStore
 
 
@@ -21,10 +24,11 @@ from .store import StudyStore
 class CatalogView:
     constraint_id: str
     source_form: str
-    membership_kind: str
+    membership_kind: str | None
     is_negated: bool
     owner_qn: str
-    definition_qn: str
+    #: The referenced constraint def's QN — `None` for inline usages (F1).
+    definition_qn: str | None
     predicate_ir: str
 
 
@@ -44,31 +48,35 @@ class CaseView:
 
 
 class _Catalog:
-    def __init__(self, path: Path) -> None:
-        raw = json.loads(Path(path).read_text())
-        self._source_records = {r["usage_name"]: r for r in raw["source_records"]}
-        self._concrete_entries = {e["constraint_id"]: e for e in raw["concrete_entries"]}
+    """Reads codegen's embedded catalog from the model contract and views entries by id.
+
+    Every field the view needs is carried on the concrete entry itself (Item 8): source form,
+    owner QN, the definition→usage join, and predicate IR. No standalone catalog file, no
+    `source_usage -> source_record` reconstruction.
+    """
+
+    def __init__(self, package_dir: str | Path) -> None:
+        self._entries = load_model_contract(package_dir).concrete_entries
 
     def view_for(self, constraint_id: str) -> CatalogView | None:
-        entry = self._concrete_entries.get(constraint_id)
+        entry = self._entries.get(constraint_id)
         if entry is None:
             return None
-        record = self._source_records[entry["source_usage"]]
         return CatalogView(
             constraint_id=constraint_id,
-            source_form=record["source_form"],
+            source_form=entry["source_form"],
             membership_kind=entry["membership_kind"],
             is_negated=entry["is_negated"],
-            owner_qn=record["owner_qn"],
-            definition_qn=record["definition_qn"],
-            predicate_ir=record["predicate_ir"],
+            owner_qn=entry["owner_qualified_name"],
+            definition_qn=entry["definition_qualified_name"],
+            predicate_ir=entry["predicate_ir"],
         )
 
 
 class StudyQuery:
-    def __init__(self, store: StudyStore, catalog: str | Path) -> None:
+    def __init__(self, store: StudyStore, package_dir: str | Path) -> None:
         self.store = store
-        self._catalog = _Catalog(catalog)
+        self._catalog = _Catalog(package_dir)
         self._evidence_cache: dict[str, dict[str, Any]] = {}
         self._store_fingerprint = self.store.conn.execute(
             "SELECT executable_fingerprint FROM compatibility"

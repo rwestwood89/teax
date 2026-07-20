@@ -2,7 +2,7 @@
 
 AUTO_IMPLEMENTED = True
 
-SysML Source: /home/reid/1cfe/sysml-codegen/tests/fixtures/wi014_toy/toy_library.sysml:26
+SysML Source: root-0/toy_library.sysml:26
 
 SysML Expressions:
     cost = area * unit_cost
@@ -33,7 +33,7 @@ the usage level inside the part def.
 *Ref**: WI-009 design.md "Structure ↔ behavior binding"
 *Basis**: Synthetic validation fixture — no domain content
 
-SysML Source: /home/reid/1cfe/sysml-codegen/tests/fixtures/wi014_toy/toy_library.sysml:26
+SysML Source: root-0/toy_library.sysml:26
 
 SysML Expressions:
     cost = area * unit_cost

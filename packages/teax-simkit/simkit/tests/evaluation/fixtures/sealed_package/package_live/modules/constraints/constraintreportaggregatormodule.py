@@ -1,7 +1,8 @@
-"""Constraint report aggregator (S4 test-only generation).
+"""Constraint report aggregator (Item 7 / D5/D11) — exact schema, one required field per
+eligible assertion.
 
-Exact input schema: one REQUIRED field per concrete assertion — a missing
-result is a schema failure, not a silent gap. Exists even for zero assertions.
+Exists even for zero eligible assertions (D11): a missing result is a schema failure, never a
+silent gap.
 """
 
 from pydantic import BaseModel
@@ -10,13 +11,13 @@ from simkit.core.base import ModuleBase, ModuleResult
 
 from wi014_s4.schemas.constraint_types import ConstraintEvaluation, ConstraintReport
 
-EXPECTED_IDS = ('toy_plant__demo_plant__affordable',)
+EXPECTED_IDS = ('toy_plant_demo_plant_affordable_c122240f4b148939',)
 
 
 class ConstraintReportAggregatorInput(BaseModel):
     model_config = {"extra": "forbid"}
 
-    toy_plant__demo_plant__affordable: ConstraintEvaluation
+    toy_plant_demo_plant_affordable_c122240f4b148939: ConstraintEvaluation
 
 
 class ConstraintReportAggregatorOutput(MultiOutput):
@@ -27,9 +28,9 @@ class ConstraintReportAggregatorModule(
     ModuleBase[ConstraintReportAggregatorInput, ConstraintReportAggregatorOutput]
 ):
     name: str = "constraint_report_aggregator"
-    version: str = "s4-probe"
+    version: str = "v0.1"
 
-    CATALOG_FINGERPRINT = "659d0298caaa51ac4f4f9bee5ecde14d9ef929cf5c8ced3ca2e7857bce87d00f"
+    CATALOG_FINGERPRINT = "4a0b47a586f39c54ff9ffc4bb22d21aeae26ce9bbde95a3f751d9af8e3525a27"
 
     def run(self, **evaluations) -> ModuleResult[ConstraintReportAggregatorOutput]:
         validated = ConstraintReportAggregatorInput(**evaluations)

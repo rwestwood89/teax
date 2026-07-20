@@ -17,9 +17,9 @@ Inputs:
 Outputs:
     - area: area result
 
-SysML Source: /home/reid/1cfe/sysml-codegen/tests/fixtures/wi014_toy/toy_library.sysml:4
+SysML Source: root-0/toy_library.sysml:4
 
-SysML Source: /home/reid/1cfe/sysml-codegen/tests/fixtures/wi014_toy/toy_library.sysml:4
+SysML Source: root-0/toy_library.sysml:4
 
 GAP: Code generator does NOT implement calc logic - only wrapper structure.
 Handwritten implementation required in handwritten/toy_library/panel_area_impl.py
@@ -60,9 +60,9 @@ Inputs:
 Outputs:
     - area: area result
 
-SysML Source: /home/reid/1cfe/sysml-codegen/tests/fixtures/wi014_toy/toy_library.sysml:4
+SysML Source: root-0/toy_library.sysml:4
 
-    SysML Source: /home/reid/1cfe/sysml-codegen/tests/fixtures/wi014_toy/toy_library.sysml:4
+    SysML Source: root-0/toy_library.sysml:4
 
     Calculation Specification:
         area = length * width

@@ -36,6 +36,14 @@ ACCEPTED_RUNTIME_CONTRACT_VERSIONS = frozenset({"1.0.0"})
 D3). A seal recorded against a version outside this set is rejected — fail-closed whether the
 package is newer or older than the runtime."""
 
+ACCEPTED_CATALOG_SCHEMA_VERSIONS = frozenset({"2.0.0"})
+"""The embedded-catalog schema versions this runtime reads (Item 8). Vendored from
+``sysml_codegen.contracts.versions.CATALOG_SCHEMA_VERSION`` — the same by-copy rail as the
+runtime-contract set (B3 forbids importing sysml-codegen). ``study.model_contract.load_model_contract``
+fails closed on any ``catalog_schema_version`` outside this set, before reading a catalog field,
+in both skew directions. Re-vendor in lockstep with a codegen schema bump; codegen's
+``test_catalog_schema_version`` guards the source side."""
+
 TRUSTED_VERIFIER_SHA256 = "ad0a855af17d18af5f3e8c36b1a6c500f492d88ec777b40f307c646306c67284"
 """sha256 of the canonical ``contracts/verify.py``, vendored from
 ``sysml_codegen.contracts.versions.TRUSTED_VERIFIER_SHA256``. The loader authenticates a
