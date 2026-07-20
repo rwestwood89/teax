@@ -1,0 +1,35 @@
+{
+  "artifact_hashes": {
+    "IMPLEMENTATION_BACKLOG.md": "70a702a1d9bc9f326994164986dd48b8e165112d0c4aca488fa9e192e89644d8",
+    "__init__.py": "c73ee5623167602d9e606f691716ac1b44bffa684c0264c363de032da7988a75",
+    "contracts/generation_manifest.json": "a2df23d665d8b7cfb63b470e586bfa7ee435260ea91632b512da886d27864757",
+    "contracts/model_contract.json": "73846891050142884603b5726ed4b1a3f6dd03bf21125989c6e5c1509c43ba05",
+    "contracts/verify.py": "ad0a855af17d18af5f3e8c36b1a6c500f492d88ec777b40f307c646306c67284",
+    "handwritten/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "handwritten/constraint_free_library/__init__.py": "200b1c90d646c8c58c2644945ee551dddc12adcfdab30b7ae4197891284a70c8",
+    "handwritten/constraint_free_library/area_calc_impl.py": "a0431c7f78f7b1e620d4e47610e8a7dcdd8a84e58db84bee5236a7a7a67d98bc",
+    "inputs/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "inputs/constraint_free_plant_params.json": "bde087037ad46da185bcf717d35799992129b4d1f53f1471c18587e539e3af04",
+    "modules/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "modules/constraint_free_library/__init__.py": "0fc3fea2d8e92bff93b86e656a302cf2800727bd2c3f9ff8d264930dcc73c8e1",
+    "modules/constraint_free_library/area_calc.py": "a67ca73a87a6ad3178028629d98c60fa366ce2558b39f6c489aa7607be034961",
+    "pipelines/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "pipelines/pipeline.yaml": "209aaba96d04666d58074fc0e94743cbffa8b08b6847b6e1624b82fa476778c8",
+    "primitives.py": "1bc6be58e5290b102d762227c33f138ecc4f9feaa00fa2f4cfd02f87f5f71998",
+    "schemas/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "schemas/constraint_free_plant_params.py": "48ac45153d2f78035dd0b03a72d7be6a5fc0df6883ddb01fa7655dc68bb7bbcb",
+    "tests/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "tests/test_implementations_runnable.py": "9355da6e48e63b78ad992fb560327c487c862b639688a0538b861ca24432a19d"
+  },
+  "coverage_policy": {
+    "exclude_globs": [
+      "contracts/package_contract.json",
+      "**/__pycache__/**"
+    ],
+    "runtime_output_globs": []
+  },
+  "executable_fingerprint": "f24c1ec2f8778408a29a429d610c30f2e401636450fa81718b1373b576a141ec",
+  "generator_version": "0.1.0",
+  "package_name": "constraint_free",
+  "runtime_contract_version": "1.0.0"
+}

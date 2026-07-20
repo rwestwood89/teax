@@ -62,6 +62,10 @@ class DispositionPolicy:
     def assess(self, evidence: ModelEvidence, *, candidate_id: str) -> dict[str, Any]:
         if candidate_id in self.reject_candidate_ids:
             raise AssessmentFailed(f"policy rejected {candidate_id}")
+        if "headline" not in evidence.responses:
+            # Constraint-free package: empty evidence, no headline (46a). Distinct
+            # from `not_assessed` (a present report with zero eligible entries).
+            return {"disposition": "unconstrained", "headline": None}
         headline = evidence.responses["headline"]
         return {"disposition": _DISPOSITION_BY_HEADLINE[headline], "headline": headline}
 
@@ -102,6 +106,14 @@ class ObjectivePolicy:
         self.response_roles = dict(response_roles)
 
     def assess(self, evidence: ModelEvidence, *, candidate_id: str) -> dict[str, Any]:
+        # Constraint-free empty evidence (46a) — resolved BEFORE the objective /
+        # response-role loops (m1), which would otherwise raise AssessmentFailed
+        # on a configured role before the headline is ever read.
+        if "headline" not in evidence.responses:
+            return {
+                "disposition": "unconstrained", "headline": None,
+                "objectives": {}, "penalty": None,
+            }
         objective_values: dict[str, float] = {}
         for objective in self.objectives:
             if objective.output not in evidence.outputs:

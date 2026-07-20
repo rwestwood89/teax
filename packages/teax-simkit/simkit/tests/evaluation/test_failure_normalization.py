@@ -153,7 +153,11 @@ def test_exit_collection_failure_has_no_module_identity():
     assert caught.value.__cause__ is original
 
 
-def test_router_setup_failure_has_no_module_identity(tmp_path):
+def test_router_setup_failure_is_output_write_with_no_module_identity(tmp_path):
+    """A router/output-setup failure happens inside the write phase, so it is
+    honestly stamped OUTPUT_WRITE (Item 11 C1) — not MODULE_EXECUTION, which it
+    used to claim while OUTPUT_WRITE was defined-never-emitted. No module failed,
+    so the module identity stays None."""
     output_file = tmp_path / "output-file"
     output_file.write_text("occupied", encoding="utf-8")
     evaluator = _file_evaluator(tmp_path, output_file)
@@ -161,6 +165,6 @@ def test_router_setup_failure_has_no_module_identity(tmp_path):
     with pytest.raises(EvaluationFailed) as caught:
         evaluator.evaluate(ENTRY_FIXTURES_DIR / "satisfied.json")
 
-    assert caught.value.failure.phase is EvaluationPhase.MODULE_EXECUTION
+    assert caught.value.failure.phase is EvaluationPhase.OUTPUT_WRITE
     assert caught.value.failure.module_or_channel is None
     assert caught.value.__cause__ is not None

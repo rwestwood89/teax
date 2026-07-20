@@ -58,7 +58,7 @@ evidence = ModelEvidence(
         evaluator_version="v1",
         input_digest="digest",
     ),
-    report=object(),
+    report={"headline": "indeterminate", "results": []},
 )
 
 assert evidence.responses["headline"] == "indeterminate"

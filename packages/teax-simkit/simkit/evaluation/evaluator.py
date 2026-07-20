@@ -22,9 +22,7 @@ from .entry_source import MappingEntrySource
 from .evidence import EvidenceProvenance, ModelEvidence
 from .failure import EvaluationFailed, EvaluationFailure, EvaluationPhase
 from .package_load import PackageLoader
-from .projection import project
-
-REPORT_CHANNEL = "constraint_report"
+from .projection import REPORT_CHANNEL, project
 
 
 class Evaluator(Protocol):
@@ -56,14 +54,49 @@ def _input_digest(typed_inputs: Mapping[str, BaseModel]) -> str:
 def _normalize_run_failure(
     error: Exception, context: PipelineExecutionContext
 ) -> NoReturn:
-    """Raise the evaluator's fixed run-failure record from the original error."""
+    """Raise the evaluator's fixed run-failure record from the original error.
+
+    The phase is read from a **positive** write-phase signal set at the executor
+    seam (``context.in_output_write``, C1) — never inferred from the exception
+    type or a null module key. An entry-load or module failure keeps
+    ``MODULE_EXECUTION``; only a failure raised while genuinely inside output
+    write is stamped ``OUTPUT_WRITE``.
+    """
+    phase = (
+        EvaluationPhase.OUTPUT_WRITE
+        if getattr(context, "in_output_write", False)
+        else EvaluationPhase.MODULE_EXECUTION
+    )
     raise EvaluationFailed(
         EvaluationFailure(
-            phase=EvaluationPhase.MODULE_EXECUTION,
+            phase=phase,
             module_or_channel=context.failed_module_key,
             cause=f"{type(error).__name__}: {error}",
         )
     ) from error
+
+
+def _report_declared_in_spec(spec: Any) -> bool:
+    """Spec-derived default for ``expects_report``: does the exit module declare
+    the ``constraint_report`` output field? A constraint-free package omits it
+    (46a). The study layer overrides this with the catalog authority; the two
+    must agree."""
+    exit_spec = next((m for m in spec.modules.values() if m.is_exit), None)
+    if exit_spec is None:
+        return False
+    return REPORT_CHANNEL in exit_spec.outputs
+
+
+def _entry_artifact_path(spec: Any, spec_path: Path, work_dir: Path) -> Path:
+    """The on-disk entry-artifact path the file-backed route writes the candidate
+    to, derived from the spec's single entry binding (relative to the spec) — not
+    a hardcoded fixture filename. Falls back to the legacy path when the spec has
+    no single entry binding (e.g. multi-group), which was the prior behavior."""
+    entry_spec = next((m for m in spec.modules.values() if m.is_entry), None)
+    bindings = list(entry_spec.outputs.values()) if entry_spec is not None else []
+    if len(bindings) == 1 and bindings[0].artifact_path is not None:
+        return (spec_path.parent / bindings[0].artifact_path).resolve()
+    return work_dir / "inputs" / "toy_plant_params.json"
 
 
 class _MappingContext(PipelineExecutionContext):
@@ -87,7 +120,13 @@ class PreparedEvaluator:
     EVIDENCE_SCHEMA_VERSION = "v1"
     EVALUATOR_VERSION = "v1"
 
-    def __init__(self, loader: PackageLoader, spec_path: Path) -> None:
+    def __init__(
+        self,
+        loader: PackageLoader,
+        spec_path: Path,
+        *,
+        expects_constraint_report: bool | None = None,
+    ) -> None:
         self.package, self.fingerprint = loader.load()
         custom_types = list(self.package.CUSTOM_SCHEMA_TYPES)
         schema_types = _build_schema_type_registry(custom_types)
@@ -95,6 +134,13 @@ class PreparedEvaluator:
         registry_factory = getattr(self.package, f"create_{self.package.__name__}_registry")
         self._registry = registry_factory()
         spec = entry_point_validate(spec_path)
+        # Catalog authority (M3) when the study layer supplies it; spec-derived
+        # default otherwise so evaluation-layer tests stay self-contained.
+        self._expects_report = (
+            _report_declared_in_spec(spec)
+            if expects_constraint_report is None
+            else expects_constraint_report
+        )
 
         router = create_output_router_with_json_schemas(
             [t.__name__ for t in custom_types], include_builtins=True, in_memory=True
@@ -129,14 +175,13 @@ class PreparedEvaluator:
             result = self._executor.run(self._graph, context, persist_outputs=False)
         except Exception as error:
             _normalize_run_failure(error, context)
-        report = result.outputs[REPORT_CHANNEL]
         provenance = EvidenceProvenance(
             executable_fingerprint=self.fingerprint,
             evidence_schema_version=self.EVIDENCE_SCHEMA_VERSION,
             evaluator_version=self.EVALUATOR_VERSION,
             input_digest=_input_digest(typed_inputs),
         )
-        return project(result, report, provenance=provenance)
+        return project(result, provenance=provenance, expects_report=self._expects_report)
 
 
 class FileBackedEvaluator:
@@ -152,7 +197,15 @@ class FileBackedEvaluator:
     EVIDENCE_SCHEMA_VERSION = PreparedEvaluator.EVIDENCE_SCHEMA_VERSION
     EVALUATOR_VERSION = PreparedEvaluator.EVALUATOR_VERSION
 
-    def __init__(self, loader: PackageLoader, package_dir: Path, work_dir: Path, output_dir: Path) -> None:
+    def __init__(
+        self,
+        loader: PackageLoader,
+        package_dir: Path,
+        work_dir: Path,
+        output_dir: Path,
+        *,
+        expects_constraint_report: bool | None = None,
+    ) -> None:
         self.package, self.fingerprint = loader.load()
         custom_types = list(self.package.CUSTOM_SCHEMA_TYPES)
         schema_types = _build_schema_type_registry(custom_types)
@@ -187,7 +240,15 @@ class FileBackedEvaluator:
                 )
             ) from error
         self._registry = registry
-        self._entry_path = work_dir / "inputs" / "toy_plant_params.json"
+        self._expects_report = (
+            _report_declared_in_spec(spec)
+            if expects_constraint_report is None
+            else expects_constraint_report
+        )
+        # Write the candidate to the entry artifact path the spec actually
+        # declares, derived from the single entry binding — not a hardcoded
+        # fixture filename — so any generated single-group package loads.
+        self._entry_path = _entry_artifact_path(spec, spec_path, work_dir)
         self._output_dir = output_dir
 
     def evaluate(self, entry_json_path: Path) -> ModelEvidence:
@@ -200,11 +261,10 @@ class FileBackedEvaluator:
             )
         except Exception as error:
             _normalize_run_failure(error, context)
-        report = result.outputs[REPORT_CHANNEL]
         provenance = EvidenceProvenance(
             executable_fingerprint=self.fingerprint,
             evidence_schema_version=self.EVIDENCE_SCHEMA_VERSION,
             evaluator_version=self.EVALUATOR_VERSION,
             input_digest=hashlib.sha256(entry_bytes).hexdigest(),
         )
-        return project(result, report, provenance=provenance)
+        return project(result, provenance=provenance, expects_report=self._expects_report)

@@ -198,10 +198,12 @@ class NamedFaultEvaluator:
     def _zero_assertion_evidence(self) -> ModelEvidence:
         from wi014_s4.schemas.constraint_types import ConstraintReport  # test-only import
 
+        # `ModelEvidence.report` is the sealed `model_dump(mode="json")` tree (D2),
+        # not the live model — mirror what `project` would attach.
         report = ConstraintReport(
             catalog_fingerprint="zero-assertion-affordance", assessed_count=0,
             headline="not_assessed", results=[],
-        )
+        ).model_dump(mode="json")
         provenance = EvidenceProvenance(
             executable_fingerprint=self._prepared.fingerprint,
             evidence_schema_version=self._prepared.EVIDENCE_SCHEMA_VERSION,

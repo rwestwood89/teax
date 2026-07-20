@@ -6,10 +6,8 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from typing import Dict
 
 import pytest
-from pydantic import BaseModel
 
 from simkit.evaluation.evidence import EvidenceProvenance, ModelEvidence
 from simkit.study.evidence_io import decode_evidence, encode_evidence
@@ -32,16 +30,6 @@ def test_evidence_roundtrip_nonfinite(prepared):  # INV-H, D3
     assert hashlib.sha256(canonical_bytes(reloaded)).hexdigest() == digest
 
 
-class _TypedReport(BaseModel):
-    """A typed float(-mapping) field, mirroring a generated report's
-    `observed: dict[str, float]` (constraint_types.py) — the shape that
-    actually preserves non-finite values through `model_dump(mode="json")`;
-    an untyped `dict` field coerces inf/nan to `null` before `_tag_nonfinite`
-    ever sees them."""
-
-    observed: Dict[str, float]
-
-
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
 def test_decode_is_exact_inverse_of_encode(value):  # INV-3
     provenance = EvidenceProvenance(
@@ -52,7 +40,7 @@ def test_decode_is_exact_inverse_of_encode(value):  # INV-3
         responses={"headline": "indeterminate", "c1": "indeterminate"},
         outputs={"x": value},
         provenance=provenance,
-        report=_TypedReport(observed={"y": value}),
+        report={"observed": {"y": value}},  # sealed model_dump tree (D2): real non-finite floats
     )
 
     decoded = decode_evidence(encode_evidence(evidence))
@@ -67,12 +55,6 @@ def test_decode_is_exact_inverse_of_encode(value):  # INV-3
     assert "__nonfinite__" not in json.dumps(decoded)
 
 
-class _PoisonedReport(BaseModel):
-    model_config = {"extra": "allow"}
-
-    weird: dict
-
-
 def test_reserved_key_rejected():  # MF-3
     provenance = EvidenceProvenance(
         executable_fingerprint="f", evidence_schema_version="v1",
@@ -80,7 +62,7 @@ def test_reserved_key_rejected():  # MF-3
     )
     evidence = ModelEvidence(
         responses={"headline": "satisfied"}, outputs={}, provenance=provenance,
-        report=_PoisonedReport(weird={"__nonfinite__": "nan"}),
+        report={"weird": {"__nonfinite__": "nan"}},  # poison inside the sealed report tree (MF-3)
     )
     with pytest.raises(ValueError, match="__nonfinite__"):
         encode_evidence(evidence)

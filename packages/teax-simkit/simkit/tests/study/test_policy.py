@@ -8,24 +8,21 @@ import hashlib
 import json
 
 import pytest
-from pydantic import BaseModel
 
 from simkit.evaluation.evidence import EvidenceProvenance, ModelEvidence
 from simkit.study.evidence_io import encode_evidence
 from simkit.study.identity import canonical_bytes, mint_candidate_id
-from simkit.study.policy import AssessmentFailed, ObjectivePolicy, ObjectiveSpec
+from simkit.study.policy import (
+    AssessmentFailed,
+    DispositionPolicy,
+    ObjectivePolicy,
+    ObjectiveSpec,
+)
 
 from .conftest import NamedFaultEvaluator, STUDY_ID, run_study
 
 COST = "toy_plant__demo_plant__cost_calc__cost"
 AFFORDABLE = "toy_plant__demo_plant__affordable"
-
-
-class _StubReport(BaseModel):
-    """Evidence's `report` is opaque `Any`, read only via `model_dump` by
-    `encode_evidence` — a minimal stand-in for the generated report type."""
-
-    stub: bool = True
 
 
 def _evidence(headline: str, outputs: dict, responses: dict | None = None) -> ModelEvidence:
@@ -34,7 +31,7 @@ def _evidence(headline: str, outputs: dict, responses: dict | None = None) -> Mo
         evaluator_version="v1", input_digest="digest-A",
     )
     resp = {"headline": headline, **(responses or {})}
-    return ModelEvidence(responses=resp, outputs=outputs, provenance=provenance, report=_StubReport())
+    return ModelEvidence(responses=resp, outputs=outputs, provenance=provenance, report={"stub": True})
 
 
 def test_reject_on_violated():
@@ -136,3 +133,31 @@ def test_rejected_point_is_completed_case_not_assessment_failed(tmp_path, prepar
         assert json.loads(row["assessment_json"])["disposition"] == "reject"
     finally:
         store.close()
+
+
+def _empty_evidence() -> ModelEvidence:
+    """Constraint-free empty evidence (46a): no headline, no report."""
+    provenance = EvidenceProvenance(
+        executable_fingerprint="fp-free", evidence_schema_version="v1",
+        evaluator_version="v1", input_digest="digest-free",
+    )
+    return ModelEvidence(responses={}, outputs={"area": 12.0}, provenance=provenance, report=None)
+
+
+def test_disposition_policy_constraint_free_is_unconstrained():
+    result = DispositionPolicy().assess(_empty_evidence(), candidate_id="c-free")
+    assert result["disposition"] == "unconstrained"
+    assert result["headline"] is None
+
+
+def test_objective_policy_constraint_free_is_unconstrained_before_role_check():
+    """m1: the empty-evidence branch resolves BEFORE the response-role loop —
+    a constraint-free package under a policy that configures a response role
+    yields `unconstrained`, not `assessment_failed`."""
+    policy = ObjectivePolicy(
+        (ObjectiveSpec("area", "minimize"),),
+        {"gate": "some_constraint_that_is_absent"},
+    )
+    result = policy.assess(_empty_evidence(), candidate_id="c-free")
+    assert result["disposition"] == "unconstrained"
+    assert result["headline"] is None

@@ -1,0 +1,54 @@
+{
+  "catalog_schema_version": "2.0.0",
+  "constraint_catalog": {
+    "concrete_entries": [],
+    "excluded_records": [
+      {
+        "constraint_id": "excl_plant__Excl_Plant__flag_ok__flag_ok__a03fd3912ace4ae7",
+        "exclusion": {
+          "kind": "non_numerical",
+          "location": "root-0/excl_plant.sysml:11:9",
+          "reasons": [
+            "warn_non_numerical_equality"
+          ]
+        },
+        "membership_kind": null,
+        "source_form": "definition_typed",
+        "usage_qualified_name": "excl_plant::'Excl Plant'::flag_ok"
+      }
+    ],
+    "fingerprint": "2de1097f8d2d3358738c231f123443484ac2177a626f1d601a449640f8cd6948",
+    "source_records": [
+      {
+        "definition_qualified_name": "excl_library::'Flag Set'",
+        "formal_names": [
+          "flag"
+        ]
+      }
+    ],
+    "usage_records": []
+  },
+  "evaluation_semantics": "kleene-three-valued",
+  "outputs": [
+    {
+      "channel_name": "excl_plant__exclPlant__area_calc__area",
+      "field_name": "root",
+      "python_type": "float"
+    },
+    {
+      "channel_name": "constraint_report",
+      "field_name": "constraint_report",
+      "python_type": "ConstraintReport"
+    }
+  ],
+  "parameters": [
+    {
+      "default_value": 4.0,
+      "entry_type": "design_attribute",
+      "param_group": "excl_plant_params",
+      "python_type": "float",
+      "qualified_name": "excl_plant__Excl_Plant__width_design"
+    }
+  ],
+  "semantic_fingerprint": "7d44ae7656d2eaf7f044da21716ec7781053d77e1e8d434bf2b94eb682516774"
+}

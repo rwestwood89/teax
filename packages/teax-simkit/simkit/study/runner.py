@@ -131,13 +131,18 @@ class StudyRunner:
         self, evidence: ModelEvidence, candidate_id: str, proposal_id: str, attempt_id: str,
         attempt_number: int, canonical_inputs: Mapping,
     ) -> None:
-        evidence_json = encode_evidence(evidence)
+        # `evidence` is immutable (D2), so policy cannot corrupt it — the old
+        # "encode before assess to protect the persisted copy" ordering is no
+        # longer load-bearing and is deleted (design m2). `encode_evidence` now
+        # sits next to each commit. Crash-safety is unchanged: the atomic
+        # durability seam is `store.commit_case(..., crash=self.crash)`.
         try:
             assessment = self.definition.policy.assess(evidence, candidate_id=candidate_id)
         except AssessmentFailed as error:
             self.store.commit_case(
                 candidate_id=candidate_id, proposal_id=proposal_id, attempt_id=attempt_id,
-                state="assessment_failed", inputs=canonical_inputs, evidence_json=evidence_json,
+                state="assessment_failed", inputs=canonical_inputs,
+                evidence_json=encode_evidence(evidence),
                 assessment_json={"failure": str(error)}, crash=self.crash,
             )
             self.store.record_transition(
@@ -148,7 +153,7 @@ class StudyRunner:
 
         self.store.commit_case(
             candidate_id=candidate_id, proposal_id=proposal_id, attempt_id=attempt_id,
-            state="completed", inputs=canonical_inputs, evidence_json=evidence_json,
+            state="completed", inputs=canonical_inputs, evidence_json=encode_evidence(evidence),
             assessment_json=assessment, crash=self.crash,
         )
         self.store.record_transition(
