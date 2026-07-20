@@ -1,12 +1,13 @@
 """`StudyDefinition`: binds a study's strategy, injected validator/policy, and
 the compatibility fingerprints the store binds at creation (INV-E).
 
-Variable selection resolves to a *field* of the entry channel model, not a
-flat parameter-ID map (Shape A) — the raw dicts a strategy proposes are
-keyed by entry-model field name, and `CandidateBridge` builds the typed
-model from them. "Cannot redefine a predicate": this item carries no API for
-mutating constraint definitions, only for selecting existing contract
-parameters via the strategy/bridge (spec.md#studydefinition).
+Variable selection resolves to a *field* of some entry-channel model (Item 9:
+zero, one, or many channels), not a flat parameter-ID map — the raw dicts a
+strategy proposes are keyed by entry-model field name, and `CandidateBridge`
+routes each field to its owning channel and builds the complete typed mapping.
+"Cannot redefine a predicate": this item carries no API for mutating constraint
+definitions, only for selecting existing contract parameters via the
+strategy/bridge (spec.md#studydefinition).
 """
 from __future__ import annotations
 
@@ -31,8 +32,9 @@ a non-finite value is a well-formed candidate the model evaluates to
 @dataclass(frozen=True)
 class StudyDefinition:
     study_id: str
-    entry_channel: str
-    entry_model: type[BaseModel]
+    # Complete channel -> typed model map (Item 9), from PreparedEvaluator.entry_models.
+    # Replaces the single-entry scalar entry_channel/entry_model.
+    entry_models: Mapping[str, type[BaseModel]]
     strategy: CandidateStrategy
     validate_proposal: ProposalValidator
     policy: Policy

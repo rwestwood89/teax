@@ -54,7 +54,6 @@ def write_grid_config(
     definition-shaping field, for the fingerprint-sensitivity tests.
     """
     study_id = GRID_STUDY_ID
-    entry_model = "ToyPlantParams"
     domain = list(budgets) if budgets is not None else [1000.0, 3000.0, 6000.0]
     fixed = dict(FIXED)
     objectives = [{"output": COST_CH, "role": "minimize"}]
@@ -63,8 +62,6 @@ def write_grid_config(
 
     if edit == "study_id":
         study_id += "-edited"
-    elif edit == "entry_model":
-        entry_model = "SomeOtherModel"
     elif edit == "grid_order":
         domain = list(reversed(domain))
     elif edit == "grid_domain":
@@ -83,8 +80,6 @@ def write_grid_config(
             "name": "wi014_s4",
             "spec": "pipelines/pipeline.yaml",
         },
-        "entry_channel": ENTRY_CH,
-        "entry_model": entry_model,
         "grid": [[GRID_VAR, domain]],
         "fixed": fixed,
         "policy": {"name": "objective/v1", "objectives": objectives, "response_roles": response_roles},
@@ -238,8 +233,7 @@ class FlakyOnceStore(StudyStore):
 def build_definition(prepared_evaluator: PreparedEvaluator, policy) -> StudyDefinition:
     return StudyDefinition(
         study_id=STUDY_ID,
-        entry_channel=ENTRY_CH,
-        entry_model=prepared_evaluator.entry_models[ENTRY_CH],
+        entry_models=prepared_evaluator.entry_models,
         strategy=PreparedListStrategy(PROPOSALS),
         validate_proposal=validate_proposal,
         policy=policy,

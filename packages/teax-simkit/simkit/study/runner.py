@@ -39,7 +39,7 @@ class StudyRunner:
         self.store = store
         self.definition = definition
         self.evaluator = evaluator
-        self.bridge = CandidateBridge(definition.entry_channel, definition.entry_model)
+        self.bridge = CandidateBridge(definition.entry_models)
         self.crash = crash
 
     def run(self) -> None:
@@ -91,8 +91,12 @@ class StudyRunner:
             attempt_id=attempt_id, candidate_id=candidate_id, proposal_id=proposal_id,
             attempt_number=attempt_number, state="started",
         )
-        typed_inputs = self.bridge.build(canonical_inputs)
         try:
+            # bridge.build is inside the failure switch (Item 9 R1): a
+            # field-level bridge failure (unknown/malformed) raises
+            # EvaluationFailed(ENTRY_VALIDATION) and is recorded as a
+            # StudyBridgeDefect, not an uncaught crash.
+            typed_inputs = self.bridge.build(canonical_inputs)
             evidence = self.evaluator.evaluate(typed_inputs)
         except EvaluationFailed as error:
             self._commit_execution_failure(

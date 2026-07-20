@@ -47,8 +47,9 @@ class PolicyConfig(StrictBaseModel):
 class StudyConfig(StrictBaseModel):
     study_id: str
     package: PackageRef
-    entry_channel: str
-    entry_model: str
+    # Item 9: no entry_channel/entry_model scalars. The complete channel -> model
+    # map comes from the loaded package (PreparedEvaluator.entry_models); the grid
+    # is a flat field->domain namespace routed to channels by the bridge.
     # Ordered [param_id, domain] pairs, never a dict: declared order is part
     # of the study's identity (mirrors `GridStrategy`, `identity.py`).
     grid: tuple[tuple[str, tuple[float, ...]], ...]
@@ -60,8 +61,9 @@ class StudyConfig(StrictBaseModel):
     def semantic_fingerprint(self) -> str:
         payload: dict[str, Any] = {
             "study_id": self.study_id,
-            "entry_channel": self.entry_channel,
-            "entry_model": self.entry_model,
+            # entry_channel/entry_model removed (Item 9): the study's binding to the
+            # concrete channel/model set is carried by model_contract_fingerprint
+            # (codegen's real semantic identity, from which entry_models is derived).
             "grid": [[name, list(domain)] for name, domain in self.grid],
             "fixed": dict(self.fixed),
             "policy": self.policy.model_dump(mode="json"),
@@ -112,7 +114,6 @@ def build_definition(config: StudyConfig, evaluator: PreparedEvaluator) -> Study
     package, build the grid strategy and validator, build the configured
     policy, and assemble the `StudyDefinition` (design.md#architecture).
     """
-    entry_model = getattr(evaluator.package, config.entry_model)
     strategy: Any = GridStrategy([(name, list(domain)) for name, domain in config.grid])
     if config.budget is not None:
         strategy = BoundedStrategy(strategy, config.budget)
@@ -128,8 +129,7 @@ def build_definition(config: StudyConfig, evaluator: PreparedEvaluator) -> Study
 
     return StudyDefinition(
         study_id=config.study_id,
-        entry_channel=config.entry_channel,
-        entry_model=entry_model,
+        entry_models=evaluator.entry_models,
         strategy=strategy,
         validate_proposal=validator,
         policy=policy,

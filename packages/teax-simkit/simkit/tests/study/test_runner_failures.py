@@ -79,23 +79,31 @@ def test_retry_new_attempt(tmp_path, prepared):  # store-transient fault, one ca
         store.close()
 
 
-def test_bridge_defect_is_loud(tmp_path, prepared):  # a bad bridge raises StudyBridgeDefect, never a case
-    class WrongModel(BaseModel):
-        pass
-
-    proposals = [_budget_only(6000.0)]
-    definition = StudyDefinition(
+def _bridge_defect_definition(prepared, *, entry_models, validate, proposals):
+    return StudyDefinition(
         study_id="study-bridge-defect",
-        entry_channel=ENTRY_CH,
-        entry_model=WrongModel,
+        entry_models=entry_models,
         strategy=PreparedListStrategy(proposals),
-        validate_proposal=validate_proposal,
+        validate_proposal=validate,
         policy=DispositionPolicy(),
         executable_fingerprint=prepared.fingerprint,
         model_contract_fingerprint="model-contract-v1",
         input_schema_version="input-v1",
         evidence_schema_version=prepared.EVIDENCE_SCHEMA_VERSION,
         study_definition_fingerprint=digest_of(proposals),
+    )
+
+
+def test_bridge_defect_is_loud(tmp_path, prepared):  # a bad bridge raises StudyBridgeDefect, never a case
+    # An entry model that declares none of the candidate's fields: every
+    # selected field is unknown -> the bridge fails closed, routed loud.
+    class WrongModel(BaseModel):
+        pass
+
+    proposals = [_budget_only(6000.0)]
+    definition = _bridge_defect_definition(
+        prepared, entry_models={ENTRY_CH: WrongModel},
+        validate=validate_proposal, proposals=proposals,
     )
     db = tmp_path / "study.db"
     store = StudyStore.create_or_open(db, definition.compatibility())
@@ -104,5 +112,28 @@ def test_bridge_defect_is_loud(tmp_path, prepared):  # a bad bridge raises Study
         with pytest.raises(StudyBridgeDefect):
             StudyRunner(store, definition, prepared).run()
         assert store.ordered_cases() == []
+    finally:
+        store.close()
+
+
+def test_malformed_mapping_is_recorded_classified_failure(tmp_path, prepared):
+    """Item 9 R1: a malformed field value reaching the bridge is a *classified*
+    StudyBridgeDefect, not an uncaught crash. RED before the bridge.build call
+    was relocated inside the runner's failure switch."""
+    def passthrough(raw):
+        return dict(raw)  # let a malformed value reach the bridge
+
+    proposals = [{"toy_plant__Toy_Plant__plant_budget": "not-a-number"}]
+    definition = _bridge_defect_definition(
+        prepared, entry_models=prepared.entry_models,
+        validate=passthrough, proposals=proposals,
+    )
+    db = tmp_path / "study.db"
+    store = StudyStore.create_or_open(db, definition.compatibility())
+    store.acquire_lease()
+    try:
+        with pytest.raises(StudyBridgeDefect):
+            StudyRunner(store, definition, prepared).run()
+        assert store.ordered_cases() == []  # never a case
     finally:
         store.close()
