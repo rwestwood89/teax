@@ -3,7 +3,7 @@
 **Verdict:** Certify
 **Audited:** 2026-07-18
 **Branch:** constraint-exec-epic
-**Commit:** 927a9e1
+**Commit:** d545701
 
 ---
 
