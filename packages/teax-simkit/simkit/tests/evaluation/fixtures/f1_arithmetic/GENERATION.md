@@ -24,7 +24,7 @@ then pass through the production schema, module, pipeline, registry, entry, cont
 - Graph constraint order: `f1_division_check, f2_power_check, f3_nested_check`
 - YAML module order: `entry_fusion, f1_division_check, f2_power_check, f3_nested_check, constraint_report_aggregator, exit_point`
 - TEAx topological order: `entry_fusion, f1_division_check, f2_power_check, f3_nested_check, constraint_report_aggregator, exit_point`
-- Executable fingerprint: `7b623bf0920c61c711ef204b882cdde0a0908caaee8b1556a799d4f4c8f403e9`
+- Executable fingerprint: `32637566af1231ec32392c2095ef7b09a678375fad6c46ba21ee5401a11de54e`
 
 ## Resolved distributions
 

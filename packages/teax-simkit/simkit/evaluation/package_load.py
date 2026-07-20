@@ -1,17 +1,28 @@
 """Sealed-package loading (touches the generated package — D2).
 
-Seal verification is wired to the canonical protocol from sysml-codegen's Item 9
-(``contracts.verify.verify_package``): every generated package carries its own copy of
-that stdlib-only module at ``contracts/verify.py`` (INV-8), and this loader imports that
-copy from the package tree it is loading rather than depending on sysml-codegen being
-installed (B3) — a teax environment verifies a package it loaded with nothing but the
-package itself. The symlink-under-declared-name import mechanism below is unrelated and
-unchanged.
+Every generated package carries the canonical stdlib-only verifier at ``contracts/verify.py``
+(sysml-codegen Item 9, INV-8), so a teax environment can verify a package with nothing but the
+package itself — it does not import sysml-codegen (B3). But the package cannot be trusted to
+supply its own verifier: a tampered package could ship an unconditional-success stub. So this
+loader carries two **runtime-owned trust anchors** (Item 7):
+
+- ``TRUSTED_VERIFIER_SHA256`` — the sha256 of the canonical verifier. The loader reads the
+  package-local ``verify.py`` once, authenticates its bytes against this constant, and executes
+  *exactly those bytes*. A stub has different bytes and is rejected before any package code
+  runs. This is a hash, not a second verifier: verification semantics stay in the one canonical
+  module; only its fingerprint is vendored, so there is nothing to drift.
+- ``ACCEPTED_RUNTIME_CONTRACT_VERSIONS`` — the runtime-contract versions this loader speaks.
+  A seal recorded against any other version is rejected, fail-closed in both skew directions.
+
+Both anchors are vendored from ``sysml_codegen.contracts.versions`` (a package cannot influence
+them). B3 forbids importing that module at runtime, so cross-repo agreement rests on those
+constants plus manual re-vendoring, backed by sysml-codegen's own drift test. The
+symlink-under-declared-name import mechanism below is unrelated and unchanged.
 """
 from __future__ import annotations
 
+import hashlib
 import importlib
-import importlib.util
 import json
 import sys
 from dataclasses import dataclass
@@ -19,10 +30,17 @@ from pathlib import Path
 from types import ModuleType
 from typing import Protocol
 
-RUNTIME_CONTRACT_VERSION = "1.0.0"
-"""The runtime API surface this loader targets — teax's own copy of the marker a
-package's seal was recorded against (``sysml_codegen.contracts.versions.RUNTIME_CONTRACT_VERSION``
-at seal time). Bump alongside a breaking change to that surface."""
+ACCEPTED_RUNTIME_CONTRACT_VERSIONS = frozenset({"1.0.0"})
+"""The runtime-contract versions this loader accepts. Vendored from
+``sysml_codegen.contracts.versions.RUNTIME_CONTRACT_VERSION`` (one image per version, Item 7
+D3). A seal recorded against a version outside this set is rejected — fail-closed whether the
+package is newer or older than the runtime."""
+
+TRUSTED_VERIFIER_SHA256 = "ad0a855af17d18af5f3e8c36b1a6c500f492d88ec777b40f307c646306c67284"
+"""sha256 of the canonical ``contracts/verify.py``, vendored from
+``sysml_codegen.contracts.versions.TRUSTED_VERIFIER_SHA256``. The loader authenticates a
+package-local verifier's bytes against this before executing them. Re-vendor in lockstep with a
+verify.py change (and its version bump); sysml-codegen's drift test guards the source side."""
 
 
 class SealVerificationError(Exception):
@@ -35,19 +53,32 @@ class PackageLoader(Protocol):
         ...
 
 
-def _load_verify_package(package_dir: Path):
-    """Import the package's own ``contracts/verify.py`` (INV-8) by file path.
+def _load_authenticated_verifier(package_dir: Path) -> ModuleType:
+    """Authenticate the package-local ``contracts/verify.py`` bytes, then execute *those* bytes.
 
-    Not a package-qualified import: the module lives inside the tree being verified,
-    before that tree is exposed on ``sys.path`` under its declared name.
+    Read the file once, hash it against ``TRUSTED_VERIFIER_SHA256``, and on match execute the
+    exact bytes just hashed via ``exec(compile(...))``. This closes the time-of-check/
+    time-of-use seam that ``exec_module`` would open by re-reading an attacker-controlled path:
+    the authenticated bytes and the executed bytes are one and the same read. No package code
+    runs before the hash gate (INV-A).
     """
     verify_path = package_dir / "contracts" / "verify.py"
-    spec = importlib.util.spec_from_file_location("_package_contract_verify", verify_path)
-    if spec is None or spec.loader is None:
-        raise SealVerificationError(f"seal violation: cannot load verifier at {verify_path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+    try:
+        source = verify_path.read_bytes()
+    except OSError as error:
+        raise SealVerificationError(
+            f"seal violation: cannot read verifier at {verify_path}: {error}"
+        ) from error
+    actual = hashlib.sha256(source).hexdigest()
+    if actual != TRUSTED_VERIFIER_SHA256:
+        raise SealVerificationError(
+            "seal violation: package-local verifier is not the trusted canonical verifier "
+            f"(sha256 {actual} != {TRUSTED_VERIFIER_SHA256}); refusing to execute it"
+        )
+    module = ModuleType("_package_contract_verify")
+    module.__file__ = str(verify_path)
+    sys.modules[module.__name__] = module
+    exec(compile(source, str(verify_path), "exec"), module.__dict__)
     return module
 
 
@@ -72,18 +103,37 @@ class ProvisionalPackageLoader:
         return module, fingerprint
 
     def _verify_seal(self) -> str:
-        verify = _load_verify_package(self.package_dir)
+        seal_path = self.package_dir / "contracts" / "package_contract.json"
+        try:
+            seal = json.loads(seal_path.read_text())
+        except (OSError, json.JSONDecodeError) as error:
+            raise SealVerificationError(f"seal violation: seal is unreadable: {error}") from error
+
+        # (1) Fail-closed version policy (Item 7). Reject a seal recorded against a runtime
+        # contract this loader does not speak, in either skew direction. Reads seal data only —
+        # no package code — so it is safe ahead of verifier authentication.
+        recorded_version = seal.get("runtime_contract_version")
+        if recorded_version not in ACCEPTED_RUNTIME_CONTRACT_VERSIONS:
+            raise SealVerificationError(
+                f"seal violation: recorded runtime_contract_version {recorded_version!r} is not "
+                f"in the accepted runtime-contract versions "
+                f"{sorted(ACCEPTED_RUNTIME_CONTRACT_VERSIONS)}"
+            )
+
+        # (2) Authenticate the verifier bytes, then run them for the integrity check. The
+        # loader owns version acceptance (above), so the verifier's own env-compat check is a
+        # satisfied no-op here — pass the seal's own version.
+        verify = _load_authenticated_verifier(self.package_dir)
         result = verify.verify_package(
             self.package_dir,
             self.package_name,
-            runtime_version=RUNTIME_CONTRACT_VERSION,
+            runtime_version=recorded_version,
             strict=self.strict,
         )
         if not result.ok:
             details = "; ".join(f"{d.kind}({d.path}): {d.message}" for d in result.diagnostics)
             raise SealVerificationError(f"seal violation: {details}")
-        seal_path = self.package_dir / "contracts" / "package_contract.json"
-        return json.loads(seal_path.read_text())["executable_fingerprint"]
+        return seal["executable_fingerprint"]
 
     def _load_module(self) -> ModuleType:
         self.link_root.mkdir(parents=True, exist_ok=True)
