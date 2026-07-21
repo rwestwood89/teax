@@ -1,0 +1,38 @@
+# Generated Pipeline Configuration for excl_only
+#
+# Auto-generated from SysML calc def dependency analysis
+# DO NOT EDIT - Regenerate using code generator
+
+metadata:
+  run_description: "Generated pipeline for excl_only"
+  output_folder: "excl_only_results"
+
+modules:
+  # Entry point - load inputs from JSON
+  entry_fusion:
+    module_type: EntryPoint
+    inputs:
+      excl_plant_params: ExclPlantParams ../inputs/excl_plant_params.json
+
+
+  # excl_library.Area_CalcModule
+  excl_plant__exclplant__area_calc:
+    module_type: excl_library.Area_CalcModule
+    inputs:
+      width: float excl_plant_params.excl_plant__Excl_Plant__width_design
+    outputs:
+      root: RootModel[float] excl_plant__exclPlant__area_calc__area
+
+  # constraints.ConstraintReportAggregatorModule
+  constraint_report_aggregator:
+    module_type: constraints.ConstraintReportAggregatorModule
+    outputs:
+      constraint_report: ConstraintReport constraint_report
+
+
+  # Exit point - capture all results
+  exit_point:
+    module_type: ExitPoint
+    outputs:
+      excl_plant__exclPlant__area_calc__area: RootModel[float] excl_plant__exclPlant__area_calc__area.json
+      constraint_report: ConstraintReport constraint_report.json

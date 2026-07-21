@@ -1,0 +1,31 @@
+# Generated Pipeline Configuration for constraint_free
+#
+# Auto-generated from SysML calc def dependency analysis
+# DO NOT EDIT - Regenerate using code generator
+
+metadata:
+  run_description: "Generated pipeline for constraint_free"
+  output_folder: "constraint_free_results"
+
+modules:
+  # Entry point - load inputs from JSON
+  entry_fusion:
+    module_type: EntryPoint
+    inputs:
+      constraint_free_plant_params: ConstraintFreePlantParams ../inputs/constraint_free_plant_params.json
+
+
+  # constraint_free_library.Area_CalcModule
+  constraint_free_plant__freeplant__area_calc:
+    module_type: constraint_free_library.Area_CalcModule
+    inputs:
+      width: float constraint_free_plant_params.constraint_free_plant__Free_Plant__width_design
+    outputs:
+      root: RootModel[float] constraint_free_plant__freePlant__area_calc__area
+
+
+  # Exit point - capture all results
+  exit_point:
+    module_type: ExitPoint
+    outputs:
+      constraint_free_plant__freePlant__area_calc__area: RootModel[float] constraint_free_plant__freePlant__area_calc__area.json

@@ -134,6 +134,38 @@ class TestToyScalarOutputModule:
 class TestToyPipelineExecution:
     """E2E tests for ToyModule pipeline execution."""
 
+    def test_scalar_type_continuity_between_ordinary_modules(
+        self,
+        toy_registry,
+        toy_output_router,
+        tmp_path,
+        monkeypatch,
+    ):
+        """A RootModel producer supplies its extracted root as a real float."""
+        received_types: list[type] = []
+        original_run = ToyAdderModule.run
+
+        def record_input_type(
+            module: ToyAdderModule,
+            root: float,
+        ):
+            received_types.append(type(root))
+            return original_run(module, root)
+
+        monkeypatch.setattr(ToyAdderModule, "run", record_input_type)
+
+        result = execute_pipeline(
+            spec_path=PIPELINE_CONFIGS_DIR / "toy_linear.yaml",
+            output_dir=tmp_path,
+            registry=toy_registry,
+            custom_schema_types=[ToyInput],
+            output_router=toy_output_router,
+        )
+
+        assert received_types == [float]
+        assert isinstance(result.outputs["doubled"], RootModel)
+        assert result.outputs["added"].root == 42.0
+
     def test_toy_linear_pipeline_in_memory(self, toy_registry, toy_output_router, tmp_path):
         """Execute toy_linear.yaml pipeline and verify outputs."""
         spec_path = PIPELINE_CONFIGS_DIR / "toy_linear.yaml"

@@ -1,0 +1,30 @@
+{
+  "codegen_produced": [
+    "IMPLEMENTATION_BACKLOG.md",
+    "__init__.py",
+    "contracts/generation_manifest.json",
+    "contracts/model_contract.json",
+    "contracts/verify.py",
+    "inputs/__init__.py",
+    "modules/__init__.py",
+    "modules/constraints/__init__.py",
+    "modules/constraints/constraintreportaggregatormodule.py",
+    "modules/constraints/predicates.py",
+    "modules/zero_library/__init__.py",
+    "modules/zero_library/limit_calc.py",
+    "modules/zero_library/value_calc.py",
+    "modules/zero_plant/__init__.py",
+    "modules/zero_plant/zeroplantwithinconstraintmodule.py",
+    "pipelines/__init__.py",
+    "pipelines/pipeline.yaml",
+    "primitives.py",
+    "schemas/__init__.py",
+    "schemas/constraint_types.py",
+    "tests/__init__.py",
+    "tests/test_implementations_runnable.py"
+  ],
+  "handwritten_globs": [
+    "handwritten/**"
+  ],
+  "runtime_globs": []
+}

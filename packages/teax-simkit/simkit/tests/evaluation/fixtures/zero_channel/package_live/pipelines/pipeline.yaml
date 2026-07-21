@@ -1,0 +1,53 @@
+# Generated Pipeline Configuration for zero_channel
+#
+# Auto-generated from SysML calc def dependency analysis
+# DO NOT EDIT - Regenerate using code generator
+
+metadata:
+  run_description: "Generated pipeline for zero_channel"
+  output_folder: "zero_channel_results"
+
+modules:
+  # Entry point - zero entry channels
+  entry_fusion:
+    module_type: EntryPoint
+
+
+  # zero_library.Value_CalcModule
+  zero_plant__zeroplant__value_calc:
+    module_type: zero_library.Value_CalcModule
+    outputs:
+      root: RootModel[float] zero_plant__zeroPlant__value_calc__value
+
+  # zero_library.Limit_CalcModule
+  zero_plant__zeroplant__limit_calc:
+    module_type: zero_library.Limit_CalcModule
+    outputs:
+      root: RootModel[float] zero_plant__zeroPlant__limit_calc__limit
+
+  # zero_plant.ZeroplantWithinConstraintModule
+  zero_plant__zeroplant__within__6c6ab9e3b1afb20e:
+    module_type: zero_plant.ZeroplantWithinConstraintModule
+    inputs:
+      ceiling: float zero_plant__zeroPlant__limit_calc__limit.root
+      measured: float zero_plant__zeroPlant__value_calc__value.root
+    outputs:
+      evaluation: ConstraintEvaluation zero_plant__zeroPlant__within__6c6ab9e3b1afb20e__evaluation
+
+  # constraints.ConstraintReportAggregatorModule
+  constraint_report_aggregator:
+    module_type: constraints.ConstraintReportAggregatorModule
+    inputs:
+      zero_plant_zeroPlant_within_6c6ab9e3b1afb20e: ConstraintEvaluation zero_plant__zeroPlant__within__6c6ab9e3b1afb20e__evaluation
+    outputs:
+      constraint_report: ConstraintReport constraint_report
+
+
+  # Exit point - capture all results
+  exit_point:
+    module_type: ExitPoint
+    outputs:
+      zero_plant__zeroPlant__value_calc__value: RootModel[float] zero_plant__zeroPlant__value_calc__value.json
+      zero_plant__zeroPlant__limit_calc__limit: RootModel[float] zero_plant__zeroPlant__limit_calc__limit.json
+      zero_plant__zeroPlant__within__6c6ab9e3b1afb20e__evaluation: ConstraintEvaluation zero_plant__zeroPlant__within__6c6ab9e3b1afb20e__evaluation.json
+      constraint_report: ConstraintReport constraint_report.json

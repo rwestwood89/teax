@@ -1,0 +1,8 @@
+2026-07-19T03:00:24.953717Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /home/reid/1cfe/teax/.project/active/gap-close-f1-normalization/design.md:
+shared evaluator normalizer
+        │ reads context.failed_module_key
+        │ builds one EvaluationFailure
+        │ raises EvaluationFailed from original
+        ▼
+        ▼
+caller sees EvaluationFailed

@@ -1,0 +1,28 @@
+metadata:
+  run_description: S5 typed-entry and scalar-continuity probe
+
+modules:
+  entry:
+    module_type: EntryPoint
+    inputs:
+      candidate: ProbeInput candidate.json
+
+  doubler:
+    module_type: ProbeDoubler
+    inputs:
+      value: float candidate.value
+    outputs:
+      root: RootModel[float] doubled
+
+  adder:
+    module_type: ProbeAdder
+    inputs:
+      root: float doubled.root
+    outputs:
+      root: RootModel[float] result
+
+  exit:
+    module_type: ExitPoint
+    outputs:
+      doubled: RootModel[float] doubled.json
+      result: RootModel[float] result.json

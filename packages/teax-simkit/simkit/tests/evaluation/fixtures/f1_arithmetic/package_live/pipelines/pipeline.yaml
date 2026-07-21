@@ -1,0 +1,63 @@
+# Generated Pipeline Configuration for f1_arithmetic_constraints
+#
+# Auto-generated from SysML calc def dependency analysis
+# DO NOT EDIT - Regenerate using code generator
+
+metadata:
+  run_description: "Generated pipeline for f1_arithmetic_constraints"
+  output_folder: "f1_arithmetic_constraints_results"
+
+modules:
+  # Entry point - load inputs from JSON
+  entry_fusion:
+    module_type: EntryPoint
+    inputs:
+      toy_plant_params: ToyPlantParams ../inputs/toy_plant_params.json
+
+
+  # toy_plant.FixtureF1DivisionCheckConstraintModule
+  f1_division_check:
+    module_type: toy_plant.FixtureF1DivisionCheckConstraintModule
+    inputs:
+      a: float toy_plant_params.toy_plant__Toy_Plant__division_a
+      b: float toy_plant_params.toy_plant__Toy_Plant__division_b
+    outputs:
+      evaluation: ConstraintEvaluation f1_division_check__evaluation
+
+  # toy_plant.FixtureF2PowerCheckConstraintModule
+  f2_power_check:
+    module_type: toy_plant.FixtureF2PowerCheckConstraintModule
+    inputs:
+      a: float toy_plant_params.toy_plant__Toy_Plant__power_a
+      b: float toy_plant_params.toy_plant__Toy_Plant__power_b
+    outputs:
+      evaluation: ConstraintEvaluation f2_power_check__evaluation
+
+  # toy_plant.FixtureF3NestedCheckConstraintModule
+  f3_nested_check:
+    module_type: toy_plant.FixtureF3NestedCheckConstraintModule
+    inputs:
+      a: float toy_plant_params.toy_plant__Toy_Plant__nested_a
+      b: float toy_plant_params.toy_plant__Toy_Plant__nested_b
+    outputs:
+      evaluation: ConstraintEvaluation f3_nested_check__evaluation
+
+  # constraints.ConstraintReportAggregatorModule
+  constraint_report_aggregator:
+    module_type: constraints.ConstraintReportAggregatorModule
+    inputs:
+      f1_division_check: ConstraintEvaluation f1_division_check__evaluation
+      f2_power_check: ConstraintEvaluation f2_power_check__evaluation
+      f3_nested_check: ConstraintEvaluation f3_nested_check__evaluation
+    outputs:
+      constraint_report: ConstraintReport constraint_report
+
+
+  # Exit point - capture all results
+  exit_point:
+    module_type: ExitPoint
+    outputs:
+      f1_division_check__evaluation: ConstraintEvaluation f1_division_check__evaluation.json
+      f2_power_check__evaluation: ConstraintEvaluation f2_power_check__evaluation.json
+      f3_nested_check__evaluation: ConstraintEvaluation f3_nested_check__evaluation.json
+      constraint_report: ConstraintReport constraint_report.json

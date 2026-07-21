@@ -19,9 +19,9 @@ from ..config.pipeline_schema import (
     PipelineSpecification,
 )
 from ..io import readers
-from ..io.output_router import OutputRouter, OutputRouterError, OutputRouterResult, create_default_router
+from ..io.output_router import OutputRouter, OutputRouterError, create_default_router
 from .pipeline_graph import PipelineGraph
-from .pipeline_registry import ModuleDescriptor, PipelineModuleRegistry
+from .pipeline_registry import PipelineModuleRegistry
 from .pipeline_validator import PipelineValidationError, PipelineValidator
 
 
@@ -41,6 +41,11 @@ class PipelineExecutionContext:
         self.channels: Dict[str, Any] = {}
         self.module_versions: Dict[str, str] = {}
         self.entry_artifacts: Dict[str, Path] = {}
+        self.failed_module_key: str | None = None
+        #: Positive write-phase signal (evaluator OUTPUT_WRITE, design C1). True
+        #: only while genuinely inside the output-write phase, so a write failure
+        #: is stamped honestly and entry/module failures never over-claim it.
+        self.in_output_write: bool = False
 
     def set_channel(self, name: str, value: Any) -> None:
         self.channels[name] = value
@@ -114,6 +119,7 @@ class SerialPipelineExecutor:
         pipeline_metadata: object | None = None,
         persist_outputs: bool = True,
     ) -> RunResult:
+        context.failed_module_key = None
         spec = graph.spec
         exit_spec = next((m for m in spec.modules.values() if m.is_exit), None)
         if exit_spec is None:  # pragma: no cover - validator guarantees an exit module
@@ -137,7 +143,11 @@ class SerialPipelineExecutor:
                         # Optional exit outputs may not be produced; skip here, router will record absence.
                         continue
                 break
-            self._execute_module(module_key, module_spec, context)
+            try:
+                self._execute_module(module_key, module_spec, context)
+            except Exception:
+                context.failed_module_key = module_key
+                raise
         else:  # pragma: no cover - spec validator guarantees an exit node
             raise RuntimeError("Pipeline specification is missing an exit module")
 
@@ -146,6 +156,12 @@ class SerialPipelineExecutor:
 
         router_manifest: schema.RunManifest | None = None
         if persist_outputs:
+            # Positive write-phase signal (design C1): set True *before* the write
+            # and clear it only on success, so a failure raised here propagates
+            # with the flag still True — the evaluator stamps OUTPUT_WRITE off this
+            # flag, never off exception type or a null module key. (A `finally`
+            # would clear it before the exception reached the evaluator.)
+            context.in_output_write = True
             router_result = self._output_router.write_outputs(
                 exit_spec.outputs,
                 context.channels,
@@ -153,6 +169,7 @@ class SerialPipelineExecutor:
                 run_name=run_name,
                 pipeline_metadata=pipeline_metadata,
             )
+            context.in_output_write = False
             router_manifest = router_result.manifest
 
         return RunResult(
@@ -455,7 +472,6 @@ def _build_schema_type_registry(
         >>> registry["FinancialParams"]  # Built-in
         <class 'simkit.config.schema.FinancialParams'>
     """
-    from pydantic import BaseModel
 
     # Build registry starting with built-in generic schemas
     registry: dict[str, type] = {

@@ -1,0 +1,100 @@
+{
+  "catalog_schema_version": "2.0.0",
+  "constraint_catalog": {
+    "concrete_entries": [
+      {
+        "constraint_id": "toy_plant__demo_plant__affordable__c122240f4b148939",
+        "definition_qualified_name": "toy_library::'Cost Within Budget'",
+        "evaluation_channel": "toy_plant__demo_plant__affordable__c122240f4b148939__evaluation",
+        "expected_value": true,
+        "is_negated": false,
+        "membership_kind": null,
+        "owner_instance_path": "toy_plant__demo_plant",
+        "owner_qualified_name": "toy_plant::'Toy Plant'",
+        "predicate_ir": "{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"cost\",\"target\":{\"kind\":\"AttributeUsage\",\"name\":\"cost\",\"qualified_name\":\"toy_library::'Cost Within Budget'::cost\"},\"target_types\":[\"ScalarValues::Real\",\"Base::DataValue\",\"Base::Anything\"]},\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"budget\",\"target\":{\"kind\":\"AttributeUsage\",\"name\":\"budget\",\"qualified_name\":\"toy_library::'Cost Within Budget'::budget\"},\"target_types\":[\"ScalarValues::Real\",\"Base::DataValue\",\"Base::Anything\"]},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"<=\",\"schema_version\":\"expression-ir/v1\"}",
+        "predicate_source_key": "definition:toy_library::'Cost Within Budget'",
+        "source_form": "definition_typed",
+        "source_local_identity": "affordable",
+        "usage_qualified_name": "toy_plant::'Toy Plant'::affordable"
+      }
+    ],
+    "excluded_records": [],
+    "fingerprint": "4a0b47a586f39c54ff9ffc4bb22d21aeae26ce9bbde95a3f751d9af8e3525a27",
+    "source_records": [
+      {
+        "definition_qualified_name": "toy_library::'Cost Within Budget'",
+        "formal_names": [
+          "budget",
+          "cost"
+        ]
+      }
+    ],
+    "usage_records": [
+      {
+        "definition_qualified_name": "toy_library::'Cost Within Budget'",
+        "expected_value": true,
+        "is_negated": false,
+        "membership_kind": null,
+        "owner_kind": "part_def",
+        "owner_qualified_name": "toy_plant::'Toy Plant'",
+        "source_form": "definition_typed",
+        "source_local_identity": "affordable",
+        "usage_qualified_name": "toy_plant::'Toy Plant'::affordable"
+      }
+    ]
+  },
+  "evaluation_semantics": "kleene-three-valued",
+  "outputs": [
+    {
+      "channel_name": "toy_plant__demo_plant__area_calc__area",
+      "field_name": "root",
+      "python_type": "float"
+    },
+    {
+      "channel_name": "toy_plant__demo_plant__cost_calc__cost",
+      "field_name": "root",
+      "python_type": "float"
+    },
+    {
+      "channel_name": "toy_plant__demo_plant__affordable__c122240f4b148939__evaluation",
+      "field_name": "evaluation",
+      "python_type": "ConstraintEvaluation"
+    },
+    {
+      "channel_name": "constraint_report",
+      "field_name": "constraint_report",
+      "python_type": "ConstraintReport"
+    }
+  ],
+  "parameters": [
+    {
+      "default_value": 5000.0,
+      "entry_type": "design_attribute",
+      "param_group": "toy_plant_params",
+      "python_type": "float",
+      "qualified_name": "toy_plant__Toy_Plant__plant_budget"
+    },
+    {
+      "default_value": 4.0,
+      "entry_type": "design_attribute",
+      "param_group": "toy_plant_params",
+      "python_type": "float",
+      "qualified_name": "toy_plant__Toy_Plant__plant_length"
+    },
+    {
+      "default_value": 250.0,
+      "entry_type": "design_attribute",
+      "param_group": "toy_plant_params",
+      "python_type": "float",
+      "qualified_name": "toy_plant__Toy_Plant__plant_unit_cost"
+    },
+    {
+      "default_value": 3.0,
+      "entry_type": "design_attribute",
+      "param_group": "toy_plant_params",
+      "python_type": "float",
+      "qualified_name": "toy_plant__Toy_Plant__plant_width"
+    }
+  ],
+  "semantic_fingerprint": "3fb0e8199433dcaa92154887128721280ab2aaf4d28e23adb51c7c4df16385f6"
+}

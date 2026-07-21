@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How TEAx works: from typed modules to durable studies</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f5ef;
+      --surface: #fffef9;
+      --ink: #202522;
+      --muted: #5b655f;
+      --line: #ccd2cc;
+      --line-strong: #8c9a91;
+      --framework: #1f5d50;
+      --framework-soft: #dcebe6;
+      --domain: #8b4e2c;
+      --domain-soft: #f3e3d8;
+      --evaluation: #40578d;
+      --evaluation-soft: #e2e7f3;
+      --study: #76517e;
+      --study-soft: #eee3f0;
+      --warning: #8a651e;
+      --warning-soft: #f5ebd0;
+      --code: #17211d;
+      --code-ink: #eef6f1;
+      --max: 1120px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    a { color: #245e82; text-underline-offset: 0.16em; }
+    a:hover { color: #173e57; }
+
+    .page {
+      width: min(calc(100% - 2rem), var(--max));
+      margin: 0 auto;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background:
+        linear-gradient(125deg, rgba(31, 93, 80, .10), transparent 55%),
+        var(--surface);
+    }
+
+    .hero { padding: 4.8rem 0 3.5rem; }
+
+    .eyebrow {
+      margin: 0 0 .7rem;
+      color: var(--framework);
+      font-size: .78rem;
+      font-weight: 750;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 { line-height: 1.18; letter-spacing: -.025em; }
+    h1 { max-width: 850px; margin: 0; font-size: clamp(2.4rem, 6vw, 5rem); }
+    h2 { margin: 0 0 1.1rem; font-size: clamp(1.8rem, 3.4vw, 2.75rem); }
+    h3 { margin: 2rem 0 .65rem; font-size: 1.28rem; }
+
+    .lede {
+      max-width: 790px;
+      margin: 1.4rem 0 0;
+      color: var(--muted);
+      font-size: 1.18rem;
+    }
+
+    .audience {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 2.2rem;
+      max-width: 900px;
+    }
+
+    .audience > div {
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--line);
+      border-radius: .45rem;
+      background: rgba(255,255,255,.62);
+    }
+
+    .audience strong { display: block; margin-bottom: .2rem; }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      background: rgba(247, 245, 239, .94);
+      backdrop-filter: blur(10px);
+    }
+
+    nav .page { display: flex; gap: 1.1rem; padding: .75rem 0; white-space: nowrap; }
+    nav a { color: var(--muted); font-size: .88rem; font-weight: 650; text-decoration: none; }
+    nav a:hover { color: var(--ink); }
+
+    main { padding-bottom: 5rem; }
+
+    section {
+      padding: 4.6rem 0;
+      border-bottom: 1px solid var(--line);
+      scroll-margin-top: 3.8rem;
+    }
+
+    section > p, section > .prose, section > h2, section > h3 { max-width: 790px; }
+    p { margin: .75rem 0 1rem; }
+
+    .question {
+      margin: 0 0 .65rem;
+      color: var(--muted);
+      font-size: .92rem;
+      font-weight: 700;
+      letter-spacing: .035em;
+      text-transform: uppercase;
+    }
+
+    .callout {
+      max-width: 790px;
+      margin: 1.5rem 0;
+      padding: 1rem 1.15rem;
+      border-left: 4px solid var(--framework);
+      background: var(--framework-soft);
+    }
+
+    .callout.warning { border-color: var(--warning); background: var(--warning-soft); }
+
+    .diagram {
+      margin: 2rem 0;
+      padding: 1.2rem;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: .55rem;
+      background: var(--surface);
+    }
+
+    .diagram svg { display: block; width: 100%; min-width: 760px; height: auto; }
+    .diagram figcaption { max-width: 820px; margin-top: 1rem; color: var(--muted); font-size: .92rem; }
+    .diagram .box { stroke-width: 1.6; rx: 8; }
+    .diagram .framework { fill: var(--framework-soft); stroke: var(--framework); }
+    .diagram .domain { fill: var(--domain-soft); stroke: var(--domain); }
+    .diagram .evaluation { fill: var(--evaluation-soft); stroke: var(--evaluation); }
+    .diagram .study { fill: var(--study-soft); stroke: var(--study); }
+    .diagram .neutral { fill: #f2f1ec; stroke: #6d756f; }
+    .diagram .wire { fill: none; stroke: #6a756e; stroke-width: 1.7; }
+    .diagram .wire-domain { fill: none; stroke: var(--domain); stroke-width: 1.8; }
+    .diagram .wire-eval { fill: none; stroke: var(--evaluation); stroke-width: 1.8; }
+    .battery-dag .wire { marker-end: url(#arrow-battery); }
+    .battery-dag .wire-domain { marker-end: url(#arrow-domain-battery); }
+    .component-diagram .wire { marker-end: url(#arrow-component); }
+    .component-diagram .wire-eval { marker-end: url(#arrow-eval-component); }
+    .evaluation-boundary .wire { marker-end: url(#arrow-boundary); }
+    .evaluation-boundary .wire-eval { marker-end: url(#arrow-eval-boundary); }
+    .diagram text { fill: var(--ink); font-family: ui-sans-serif, system-ui, sans-serif; }
+    .diagram .title { font-size: 15px; font-weight: 750; }
+    .diagram .small { font-size: 12px; fill: #4f5a54; }
+    .diagram .edge-label { font-size: 11px; font-weight: 650; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
+
+    .flow-note {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+      margin: 1.4rem 0;
+    }
+
+    .flow-note > div, .card {
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--line);
+      border-radius: .45rem;
+      background: var(--surface);
+    }
+
+    .flow-note strong, .card strong { display: block; margin-bottom: .25rem; }
+
+    table {
+      width: 100%;
+      margin: 1.5rem 0;
+      border-collapse: collapse;
+      background: var(--surface);
+      font-size: .94rem;
+    }
+
+    th, td { padding: .8rem .85rem; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #ebece7; font-size: .82rem; letter-spacing: .025em; text-transform: uppercase; }
+
+    code {
+      padding: .12em .32em;
+      border-radius: .25rem;
+      background: #e8e9e4;
+      font: .9em/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    pre {
+      margin: 1.2rem 0 1.8rem;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      border-radius: .5rem;
+      background: var(--code);
+      color: var(--code-ink);
+      font: .84rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      tab-size: 2;
+    }
+
+    pre code { padding: 0; background: transparent; color: inherit; }
+    .comment { color: #9fb3a7; }
+
+    details {
+      max-width: 920px;
+      margin: 1rem 0;
+      border: 1px solid var(--line);
+      border-radius: .45rem;
+      background: rgba(255,255,255,.65);
+    }
+
+    summary { cursor: pointer; padding: .9rem 1rem; font-weight: 720; }
+    details[open] summary { border-bottom: 1px solid var(--line); }
+    .detail-body { padding: .25rem 1rem 1rem; }
+    .detail-body > :last-child { margin-bottom: 0; }
+
+    .interface-grid, .code-map {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin: 1.6rem 0;
+    }
+
+    .interface-grid .card h3, .code-map .card h3 { margin: 0 0 .55rem; font-size: 1.08rem; }
+    .card p:last-child { margin-bottom: 0; }
+
+    .path { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; }
+
+    .sequence {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: .55rem;
+      margin: 1.6rem 0;
+      counter-reset: sequence;
+    }
+
+    .sequence > div {
+      min-height: 118px;
+      padding: .75rem;
+      border-top: 4px solid var(--study);
+      background: var(--surface);
+      counter-increment: sequence;
+    }
+
+    .sequence > div::before {
+      content: counter(sequence);
+      display: block;
+      margin-bottom: .25rem;
+      color: var(--study);
+      font-weight: 800;
+    }
+
+    footer { padding: 2.4rem 0 4rem; color: var(--muted); font-size: .9rem; }
+
+    @media (max-width: 760px) {
+      .page { width: min(calc(100% - 1.25rem), var(--max)); }
+      .hero { padding: 3.2rem 0 2.5rem; }
+      .audience, .interface-grid, .code-map, .flow-note { grid-template-columns: 1fr; }
+      .sequence { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      section { padding: 3.4rem 0; }
+      .diagram { margin-inline: -.1rem; padding: .75rem; }
+      th, td { padding: .65rem; }
+    }
+
+    @media (max-width: 420px) {
+      .sequence { grid-template-columns: 1fr; }
+      h1 { font-size: 2.35rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="page hero">
+      <p class="eyebrow">TEAx repository guide</p>
+      <h1>From typed domain modules to repeatable model studies</h1>
+      <p class="lede">TEAx separates the mechanics of connecting and running models from the domain code that gives those models meaning. This guide follows one concrete domain analysis through that boundary, then shows how the same runtime executes a sealed constraint package and supplies durable evidence to a study.</p>
+      <div class="audience">
+        <div><strong>If you want to use TEAx</strong>You will see which interface runs one domain pipeline, which interface evaluates a sealed package, and when the study CLI is appropriate.</div>
+        <div><strong>If you want to contribute</strong>You will see where each contract lives, which tests define it, and which package should own a proposed change.</div>
+      </div>
+    </div>
+  </header>
+
+  <nav aria-label="Page sections">
+    <div class="page">
+      <a href="#why">Why TEAx exists</a>
+      <a href="#one-run">One example run</a>
+      <a href="#architecture">Repository architecture</a>
+      <a href="#graph">Pipeline graph</a>
+      <a href="#evaluation">Evaluation</a>
+      <a href="#study">Studies</a>
+      <a href="#interfaces">Interfaces</a>
+      <a href="#contributing">Contributing</a>
+    </div>
+  </nav>
+
+  <main class="page">
+    <section id="why">
+      <p class="question">What problem is this repository solving?</p>
+      <h2>A techno-economic analysis is assembled from models that change at different rates</h2>
+      <p>A battery analysis may combine input normalization, equipment sizing, hourly dispatch, a cost model, and a financial calculation. A different analysis may use none of those implementations, while still needing the same work around them: validate inputs, connect producers to consumers, determine a legal execution order, preserve intermediate values, and write traceable results.</p>
+      <p>The original design therefore treats an analysis as a composition of functional modules with explicit typed inputs and outputs. A researcher can call a module directly in a notebook while its behavior is still being developed. Once the module boundaries are stable, the same modules can be selected and connected in YAML for an automated run. That progression matters because TEAx does not require early experiments to adopt a pipeline before their interfaces are understood.</p>
+      <p>The repository implements that split by keeping generic execution, configuration, I/O, evaluation, and study machinery in <code>teax-simkit</code>. Domain packages supply their own schemas, defaults, modules, and registry; <code>battery-tea-demo</code> is the checked-in example. The framework has tests that reject imports from that example, so another domain package can use the runtime without inheriting its assumptions.</p>
+
+      <div class="callout">
+        <strong>What a user supplies and receives.</strong> For an ordinary run, a user supplies typed input artifacts, a domain registry, domain schema types, and a pipeline YAML file. TEAx returns selected in-memory outputs, module-version and configuration provenance, and, by default, a run directory containing output artifacts and a manifest.
+      </div>
+
+      <p>That description is still abstract. A configured example shows how the boundary works when values begin to move.</p>
+
+      <details>
+        <summary>Intent sources and present-day scope</summary>
+        <div class="detail-body">
+          <p>The repository intent is recorded in <a href="../tea_simulation_design_doc.md">the original simulation design</a>. Current framework behavior is documented in <a href="rootmodel-and-primitives.md">the schema and primitive guide</a> and <a href="evaluation-and-study.md">the evaluation and study guide</a>.</p>
+          <p>The current executor is serial even though configuration is represented as a dependency graph. The original design anticipates asynchronously runnable modules, but the implementation today uses a topological order in one process. The graph still provides validation and makes future scheduling choices possible without changing domain module interfaces.</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="one-run">
+      <p class="question">What happens during one actual analysis?</p>
+      <h2>One example turns three entry artifacts into five published results</h2>
+      <p>The <a href="../packages/battery-tea-demo/battery_tea/tests/fixtures/pipeline_configs/demo_linear_alt.yaml">configured example</a> starts with a geography, an 8,760-hour load profile, and financial parameters. The entry point loads each artifact into a Pydantic model and places that model on a named channel. A channel is the runtime slot through which one produced value can reach any number of downstream inputs.</p>
+
+      <pre><code>modules:
+  entry_point:
+    module_type: EntryPoint
+    inputs:
+      geo: Geography ../geography_us_ca_pge.json
+      load_profile: LoadProfile8760 ../load_profile_toy_8760.json
+      financial_params: FinancialParams ../financial_params_demo.json
+
+  rate_data:
+    module_type: RateData
+    inputs:
+      geography: Geography geo
+    outputs:
+      root: RootModel[RateInfo] rate_info
+
+  configure_battery:
+    module_type: ConfigureBattery
+    inputs:
+      load_profile: LoadProfile8760 load_profile
+      rate_info: RateInfo rate_info.root
+      design_prefs: None -&gt; design_pref_default
+    outputs:
+      root: RootModel[BatteryConfig] battery_config</code></pre>
+
+      <p>The binding <code>RateInfo rate_info.root</code> means more than “use the rate result.” The <code>rate_info</code> channel contains a <code>RootModel[RateInfo]</code>; the binding extracts its single <code>root</code> field and passes the contained <code>RateInfo</code> to the sizing module. The validator checks that the field exists and has the exact type the registered module declares before execution starts.</p>
+
+      <figure class="diagram" aria-labelledby="battery-dag-caption">
+        <svg class="battery-dag" viewBox="0 0 1060 700" role="img" aria-label="Battery pipeline dependency graph with typed channel edges">
+          <defs>
+            <marker id="arrow-battery" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#6a756e"/></marker>
+            <marker id="arrow-domain-battery" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#8b4e2c"/></marker>
+          </defs>
+
+          <rect class="box framework" x="30" y="220" width="170" height="120"/>
+          <text class="title" x="115" y="252" text-anchor="middle">EntryPoint</text>
+          <text class="small" x="115" y="277" text-anchor="middle">Geography</text>
+          <text class="small" x="115" y="297" text-anchor="middle">LoadProfile8760</text>
+          <text class="small" x="115" y="317" text-anchor="middle">FinancialParams</text>
+
+          <rect class="box domain" x="270" y="55" width="190" height="82"/>
+          <text class="title" x="365" y="88" text-anchor="middle">RateData</text>
+          <text class="small" x="365" y="112" text-anchor="middle">synthetic hourly prices</text>
+
+          <rect class="box domain" x="270" y="218" width="190" height="82"/>
+          <text class="title" x="365" y="251" text-anchor="middle">ConfigureBattery</text>
+          <text class="small" x="365" y="275" text-anchor="middle">sizing heuristic</text>
+
+          <rect class="box domain" x="545" y="75" width="205" height="82"/>
+          <text class="title" x="647" y="108" text-anchor="middle">SimplePerformanceSim</text>
+          <text class="small" x="647" y="132" text-anchor="middle">8,760-hour telemetry</text>
+
+          <rect class="box domain" x="545" y="275" width="205" height="82"/>
+          <text class="title" x="647" y="308" text-anchor="middle">CostCalculator</text>
+          <text class="small" x="647" y="332" text-anchor="middle">CAPEX and annual O&amp;M</text>
+
+          <rect class="box domain" x="830" y="175" width="195" height="100"/>
+          <text class="title" x="927" y="210" text-anchor="middle">ProjectAnalyzer</text>
+          <text class="small" x="927" y="234" text-anchor="middle">cash flow, NPV, IRR,</text>
+          <text class="small" x="927" y="253" text-anchor="middle">payback and ledger</text>
+
+          <path class="wire-domain" d="M200 250 C230 250 230 96 270 96"/>
+          <text class="edge-label" x="222" y="160">geo</text>
+
+          <path class="wire-domain" d="M200 278 L270 268"/>
+          <text class="edge-label" x="212" y="260">load_profile</text>
+
+          <path class="wire-domain" d="M365 137 L365 218"/>
+          <text class="edge-label" x="378" y="181">rate_info.root</text>
+
+          <path class="wire-domain" d="M460 96 C495 96 515 106 545 108"/>
+          <text class="edge-label" x="476" y="82">rate_info.root</text>
+
+          <path class="wire-domain" d="M200 300 C280 500 480 500 520 255 C530 190 525 155 545 140"/>
+          <text class="edge-label" x="335" y="482">load_profile</text>
+
+          <path class="wire-domain" d="M460 235 C500 220 510 150 545 132"/>
+          <text class="edge-label" x="470" y="201">battery_config.root</text>
+
+          <path class="wire-domain" d="M460 280 C500 280 515 309 545 312"/>
+          <text class="edge-label" x="470" y="301">battery_config.root</text>
+
+          <path class="wire-domain" d="M200 325 C310 445 450 405 545 335"/>
+          <text class="edge-label" x="342" y="416">geo</text>
+
+          <path class="wire-domain" d="M750 116 C790 116 805 188 830 201"/>
+          <text class="edge-label" x="764" y="147">telemetry.root</text>
+
+          <path class="wire-domain" d="M750 315 C790 315 805 254 830 244"/>
+          <text class="edge-label" x="762" y="299">cost_breakdown.root</text>
+
+          <path class="wire-domain" d="M460 70 C650 5 850 15 900 175"/>
+          <text class="edge-label" x="682" y="32">rate_info.root</text>
+
+          <path class="wire-domain" d="M200 330 C390 625 760 565 860 270"/>
+          <text class="edge-label" x="590" y="563">financial_params</text>
+
+          <line x1="60" y1="625" x2="1000" y2="625" stroke="#1f5d50" stroke-width="3" stroke-dasharray="8 6"/>
+          <text class="title" x="60" y="655">ExitPoint selection</text>
+          <text class="small" x="60" y="680">rate_info · battery_config · telemetry · cost_breakdown · financial_results → JSON artifacts + manifest</text>
+        </svg>
+        <figcaption id="battery-dag-caption">The edges are named channel bindings from the checked YAML. Fan-out occurs when one channel is read by several modules: <code>rate_info</code> reaches sizing, simulation, and finance. Fan-in occurs when a module waits for several channels: <code>ProjectAnalyzer</code> receives four independently produced values. ExitPoint does not compute another domain value; it selects existing channels for return and persistence.</figcaption>
+      </figure>
+
+      <p>At runtime, the rate module first turns geography into an hourly tariff. Battery sizing then combines the load profile and tariff, filling the omitted design preferences from domain defaults. The resulting battery configuration feeds both the hourly performance simulation and the cost calculator. The project analyzer cannot run until rate data, telemetry, cost, and the original financial parameters are all available. It uses telemetry and hourly prices to calculate annual savings, then combines that result with capital and operating cost to build cash flow and financial metrics.</p>
+
+      <div class="flow-note">
+        <div><strong>Inputs</strong>Entry artifacts are loaded relative to the pipeline file and parsed into declared Pydantic types before they become channels.</div>
+        <div><strong>Intermediate values</strong>Channels hold the actual objects returned by modules. They remain in the per-run execution context and may have multiple consumers.</div>
+        <div><strong>Outputs and reports</strong>ExitPoint selects channels. The returned <code>RunResult</code> holds them in memory; the output router writes configured artifacts and a manifest.</div>
+      </div>
+
+      <p>This example also shows why the repository needs a framework/domain boundary. The runtime can understand channel ownership, type names, and dependencies without understanding a tariff, a state of charge, or NPV. Those meanings remain in the battery package.</p>
+    </section>
+
+    <section id="architecture">
+      <p class="question">Which part of the repository owns each responsibility?</p>
+      <h2>The domain package supplies meaning; the framework supplies execution boundaries</h2>
+      <p>The framework does not discover every installed module globally. A caller creates a domain registry and passes it into execution. The registry contains factories plus the required, optional, and output types that were introspected from each module class. Pipeline YAML refers to those registered names, so changing a Python class name or a YAML <code>module_type</code> is a contract change unless the domain registry provides an override.</p>
+
+      <figure class="diagram" aria-labelledby="component-caption">
+        <svg class="component-diagram" viewBox="0 0 1050 500" role="img" aria-label="Repository component dependency diagram">
+          <defs>
+            <marker id="arrow-component" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#6a756e"/></marker>
+            <marker id="arrow-eval-component" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#40578d"/></marker>
+          </defs>
+
+          <rect class="box domain" x="35" y="75" width="250" height="110"/>
+          <text class="title" x="160" y="108" text-anchor="middle">Domain package</text>
+          <text class="small" x="160" y="134" text-anchor="middle">schemas · defaults · modules</text>
+          <text class="small" x="160" y="155" text-anchor="middle">registry factory · I/O adapters</text>
+
+          <rect class="box neutral" x="35" y="315" width="250" height="100"/>
+          <text class="title" x="160" y="348" text-anchor="middle">Pipeline configuration</text>
+          <text class="small" x="160" y="374" text-anchor="middle">module instances · typed bindings</text>
+          <text class="small" x="160" y="395" text-anchor="middle">entry files · exit filenames</text>
+
+          <rect class="box framework" x="385" y="180" width="260" height="120"/>
+          <text class="title" x="515" y="215" text-anchor="middle">teax-simkit core</text>
+          <text class="small" x="515" y="241" text-anchor="middle">registry + validator + DAG builder</text>
+          <text class="small" x="515" y="263" text-anchor="middle">serial executor + I/O router</text>
+
+          <rect class="box framework" x="740" y="60" width="260" height="100"/>
+          <text class="title" x="870" y="94" text-anchor="middle">Runtime graph and run result</text>
+          <text class="small" x="870" y="120" text-anchor="middle">dependencies · channels · outputs</text>
+          <text class="small" x="870" y="141" text-anchor="middle">manifest · versions · provenance</text>
+
+          <rect class="box evaluation" x="740" y="215" width="260" height="100"/>
+          <text class="title" x="870" y="249" text-anchor="middle">Evaluation layer</text>
+          <text class="small" x="870" y="275" text-anchor="middle">sealed package → one case</text>
+          <text class="small" x="870" y="296" text-anchor="middle">→ immutable model evidence</text>
+
+          <rect class="box study" x="740" y="370" width="260" height="100"/>
+          <text class="title" x="870" y="404" text-anchor="middle">Study layer</text>
+          <text class="small" x="870" y="430" text-anchor="middle">strategies · policy · durable store</text>
+          <text class="small" x="870" y="451" text-anchor="middle">resume · query · CLI</text>
+
+          <path class="wire" d="M285 130 C335 130 335 210 385 220"/>
+          <text class="edge-label" x="310" y="156">registry + types</text>
+          <path class="wire" d="M285 365 C335 365 335 270 385 260"/>
+          <text class="edge-label" x="306" y="343">spec</text>
+          <path class="wire" d="M645 215 C690 195 700 130 740 118"/>
+          <text class="edge-label" x="667" y="168">build + run</text>
+          <path class="wire-eval" d="M645 250 L740 260"/>
+          <text class="edge-label" x="670" y="239">executor API</text>
+          <path class="wire-eval" d="M870 315 L870 370"/>
+          <text class="edge-label" x="885" y="347">Evaluator</text>
+        </svg>
+        <figcaption id="component-caption">Dependency direction follows current code. A domain package depends on framework base classes and builds a registry for them. Configuration and that registry meet in core, which creates the runtime graph. Evaluation reuses the core executor for a generated package. Studies depend on the evaluator protocol and its evidence envelope; the core pipeline does not depend on studies.</figcaption>
+      </figure>
+
+      <table>
+        <thead><tr><th>Boundary</th><th>It owns</th><th>Why a user or contributor cares</th></tr></thead>
+        <tbody>
+          <tr><td><code>simkit.config</code></td><td>Generic Pydantic models, pipeline-spec parsing, primitive type names, environment paths.</td><td>A schema placed here becomes framework vocabulary. Domain-only concepts belong in their domain package.</td></tr>
+          <tr><td><code>simkit.core</code></td><td>Module interface, introspection, registry, validation, graph construction, and execution.</td><td>Changes here affect every domain package and should be tested with generic toy modules as well as a domain integration.</td></tr>
+          <tr><td><code>simkit.io</code></td><td>Entry readers, output handlers, artifact directories, and manifests.</td><td>Channel types are not automatically serializable. A domain must register output handlers or use the JSON-schema helper.</td></tr>
+          <tr><td><code>simkit.evaluation</code></td><td>Package seal verification, prepared execution, evidence projection, and failure phases.</td><td>This is the single-case boundary for generated constraint models. It is not required for an ordinary configured pipeline.</td></tr>
+          <tr><td><code>simkit.study</code></td><td>Candidate generation, policy, persistence, resume, query, and the <code>teax-study</code> CLI.</td><td>Use it when many cases must share identity and durable progress. It consumes evaluation rather than replacing pipeline execution.</td></tr>
+        </tbody>
+      </table>
+
+      <p>The architecture now raises a more precise question: how does YAML become an executable order while preserving the typed channel contract?</p>
+    </section>
+
+    <section id="graph">
+      <p class="question">How does configuration become execution?</p>
+      <h2>Validation joins YAML bindings to registered Python types before scheduling</h2>
+      <p>Pipeline loading first parses each binding into a structured specification. Every non-exit output claims a channel name, and only one module may provide that channel. Inputs name either a full channel, one field on a channel, or an explicit <code>None</code> default. The specification requires exactly one EntryPoint and one ExitPoint.</p>
+      <p>The validator then uses the domain registry to compare configuration with code. It verifies that a module type exists, that required and optional inputs line up, that declared output fields and types match the descriptor, and that ExitPoint has a writer for every selected type. For field references, it resolves the parent channel type and checks a single public, non-computed field with an exact type match. This catches a misspelled field or a misleading type declaration before any domain module runs.</p>
+      <p>After type validation, the DAG builder maps each channel to its provider. Every consumer gets a dependency edge from that provider; ExitPoint gets edges from the providers of all selected outputs. Python’s topological sorter rejects cycles and returns a legal order. The current executor walks that order serially.</p>
+
+      <div class="sequence" aria-label="Pipeline construction and execution sequence">
+        <div><strong>Parse</strong>YAML becomes a typed <code>PipelineSpecification</code>.</div>
+        <div><strong>Resolve</strong>Registry descriptors connect <code>module_type</code> names to factories and types.</div>
+        <div><strong>Validate</strong>Inputs, outputs, fields, writers, and unique providers are checked.</div>
+        <div><strong>Build</strong>Channel providers become dependency and adjacency maps.</div>
+        <div><strong>Execute</strong>Fresh module instances read resolved channel values in topological order.</div>
+        <div><strong>Route</strong>ExitPoint channels are returned and optionally written with a manifest.</div>
+      </div>
+
+      <h3>One module can publish several independently consumed values</h3>
+      <p>The battery synchronous-simulation module demonstrates the multi-output model. It returns a <code>SyncSimOutputs</code> container with forecasts, guidance, and telemetry. A pipeline can map those three model fields to separate channels, and downstream consumers can subscribe to only the value they need. The executor decomposes a <code>MultiOutput</code> with <code>to_channel_dict()</code>; it also retains a legacy mapping path for older multi-output modules.</p>
+
+      <pre><code>synchronous_sim:
+  module_type: SynchronousSim
+  inputs:
+    time_grid: SyncTimeGrid time_grid
+    initial_state: BatteryState initial_state
+    price_trajectory: PriceTrajectory price_trajectory
+    forecast_config: MockForecastConfig forecast_config
+    guidance_config: GuidanceConfig guidance_config
+    dynamics_config: DynamicSimConfig dynamics_config
+  outputs:
+    forecasts: MockForecastSeries forecasts
+    guidances: SyncGuidanceSeries guidances
+    telemetry: SyncTelemetrySeries telemetry</code></pre>
+
+      <p>That separation matters when output size and format differ. Forecasts and guidance use JSON writers, while battery telemetry can use a domain Parquet handler. The channel graph remains about typed values; the output router decides how selected boundary values become artifacts.</p>
+
+      <details>
+        <summary>Exact channel and field-reference invariants</summary>
+        <div class="detail-body">
+          <ul>
+            <li>A specification has exactly one EntryPoint and one ExitPoint.</li>
+            <li>Each channel has at most one non-exit provider. Any number of modules may consume it.</li>
+            <li>A regular module cannot consume its own output channel.</li>
+            <li>Field references are one level deep. Nested, private, and computed fields are rejected.</li>
+            <li>Field types use exact equality after unwrapping <code>Optional[T]</code>; coercion is not used to make an incompatible binding pass.</li>
+            <li>An explicit <code>None -&gt; name</code> supplies <code>None</code> so the module’s own validation/default logic can choose a value.</li>
+            <li>A single-output module places its entire returned model on the channel. A <code>RootModel[T]</code> therefore remains wrapped until a consumer selects <code>.root</code>.</li>
+            <li>A multi-output module publishes individual fields. Bare primitive fields may therefore appear directly on channels.</li>
+          </ul>
+          <p>Implementation: <a href="../packages/teax-simkit/simkit/config/pipeline_schema.py">pipeline schema</a>, <a href="../packages/teax-simkit/simkit/core/pipeline_validator.py">validator</a>, <a href="../packages/teax-simkit/simkit/core/pipeline_graph.py">DAG builder</a>, and <a href="../packages/teax-simkit/simkit/core/pipeline_executor.py">executor</a>.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Output behavior and current serialization limits</summary>
+        <div class="detail-body">
+          <p>ExitPoint declarations must name the actual channel type and a filename whose extension matches the registered writer. The default router handles generic framework outputs and JSON-native primitives in bare or <code>RootModel</code> form. Passing <code>custom_schema_types</code> lets <code>execute_pipeline</code> add JSON handlers for those domain models. An explicit router replaces that default choice and owns its entire handler set.</p>
+          <p>A missing channel value represented by <code>None</code> is recorded in the manifest as <code>produced: false</code>; it is not written as JSON <code>null</code>. Lists, dictionaries, bytes, <code>Decimal</code>, and other unregistered values require an explicit handler. See <a href="rootmodel-and-primitives.md">Using primitive types in TEAx modules</a> for the full boundary contract.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Current synchronous-pipeline fixture mismatch</summary>
+        <div class="detail-body">
+          <p>The checked-in <a href="../packages/battery-tea-demo/battery_tea/tests/fixtures/pipeline_configs/synchronous_sim_stubbed.yaml">synchronous pipeline fixture</a> currently declares a fourth output field named <code>synchronous_sim</code>. <a href="../packages/battery-tea-demo/battery_tea/schemas.py">SyncSimOutputs</a> defines only <code>forecasts</code>, <code>guidances</code>, and <code>telemetry</code>, so registry validation rejects that fixture before execution. The battery integration test exercises the linear pipeline, not this YAML. A contributor making the synchronous pipeline runnable should reconcile the YAML with the output model and add an integration test for the configured run.</p>
+        </div>
+      </details>
+
+      <p>An ordinary pipeline run is sufficient when code, configuration, and inputs live together. Generated constraint models add another requirement: TEAx must prove which executable package produced a verdict and must avoid coupling study code to generated class names.</p>
+    </section>
+
+    <section id="evaluation">
+      <p class="question">Why is evaluation separate from pipeline execution?</p>
+      <h2>Evaluation fixes an executable package, then turns each case into runtime-owned evidence</h2>
+      <p>A generated package contains its own schemas, modules, registry factory, pipeline, constraint report types, model contract, catalog, and seal verifier. TEAx does not create that package; it consumes one produced by the external code-generation workflow. The repository includes a sealed toy package as an executable fixture.</p>
+      <p>Loading begins with the package’s own standard-library verifier. The loader checks the declared package name and the sealed file set, including missing, extra, and modified files, and checks the recorded runtime contract version. It then exposes the directory under its declared import name using a link in caller-owned scratch space because generated internal imports are absolute. This is integrity and compatibility checking, not an operating-system sandbox: generated modules execute in the TEAx Python process.</p>
+      <p><code>PreparedEvaluator</code> loads that verified package, obtains its registry factory and custom schema list, parses the packaged pipeline, and builds the graph once. The entry-channel model classes are derived from the pipeline specification. For every call to <code>evaluate</code>, the evaluator validates the supplied channel-to-model mapping and creates a fresh execution context, so channel values from one candidate cannot leak into the next.</p>
+
+      <pre><code>from pathlib import Path
+
+from simkit.evaluation import PreparedEvaluator, ProvisionalPackageLoader
+
+package_dir = Path("generated/my_model")
+loader = ProvisionalPackageLoader(
+    package_dir=package_dir,
+    package_name="my_model",
+    link_root=Path(".teax/package-links"),
+)
+evaluator = PreparedEvaluator(loader, package_dir / "pipelines/pipeline.yaml")
+
+EntryModel = evaluator.entry_models["model_params"]
+evidence = evaluator.evaluate({
+    "model_params": EntryModel(length=4.0, width=3.0, budget=5000.0)
+})</code></pre>
+
+      <p>The in-memory evaluator replaces only file-backed EntryPoint loading and disables output persistence. The rest of the real executor and graph are used. <code>FileBackedEvaluator</code> provides an audit-oriented alternative: it copies the pipeline specification to a scratch work directory, reads an entry JSON file, and writes normal run artifacts outside the sealed tree. A parity test requires both backends to project the same evidence.</p>
+
+      <figure class="diagram" aria-labelledby="evaluation-boundary-caption">
+        <svg class="evaluation-boundary" viewBox="0 0 1060 410" role="img" aria-label="Generated package, evaluation evidence, study policy, and durable result boundary">
+          <defs>
+            <marker id="arrow-boundary" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#6a756e"/></marker>
+            <marker id="arrow-eval-boundary" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#40578d"/></marker>
+          </defs>
+
+          <rect class="box neutral" x="25" y="85" width="235" height="220"/>
+          <text class="title" x="142" y="120" text-anchor="middle">Sealed generated package</text>
+          <text class="small" x="142" y="151" text-anchor="middle">schemas + modules</text>
+          <text class="small" x="142" y="174" text-anchor="middle">registry + pipeline</text>
+          <text class="small" x="142" y="197" text-anchor="middle">constraint report types</text>
+          <text class="small" x="142" y="220" text-anchor="middle">model contract + catalog</text>
+          <text class="small" x="142" y="243" text-anchor="middle">seal + verifier</text>
+          <text class="small" x="142" y="276" text-anchor="middle">generated types stay here</text>
+
+          <rect class="box evaluation" x="310" y="85" width="235" height="220"/>
+          <text class="title" x="427" y="120" text-anchor="middle">Evaluator + evidence</text>
+          <text class="small" x="427" y="151" text-anchor="middle">verify and prepare graph once</text>
+          <text class="small" x="427" y="174" text-anchor="middle">fresh context per case</text>
+          <text class="small" x="427" y="197" text-anchor="middle">responses + scalar outputs</text>
+          <text class="small" x="427" y="220" text-anchor="middle">opaque generated report</text>
+          <text class="small" x="427" y="243" text-anchor="middle">fingerprint + input digest</text>
+          <text class="small" x="427" y="276" text-anchor="middle">runtime-owned envelope</text>
+
+          <rect class="box study" x="595" y="85" width="200" height="220"/>
+          <text class="title" x="695" y="120" text-anchor="middle">Study policy</text>
+          <text class="small" x="695" y="154" text-anchor="middle">reads evidence</text>
+          <text class="small" x="695" y="177" text-anchor="middle">extracts objectives</text>
+          <text class="small" x="695" y="200" text-anchor="middle">maps verdict to</text>
+          <text class="small" x="695" y="223" text-anchor="middle">a disposition</text>
+          <text class="small" x="695" y="276" text-anchor="middle">does not amend evidence</text>
+
+          <rect class="box study" x="845" y="85" width="190" height="220"/>
+          <text class="title" x="940" y="120" text-anchor="middle">Durable results</text>
+          <text class="small" x="940" y="154" text-anchor="middle">case row in SQLite</text>
+          <text class="small" x="940" y="177" text-anchor="middle">content-addressed</text>
+          <text class="small" x="940" y="200" text-anchor="middle">evidence artifact</text>
+          <text class="small" x="940" y="223" text-anchor="middle">assessment or failure</text>
+          <text class="small" x="940" y="276" text-anchor="middle">query joins catalog later</text>
+
+          <path class="wire-eval" d="M260 195 L310 195"/>
+          <text class="edge-label" x="270" y="181">one case</text>
+          <path class="wire-eval" d="M545 195 L595 195"/>
+          <text class="edge-label" x="551" y="181">evidence</text>
+          <path class="wire" d="M795 195 L845 195"/>
+          <text class="edge-label" x="800" y="181">assessment</text>
+          <path class="wire" d="M488 305 C590 380 820 380 900 305"/>
+          <text class="edge-label" x="655" y="366">unchanged evidence bytes</text>
+        </svg>
+        <figcaption id="evaluation-boundary-caption">The generated report remains attached to evidence as an opaque object, while the evaluator reads only its headline and per-constraint status fields. Study policy receives the runtime-owned projection and returns a separate assessment. Persistence stores both without letting policy rewrite what the model reported.</figcaption>
+      </figure>
+
+      <p>The evidence envelope contains canonical responses, selected numeric outputs, provenance, and the generated report. Projection reads the generated report by attribute shape rather than importing a particular generated type. Provenance names the executable fingerprint, evidence and evaluator versions, and a digest of the typed inputs. This lets downstream code compare or persist results without knowing that the fixture happens to contain <code>ToyPlantParams</code> or a particular constraint class.</p>
+
+      <details>
+        <summary>Evaluation failure semantics</summary>
+        <div class="detail-body">
+          <p>Evaluation normalizes failures into four phases: <code>entry_validation</code>, <code>preparation</code>, <code>module_execution</code>, and <code>output_write</code>. The prepared in-memory path can produce the first three; output writing is part of the general taxonomy for persisting evaluators.</p>
+          <p>An <code>indeterminate</code> constraint verdict is evidence, not an evaluator failure. The model ran and reported that it could not produce a finite yes/no result. A study can keep such a case near a boundary while treating an exception during module execution as an <code>execution_failed</code> case.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Package compatibility and isolation limits</summary>
+        <div class="detail-body">
+          <p>Strict loading rejects a declared-name mismatch, tampered or missing covered file, unhashed extra file, or runtime-contract mismatch. The executable fingerprint comes from the verified package contract. The fixture verifier is loaded by file path before the package itself is imported.</p>
+          <p>The evaluation envelope, entry validation, projection, and failure vocabulary have source-scan tests that prohibit generated-package imports. The loader and evaluator necessarily import and execute the package. There is no subprocess, container, resource quota, or hostile-code sandbox in this repository.</p>
+        </div>
+      </details>
+
+      <p>Once one case has a stable identity and evidence shape, a separate layer can propose many cases, decide what their evidence means for a search, and preserve progress across interruption.</p>
+    </section>
+
+    <section id="study">
+      <p class="question">How does TEAx move from one evaluation to many?</p>
+      <h2>A study adds candidate identity, policy, and durable progress around an evaluator</h2>
+      <p>A study definition binds a strategy, proposal validator, entry-model bridge, evaluator identity, and assessment policy. The built-in grid strategy enumerates a Cartesian product in the variable order written in configuration. That order is part of the strategy fingerprint because positional proposal and candidate IDs must be reproduced after a restart. A bounded wrapper can stop after <code>budget</code> candidates without changing the runner.</p>
+      <p>Each raw proposal is validated and canonicalized before it becomes a candidate. Invalid proposals are recorded as proposals but never become cases. For a valid proposal, <code>CandidateBridge</code> instantiates the generated entry model and maps it to the configured entry channel. The current bridge supports one entry channel; a package whose case spans several entry channels needs a broader bridge before it can use the study runner.</p>
+
+      <div class="sequence" aria-label="Study candidate processing sequence">
+        <div><strong>Propose</strong>Strategy emits an ordered proposal ID and raw parameter mapping.</div>
+        <div><strong>Validate</strong>The study canonicalizes numeric fields and merges fixed values.</div>
+        <div><strong>Bridge</strong>The mapping becomes the evaluator’s typed entry-channel input.</div>
+        <div><strong>Evaluate</strong>The fixed package graph produces immutable model evidence.</div>
+        <div><strong>Assess</strong>Policy reads evidence and returns a separate disposition.</div>
+        <div><strong>Commit</strong>Evidence is staged, then the case row is atomically recorded.</div>
+      </div>
+
+      <p>The built-in objective policy maps a violated headline to <code>reject</code>, an indeterminate or unassessed headline to <code>keep-for-boundary</code>, and a satisfied case to <code>feed-strategy</code> unless a configured objective crosses its penalty threshold. Missing configured outputs or response-role constraints cause <code>assessment_failed</code>. That state is distinct from a policy disposition: a rejected candidate completed model evaluation and policy assessment, while an assessment failure means policy could not interpret valid evidence.</p>
+
+      <h3>Persistence makes resume a compatibility check, not a best-effort replay</h3>
+      <p>The store is a local SQLite database plus content-addressed evidence files. On creation, it binds the study ID, package fingerprint, model-contract fingerprint, study-definition fingerprint, schema versions, and strategy identity/configuration. Every later open compares all of them. Editing grid order, policy, fixed values, budget, or the sealed executable makes the existing store incompatible instead of mixing results from two lineages.</p>
+      <p>A single runner holds a fenced lease with a heartbeat. Evidence bytes are written to a lease-specific temporary file, flushed, renamed atomically to <code>artifacts/&lt;sha256&gt;.json</code>, and only then referenced by an atomically inserted case row. If a process dies before the case commit, resume sees no case and reevaluates that candidate; an orphan artifact may remain until garbage collection. If the case exists, <code>has_case</code> skips it. Crash tests compare the resumed case sequence and evidence digests with an uninterrupted reference run.</p>
+
+      <table>
+        <thead><tr><th>Recorded result</th><th>Meaning</th><th>Evidence artifact</th></tr></thead>
+        <tbody>
+          <tr><td><code>completed</code></td><td>Evaluation and policy both returned. The assessment carries <code>reject</code>, <code>penalize</code>, <code>keep-for-boundary</code>, or <code>feed-strategy</code>.</td><td>Present</td></tr>
+          <tr><td><code>execution_failed</code></td><td>A module-execution or output-write phase failed. The case stores normalized failure data.</td><td>Absent because no complete evidence was produced</td></tr>
+          <tr><td><code>assessment_failed</code></td><td>The model produced evidence, but policy could not extract or interpret configured information.</td><td>Present and preserved unchanged</td></tr>
+        </tbody>
+      </table>
+
+      <p>Querying reverses the storage boundary without re-running the model. <code>StudyQuery</code> reads committed cases, decodes each evidence digest once, and joins constraint IDs through the package catalog to source usage and source records. Every view carries the executable fingerprint. The query intentionally does not merge results across model versions; an optional tracking key can name a logical constraint across versions, but a caller must perform and display that cross-fingerprint comparison.</p>
+
+      <details>
+        <summary>Persistence crash windows and guarantees</summary>
+        <div class="detail-body">
+          <table>
+            <thead><tr><th>Interruption point</th><th>Durable state</th><th>Resume behavior</th></tr></thead>
+            <tbody>
+              <tr><td>During temporary-file staging</td><td>No final artifact and no case row; a partial lease-scoped temp may remain.</td><td>Candidate runs again. GC removes dead-lease temps.</td></tr>
+              <tr><td>After artifact rename, before case commit</td><td>A complete unreferenced artifact exists; no case row.</td><td>Candidate runs again. Content addressing reuses identical bytes; GC can remove an unreferenced artifact.</td></tr>
+              <tr><td>After case commit</td><td>Case row references a complete artifact, or records an execution failure without one.</td><td>Candidate is skipped by identity.</td></tr>
+            </tbody>
+          </table>
+          <p>The store requires local-filesystem SQLite with WAL and <code>synchronous=FULL</code>, asserted on open. Its tested claim is killed-process recovery. It does not claim power-loss safety or network-filesystem correctness.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Study limitations in the current implementation</summary>
+        <div class="detail-body">
+          <ul>
+            <li>The CLI builds a prepared in-memory evaluator and a single-channel <code>CandidateBridge</code>.</li>
+            <li>Built-in strategies are prepared lists and ordered grids. Their <code>observe</code> methods are inert; adaptive optimization is not implemented.</li>
+            <li>The built-in policy classifies and records <code>feed-strategy</code>, but current strategies do not adapt to that feedback.</li>
+            <li>The query loads case views eagerly and joins the package’s current constraint-catalog shape.</li>
+            <li>A study is bound to one executable fingerprint. Cross-store, cross-version correlation is left to a caller.</li>
+            <li>The single-run battery demo and generated-package study fixture are separate examples; the CLI is currently shaped around sealed generated packages.</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <section id="interfaces">
+      <p class="question">Which interface should an engineer use?</p>
+      <h2>Choose the boundary that matches the work</h2>
+      <div class="interface-grid">
+        <div class="card"><h3>Develop one domain calculation</h3><p>Instantiate a module and call <code>validate_and_fill_default</code> or <code>run</code> with typed models. This keeps a notebook experiment close to the domain code.</p></div>
+        <div class="card"><h3>Run one configured domain analysis</h3><p>Call <code>execute_pipeline</code> with YAML, a domain registry, and domain schema types. This is the primary public surface for the battery pipeline.</p></div>
+        <div class="card"><h3>Evaluate one sealed generated model</h3><p>Construct <code>PreparedEvaluator</code> for repeated in-memory cases or <code>FileBackedEvaluator</code> when a normal artifact trail is required.</p></div>
+        <div class="card"><h3>Run and resume many generated-model cases</h3><p>Use the <code>teax-study</code> CLI or assemble <code>StudyDefinition</code>, <code>StudyStore</code>, and <code>StudyRunner</code> in Python.</p></div>
+      </div>
+
+      <h3>Run the checked battery pipeline from Python</h3>
+      <p>There is no general pipeline console command in the current package. The supported repository example calls the Python function and supplies the battery registry and every domain type carried at the entry or exit boundary.</p>
+
+      <pre><code>from pathlib import Path
+from pydantic import RootModel
+
+from battery_tea import create_battery_registry, schemas
+from simkit.config import schema as generic
+from simkit.core.pipeline import execute_pipeline
+
+result = execute_pipeline(
+    Path("packages/battery-tea-demo/battery_tea/tests/fixtures/"
+         "pipeline_configs/demo_linear_alt.yaml"),
+    output_dir=Path("run_data/outputs"),
+    registry=create_battery_registry(),
+    custom_schema_types=[
+        schemas.Geography,
+        schemas.LoadProfile8760,
+        schemas.RateInfo,
+        schemas.BatteryConfig,
+        schemas.BatteryTelemetry8760,
+        schemas.CostBreakdown,
+        schemas.RateInfoOutput,
+        schemas.BatteryConfigOutput,
+        schemas.BatteryTelemetry8760Output,
+        schemas.CostBreakdownOutput,
+        RootModel[generic.FinancialResults],
+    ],
+)
+
+financial_results = result.outputs["financial_results"].root
+print(financial_results.npv)
+print(result.manifest)</code></pre>
+
+      <h3>Add a typed module to a domain package</h3>
+      <p>A module names its input and output models in the generic base class and returns <code>ModuleResult</code>. <code>create_registry</code> introspects those types and the <code>run</code> signature. A domain registry may override the class name with the stable string used in YAML.</p>
+
+      <pre><code>from pydantic import BaseModel
+from simkit.core.base import ModuleBase, ModuleResult
+from simkit.core.registry_builder import create_registry
+
+class LossInputs(BaseModel):
+    energy_kwh: float
+    efficiency: float
+
+class LossOutput(BaseModel):
+    lost_kwh: float
+
+class LossModule(ModuleBase[LossInputs, LossOutput]):
+    name = "loss"
+    version = "v1.0"
+
+    def validate_and_fill_default(self, energy_kwh: float, efficiency: float) -&gt; LossInputs:
+        return LossInputs(energy_kwh=energy_kwh, efficiency=efficiency)
+
+    def run(self, energy_kwh: float, efficiency: float) -&gt; ModuleResult[LossOutput]:
+        inputs = self.validate_and_fill_default(energy_kwh, efficiency)
+        return ModuleResult(LossOutput(
+            lost_kwh=inputs.energy_kwh * (1.0 - inputs.efficiency)
+        ))
+
+registry = create_registry([LossModule])</code></pre>
+
+      <h3>Describe and drive a study</h3>
+      <p>The study config names the sealed package, the entry boundary, an ordered grid, fixed generated-model fields, and an evidence policy. Paths below are illustrative, while the field and interface shapes match the checked end-to-end fixture.</p>
+
+      <pre><code>study_id: toy-grid-demo
+package:
+  dir: generated/wi014_s4
+  name: wi014_s4
+  spec: pipelines/pipeline.yaml
+entry_channel: toy_plant_params
+entry_model: ToyPlantParams
+grid:
+  - [toy_plant__Toy_Plant__plant_budget, [1000.0, 3000.0, 6000.0]]
+fixed:
+  toy_plant__Toy_Plant__plant_length: 4.0
+  toy_plant__Toy_Plant__plant_width: 3.0
+  toy_plant__Toy_Plant__plant_unit_cost: 250.0
+policy:
+  name: objective/v1
+  objectives:
+    - output: toy_plant__demo_plant__cost_calc__cost
+      role: minimize
+  response_roles: {}
+budget: null
+retention: keep</code></pre>
+
+      <pre><code><span class="comment"># Bind a new SQLite store to this exact package and study definition.</span>
+teax-study create --config study.yaml --store results/study.db
+
+<span class="comment"># Enumerate candidates, evaluate, assess, and commit each result.</span>
+teax-study run --config study.yaml --store results/study.db
+
+<span class="comment"># Rebuild the same definition, reject incompatibility, and skip committed cases.</span>
+teax-study resume --config study.yaml --store results/study.db
+
+<span class="comment"># Emit one JSON object per matching committed case.</span>
+teax-study inspect --config study.yaml --store results/study.db \
+  --state completed --disposition reject</code></pre>
+
+      <p><code>run</code> is already idempotent for committed candidate IDs, while <code>resume</code> uses the same implementation and communicates lifecycle intent. <code>inspect</code> also accepts <code>--parameter</code>, <code>--output</code>, and <code>--constraint</code> presence filters. Its JSON includes inputs, numeric outputs, per-constraint verdicts, catalog details, disposition, evidence digest, and executable fingerprint.</p>
+
+      <details>
+        <summary>Environment setup used by the repository</summary>
+        <div class="detail-body">
+          <pre><code>python -m venv .venv
+source .venv/bin/activate
+pip install -e 'packages/teax-simkit[dev]'
+pip install -e 'packages/battery-tea-demo[dev]'
+pytest</code></pre>
+          <p>The framework requires Python 3.10 or newer. The study console script is installed by the <code>teax-simkit</code> package.</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="contributing">
+      <p class="question">Where should a contributor begin?</p>
+      <h2>Start from the contract you intend to change</h2>
+      <p>A useful reading path follows one value rather than reading package directories alphabetically. For ordinary pipelines, begin with the battery integration test and its YAML, then follow the call into <code>execute_pipeline</code>, validation, the DAG builder, and the executor. For generated models, begin with evaluator parity and isolation tests before opening study code. For persistence, begin with crash-regime tests and then read the store’s commit order.</p>
+
+      <div class="code-map">
+        <div class="card">
+          <h3>Where are pipeline graphs built?</h3>
+          <p><a class="path" href="../packages/teax-simkit/simkit/core/pipeline_graph.py">simkit/core/pipeline_graph.py</a> maps channel providers to dependency edges and calls <code>TopologicalSorter</code>.</p>
+          <p>Read with <a class="path" href="../packages/teax-simkit/simkit/tests/test_toy_pipeline.py">simkit/tests/test_toy_pipeline.py</a>.</p>
+        </div>
+        <div class="card">
+          <h3>Where are channel bindings validated?</h3>
+          <p><a class="path" href="../packages/teax-simkit/simkit/config/pipeline_schema.py">config/pipeline_schema.py</a> parses binding syntax; <a class="path" href="../packages/teax-simkit/simkit/core/pipeline_validator.py">core/pipeline_validator.py</a> joins it to registered types.</p>
+          <p>Contracts: <a class="path" href="../packages/teax-simkit/simkit/tests/core/test_pipeline_validator_field_reference.py">field-reference tests</a> and <a class="path" href="../packages/teax-simkit/simkit/tests/core/test_pipeline_validator_exit.py">exit tests</a>.</p>
+        </div>
+        <div class="card">
+          <h3>How are modules registered and run?</h3>
+          <p><a class="path" href="../packages/teax-simkit/simkit/core/module_introspector.py">module_introspector.py</a> derives metadata; <a class="path" href="../packages/teax-simkit/simkit/core/registry_builder.py">registry_builder.py</a> creates descriptors; <a class="path" href="../packages/teax-simkit/simkit/core/pipeline_executor.py">pipeline_executor.py</a> resolves inputs and publishes outputs.</p>
+          <p>Contracts: <a class="path" href="../packages/teax-simkit/simkit/tests/core/test_module_introspector.py">introspection</a>, <a class="path" href="../packages/teax-simkit/simkit/tests/core/test_registry_builder.py">registry</a>, and <a class="path" href="../packages/teax-simkit/simkit/tests/core/test_executor_multi_output.py">multi-output execution</a>.</p>
+        </div>
+        <div class="card">
+          <h3>Where does a domain add behavior?</h3>
+          <p><a class="path" href="../packages/battery-tea-demo/battery_tea/schemas.py">battery_tea/schemas.py</a> defines domain payloads; <a class="path" href="../packages/battery-tea-demo/battery_tea/modules/">battery_tea/modules/</a> holds calculations; <a class="path" href="../packages/battery-tea-demo/battery_tea/registry.py">battery_tea/registry.py</a> exposes them to YAML.</p>
+          <p>Start with the <a class="path" href="../packages/battery-tea-demo/battery_tea/tests/test_integration.py">battery integration test</a> and <a class="path" href="../packages/battery-tea-demo/battery_tea/tests/modules/">module tests</a>.</p>
+        </div>
+        <div class="card">
+          <h3>Where is generated-package integrity enforced?</h3>
+          <p><a class="path" href="../packages/teax-simkit/simkit/evaluation/package_load.py">evaluation/package_load.py</a> invokes the packaged verifier and imports under the declared name.</p>
+          <p>Contracts: <a class="path" href="../packages/teax-simkit/simkit/tests/evaluation/test_package_load.py">package-load tests</a> and <a class="path" href="../packages/teax-simkit/simkit/tests/evaluation/test_isolation.py">isolation tests</a>.</p>
+        </div>
+        <div class="card">
+          <h3>Where is one case evaluated?</h3>
+          <p><a class="path" href="../packages/teax-simkit/simkit/evaluation/evaluator.py">evaluation/evaluator.py</a> prepares and runs; <a class="path" href="../packages/teax-simkit/simkit/evaluation/projection.py">evaluation/projection.py</a> creates runtime evidence.</p>
+          <p>Contracts: <a class="path" href="../packages/teax-simkit/simkit/tests/evaluation/test_prepared_evaluator.py">prepared evaluator</a>, <a class="path" href="../packages/teax-simkit/simkit/tests/evaluation/test_parity.py">backend parity</a>, and <a class="path" href="../packages/teax-simkit/simkit/tests/evaluation/test_failure_taxonomy.py">failure taxonomy</a>.</p>
+        </div>
+        <div class="card">
+          <h3>Where are study outcomes committed?</h3>
+          <p><a class="path" href="../packages/teax-simkit/simkit/study/runner.py">study/runner.py</a> fixes candidate order and failure routing; <a class="path" href="../packages/teax-simkit/simkit/study/store.py">study/store.py</a> stages evidence and commits cases.</p>
+          <p>Contracts: <a class="path" href="../packages/teax-simkit/simkit/tests/study/test_runner_matrix.py">runner matrix</a>, <a class="path" href="../packages/teax-simkit/simkit/tests/study/test_crash_regimes.py">crash regimes</a>, and <a class="path" href="../packages/teax-simkit/simkit/tests/study/test_lease.py">lease tests</a>.</p>
+        </div>
+        <div class="card">
+          <h3>Where are studies configured and queried?</h3>
+          <p><a class="path" href="../packages/teax-simkit/simkit/study/config.py">study/config.py</a> rebuilds definitions; <a class="path" href="../packages/teax-simkit/simkit/study/policy.py">study/policy.py</a> assesses evidence; <a class="path" href="../packages/teax-simkit/simkit/study/query.py">study/query.py</a> joins results; <a class="path" href="../packages/teax-simkit/simkit/study/cli.py">study/cli.py</a> exposes the lifecycle.</p>
+          <p>Contracts: <a class="path" href="../packages/teax-simkit/simkit/tests/study/test_cli_end_to_end.py">CLI resume</a>, <a class="path" href="../packages/teax-simkit/simkit/tests/study/test_policy.py">policy</a>, and <a class="path" href="../packages/teax-simkit/simkit/tests/study/test_query.py">query</a>.</p>
+        </div>
+      </div>
+
+      <details>
+        <summary>Deeper reading paths by proposed change</summary>
+        <div class="detail-body">
+          <p><strong>Add a domain module.</strong> Read the closest battery module, its unit test, the domain registry, and the integration YAML. Keep domain validation and defaults beside the domain module. Add framework code only if the existing typed-channel contract cannot express the connection.</p>
+          <p><strong>Add a new boundary type or file format.</strong> Read <a href="../packages/teax-simkit/simkit/io/output_router.py">output_router.py</a>, <a href="../packages/teax-simkit/simkit/io/readers.py">readers.py</a>, and the <a href="../packages/teax-simkit/simkit/tests/io/">I/O tests</a>. Check both entry loading and ExitPoint writing; support on one side does not automatically add the other.</p>
+          <p><strong>Change graph semantics.</strong> Read schema validation, registry validation, DAG construction, and executor tests together. A new binding form must have a parser, a static type rule, a dependency rule, and runtime resolution behavior.</p>
+          <p><strong>Change generated-package evaluation.</strong> Read the completed evaluator <a href="../.project/completed/20260713_model-evaluator/spec.md">spec</a> and <a href="../.project/completed/20260713_model-evaluator/design.md">design</a>, then verify the present code. Preserve the rule that evaluation’s runtime-owned modules do not import model-specific generated classes.</p>
+          <p><strong>Change study durability or resume.</strong> Read the completed store/runner <a href="../.project/completed/20260713_study-store-runner/spec.md">spec</a> and <a href="../.project/completed/20260713_study-store-runner/design.md">design</a>, followed by crash tests. Commit ordering, compatibility fields, candidate identity, and lease fencing form one proof and should not be changed independently.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Tests that protect the framework/domain separation</summary>
+        <div class="detail-body">
+          <p><a href="../packages/teax-simkit/simkit/tests/test_no_battery_deps.py">test_no_battery_deps.py</a> checks that core exports, schemas, defaults, readers, and writers do not regain battery concepts. <a href="../packages/teax-simkit/simkit/tests/core/test_custom_schema_registration.py">test_custom_schema_registration.py</a> checks that external Pydantic types can enter the framework through the public registration path. These tests are the first place to look when a proposed convenience import seems to require a domain type inside <code>simkit</code>.</p>
+        </div>
+      </details>
+
+      <p>The practical dividing line is now visible. If a change alters what a domain value means, it belongs in that domain package. If it alters how any typed value is registered, connected, scheduled, loaded, or written, it belongs in the framework. If it alters one sealed model’s evidence boundary, begin in evaluation. If it alters candidate identity, policy, resume, or durable results, begin in study.</p>
+    </section>
+  </main>
+
+  <footer class="page">
+    <p>This explainer describes the implementation on the <code>constraint-exec-epic</code> branch. Source links are relative to this file so the page remains usable from a repository checkout.</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,39 @@
+{
+  "artifact_hashes": {
+    "IMPLEMENTATION_BACKLOG.md": "1d72d75b60cea901263e1fed46df789cbfe72fd9f89ab1e85f9677e404d56a97",
+    "__init__.py": "2b8820f35e0ca7076e72f810df33a7779e4ebe831ad37f9168b1927e8df794cb",
+    "contracts/generation_manifest.json": "be9bca181643eb21138c690ecf2b81d6f547b7abbebc6e08579ffda13eaf94c0",
+    "contracts/model_contract.json": "4ced0c71630f9ad8e22c5ebe5d865cfdb4bf650ac5251b2847160f8b0b362831",
+    "contracts/verify.py": "ad0a855af17d18af5f3e8c36b1a6c500f492d88ec777b40f307c646306c67284",
+    "handwritten/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "handwritten/excl_library/__init__.py": "200b1c90d646c8c58c2644945ee551dddc12adcfdab30b7ae4197891284a70c8",
+    "handwritten/excl_library/area_calc_impl.py": "d6eacabe9269fd611d0cc95e7d65a7d3a2f32c60daf9a2603cdeaae4b0ca0a79",
+    "inputs/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "inputs/excl_plant_params.json": "289d637a5af866c5f63a17305fc3046ea07ca1942772912f763b635d5566b595",
+    "modules/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "modules/constraints/__init__.py": "0fc3fea2d8e92bff93b86e656a302cf2800727bd2c3f9ff8d264930dcc73c8e1",
+    "modules/constraints/constraintreportaggregatormodule.py": "7f51299cb14404dd02b831378df46ea4f4e891859a230f384f0a02caab4931d4",
+    "modules/constraints/predicates.py": "913c98224455d24988865c2e1577431505539e1f5177be4da6df3202c6d5f491",
+    "modules/excl_library/__init__.py": "0fc3fea2d8e92bff93b86e656a302cf2800727bd2c3f9ff8d264930dcc73c8e1",
+    "modules/excl_library/area_calc.py": "27b7138bab40ac0855f789ad479c5283b82f79e6c028858142b43148ec0061e6",
+    "pipelines/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "pipelines/pipeline.yaml": "a0c3eb6cd6b98f59430cac473b3ffd7ee738027d37afd9018b3efb6ee71deec2",
+    "primitives.py": "1bc6be58e5290b102d762227c33f138ecc4f9feaa00fa2f4cfd02f87f5f71998",
+    "schemas/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "schemas/constraint_types.py": "d7604d2dd2b575760e0f722481d9d49df953a94a59c7c2316ff4e1e12bea4740",
+    "schemas/excl_plant_params.py": "044da75d8f5d12f08057420b296730d1b85d97462c063ded461d0199c51ca92b",
+    "tests/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "tests/test_implementations_runnable.py": "940f5b68ca8d7fecf010ca847b89434d218d913d4075da60bee296d3ac30a94d"
+  },
+  "coverage_policy": {
+    "exclude_globs": [
+      "contracts/package_contract.json",
+      "**/__pycache__/**"
+    ],
+    "runtime_output_globs": []
+  },
+  "executable_fingerprint": "853fe6bde02a5dab6494bcb8ecdf94407bac08c439a357dac906492ecbb969f6",
+  "generator_version": "0.1.0",
+  "package_name": "excl_only",
+  "runtime_contract_version": "1.0.0"
+}

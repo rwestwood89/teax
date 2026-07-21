@@ -4,6 +4,9 @@ These tests ensure Phase 5 (Clean Core Framework) is complete - the teax-simkit
 package should have zero references to battery-specific code.
 """
 import subprocess
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 def test_core_init_has_no_battery_exports():
@@ -69,7 +72,7 @@ def test_no_battery_imports_in_framework():
         ["grep", "-r", "--include=*.py", "--exclude-dir=tests", "battery_schema", "packages/teax-simkit/simkit/"],
         capture_output=True,
         text=True,
-        cwd="/home/reid/teax",
+        cwd=REPO_ROOT,
     )
     # Should find nothing (empty stdout) - grep returns 1 when no matches
     assert result.stdout == "", f"Found battery_schema imports:\n{result.stdout}"
@@ -81,7 +84,7 @@ def test_no_battery_config_imports():
         ["grep", "-r", "--include=*.py", "--exclude-dir=tests", "BatteryConfig", "packages/teax-simkit/simkit/"],
         capture_output=True,
         text=True,
-        cwd="/home/reid/teax",
+        cwd=REPO_ROOT,
     )
     assert result.stdout == "", f"Found BatteryConfig references:\n{result.stdout}"
 
@@ -92,7 +95,7 @@ def test_no_load_profile_imports():
         ["grep", "-r", "--include=*.py", "--exclude-dir=tests", "LoadProfile8760", "packages/teax-simkit/simkit/"],
         capture_output=True,
         text=True,
-        cwd="/home/reid/teax",
+        cwd=REPO_ROOT,
     )
     assert result.stdout == "", f"Found LoadProfile8760 references:\n{result.stdout}"
 
@@ -103,7 +106,7 @@ def test_no_geography_imports():
         ["grep", "-r", "--include=*.py", "--exclude-dir=tests", "Geography", "packages/teax-simkit/simkit/"],
         capture_output=True,
         text=True,
-        cwd="/home/reid/teax",
+        cwd=REPO_ROOT,
     )
     # Filter out any false positives from comments or docs
     lines = [line for line in result.stdout.split("\n") if line and not line.strip().startswith("#")]

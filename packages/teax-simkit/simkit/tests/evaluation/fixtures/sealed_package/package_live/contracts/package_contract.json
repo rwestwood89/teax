@@ -1,0 +1,43 @@
+{
+  "artifact_hashes": {
+    "IMPLEMENTATION_BACKLOG.md": "f2a43dd9b56165aa7048aaa57a629b8c24afd1a2a25882bd9f8aacc887e2208b",
+    "__init__.py": "17b728c45ec4db28d80e318063b408cc537ec7dbf1de8a87a8a44169da2bb3ea",
+    "contracts/generation_manifest.json": "927f36d601a3bc5fe6fe993531ffb4403c87c78fd89357aae02cf27714f8de11",
+    "contracts/model_contract.json": "45828d465a54cffd82d65eaebf2bca774649bfd501442bbfec598513e924a499",
+    "contracts/verify.py": "ad0a855af17d18af5f3e8c36b1a6c500f492d88ec777b40f307c646306c67284",
+    "handwritten/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "handwritten/toy_library/__init__.py": "200b1c90d646c8c58c2644945ee551dddc12adcfdab30b7ae4197891284a70c8",
+    "handwritten/toy_library/panel_area_impl.py": "19b76456c67e082174b01710fe1e33774f5e303a7845c5ffcc14d6a730e44fed",
+    "handwritten/toy_library/panel_cost_impl.py": "1d46a438a73e60ab785d1d19a2b3fc7277c2eb97299397da74d1e6c190189baa",
+    "inputs/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "inputs/toy_plant_params.json": "3dd8d9c52a0642f5a3da7e9d507cd89735dfea6a700fdb26dc32a6becbec0308",
+    "modules/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "modules/constraints/__init__.py": "0fc3fea2d8e92bff93b86e656a302cf2800727bd2c3f9ff8d264930dcc73c8e1",
+    "modules/constraints/constraintreportaggregatormodule.py": "a6bc45de36dd6daaab4e2f0476041ef4006e14ec98e6c9c576382a06c861a945",
+    "modules/constraints/predicates.py": "fe145bc2bc23768b5acc565bd9aa7d286cda362b991af3d708082c007b495030",
+    "modules/toy_library/__init__.py": "0fc3fea2d8e92bff93b86e656a302cf2800727bd2c3f9ff8d264930dcc73c8e1",
+    "modules/toy_library/panel_area.py": "60af77e7a7473d6a769fc6676f94c7e4e0f905f91cfeef201808190c4d11cc1a",
+    "modules/toy_library/panel_cost.py": "0d7ca4292c7e7a45c41e22c1c3b4e04beab42a57c1fd5163bc5770cd24ae1320",
+    "modules/toy_plant/__init__.py": "0fc3fea2d8e92bff93b86e656a302cf2800727bd2c3f9ff8d264930dcc73c8e1",
+    "modules/toy_plant/demoplantaffordableconstraintmodule.py": "bfa0743ef8068795e8ea78a765ce52ce9638a05cbc2d26a5b52fc1526122c9f3",
+    "pipelines/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "pipelines/pipeline.yaml": "d3a6cf2a5429ef089d571cc73aef835f063469bbf14844afc44369b9393cf226",
+    "primitives.py": "1bc6be58e5290b102d762227c33f138ecc4f9feaa00fa2f4cfd02f87f5f71998",
+    "schemas/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "schemas/constraint_types.py": "d7604d2dd2b575760e0f722481d9d49df953a94a59c7c2316ff4e1e12bea4740",
+    "schemas/toy_plant_params.py": "08ed9dbc02d5cdfd95410dafc0f9310212a74c70c73e072019b5c24bd2109e04",
+    "tests/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
+    "tests/test_implementations_runnable.py": "be40065be091f3c8b5a69d52868bc8db4f3c85c55f8d309208bad79411fd7308"
+  },
+  "coverage_policy": {
+    "exclude_globs": [
+      "contracts/package_contract.json",
+      "**/__pycache__/**"
+    ],
+    "runtime_output_globs": []
+  },
+  "executable_fingerprint": "25a1afa5ea39b9ecb9ee74cd0388c349e26c6a0c7fbac1cb998a009574d957cf",
+  "generator_version": "0.1.0",
+  "package_name": "wi014_s4",
+  "runtime_contract_version": "1.0.0"
+}
