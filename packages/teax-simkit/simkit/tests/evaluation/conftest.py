@@ -23,10 +23,16 @@ REPORT_CH = "constraint_report"
 ENTRY_CH = "toy_plant_params"
 
 # Fixed design attributes; only plant_budget/plant_length vary per fixture case.
+#
+# The keys moved `toy_plant__Toy_Plant__*` -> `toy_plant__demo_plant__*` when this fixture was
+# regenerated at CONSTRAINT-SEMANTICS Item 3. A DESIGN_ATTRIBUTE keys by the supplying
+# attribute's display path (ADR-001), and that path now names the part *usage* rather than its
+# def. PRE-EXISTING fa0e06a-to-HEAD codegen drift surfaced by regeneration, NOT an Item 3
+# change -- Item 3 touched no entry-point key.
 FIXED = {
-    "toy_plant__Toy_Plant__plant_length": 4.0,
-    "toy_plant__Toy_Plant__plant_unit_cost": 250.0,
-    "toy_plant__Toy_Plant__plant_width": 3.0,
+    "toy_plant__demo_plant__plant_length": 4.0,
+    "toy_plant__demo_plant__plant_unit_cost": 250.0,
+    "toy_plant__demo_plant__plant_width": 3.0,
 }
 
 

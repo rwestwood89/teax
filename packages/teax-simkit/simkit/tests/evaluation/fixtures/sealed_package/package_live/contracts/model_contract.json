@@ -1,9 +1,10 @@
 {
-  "catalog_schema_version": "2.0.0",
+  "catalog_schema_version": "3.0.0",
   "constraint_catalog": {
     "concrete_entries": [
       {
         "constraint_id": "toy_plant__demo_plant__affordable__c122240f4b148939",
+        "declaration_id": "04c06eb8-796a-541f-8309-b2cc52762d94",
         "definition_qualified_name": "toy_library::'Cost Within Budget'",
         "evaluation_channel": "toy_plant__demo_plant__affordable__c122240f4b148939__evaluation",
         "expected_value": true,
@@ -19,7 +20,7 @@
       }
     ],
     "excluded_records": [],
-    "fingerprint": "4a0b47a586f39c54ff9ffc4bb22d21aeae26ce9bbde95a3f751d9af8e3525a27",
+    "fingerprint": "a8437cf67a219a1b918945a3d184a4c7fe350aee38575f9ee5e947c35979daa8",
     "source_records": [
       {
         "definition_qualified_name": "toy_library::'Cost Within Budget'",
@@ -31,10 +32,17 @@
     ],
     "usage_records": [
       {
+        "declaration_id": "04c06eb8-796a-541f-8309-b2cc52762d94",
         "definition_qualified_name": "toy_library::'Cost Within Budget'",
+        "disposition_detail": "toy_plant::'Toy Plant'::affordable profile eligibility admit",
+        "disposition_kind": "eligible",
+        "disposition_reason": "admitted",
+        "disposition_severity": "info",
         "expected_value": true,
+        "inapplicability_reason": null,
         "is_negated": false,
         "membership_kind": null,
+        "occurrence_count": 1,
         "owner_kind": "part_def",
         "owner_qualified_name": "toy_plant::'Toy Plant'",
         "source_form": "definition_typed",
@@ -72,29 +80,29 @@
       "entry_type": "design_attribute",
       "param_group": "toy_plant_params",
       "python_type": "float",
-      "qualified_name": "toy_plant__Toy_Plant__plant_budget"
+      "qualified_name": "toy_plant__demo_plant__plant_budget"
     },
     {
       "default_value": 4.0,
       "entry_type": "design_attribute",
       "param_group": "toy_plant_params",
       "python_type": "float",
-      "qualified_name": "toy_plant__Toy_Plant__plant_length"
+      "qualified_name": "toy_plant__demo_plant__plant_length"
     },
     {
       "default_value": 250.0,
       "entry_type": "design_attribute",
       "param_group": "toy_plant_params",
       "python_type": "float",
-      "qualified_name": "toy_plant__Toy_Plant__plant_unit_cost"
+      "qualified_name": "toy_plant__demo_plant__plant_unit_cost"
     },
     {
       "default_value": 3.0,
       "entry_type": "design_attribute",
       "param_group": "toy_plant_params",
       "python_type": "float",
-      "qualified_name": "toy_plant__Toy_Plant__plant_width"
+      "qualified_name": "toy_plant__demo_plant__plant_width"
     }
   ],
-  "semantic_fingerprint": "3fb0e8199433dcaa92154887128721280ab2aaf4d28e23adb51c7c4df16385f6"
+  "semantic_fingerprint": "dfd70760e8c0addee9ba28910f685ff082fd7873a04b2a546f099453b385d725"
 }

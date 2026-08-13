@@ -19,11 +19,15 @@ CASES_DIR = F1_ROOT / "cases"
 SPEC_PATH = PACKAGE_DIR / "pipelines" / "pipeline.yaml"
 PACKAGE_NAME = "f1_arithmetic_constraints"
 ENTRY_CHANNEL = "toy_plant_params"
+# The projection's order, not the declaration's. Regenerating this fixture from source at
+# CONSTRAINT-SEMANTICS Item 3 also moved the ids onto codegen's current owner-path + occurrence
+# -hash scheme; both are PRE-EXISTING fa0e06a-to-HEAD drift surfaced by regeneration, not an
+# Item 3 change.
 EXPECTED_MODULE_ORDER = (
     "entry_fusion",
-    "f1_division_check",
-    "f2_power_check",
-    "f3_nested_check",
+    "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5",
+    "toy_plant__fixture__f1_division_check__b973058cd670a967",
+    "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9",
     "constraint_report_aggregator",
     "exit_point",
 )
@@ -33,25 +37,25 @@ ARITHMETIC_CASES = (
         "division_by_zero",
         ZeroDivisionError,
         "float division by zero",
-        "f1_division_check",
+        "toy_plant__fixture__f1_division_check__b973058cd670a967",
     ),
     (
         "zero_negative_power",
         ZeroDivisionError,
         "0.0 cannot be raised to a negative power",
-        "f2_power_check",
+        "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9",
     ),
     (
         "exponent_overflow",
         OverflowError,
         "(34, 'Numerical result out of range')",
-        "f2_power_check",
+        "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9",
     ),
     (
         "nested_division",
         ZeroDivisionError,
         "float division by zero",
-        "f3_nested_check",
+        "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5",
     ),
 )
 
@@ -59,27 +63,27 @@ SAFE_CASES = (
     (
         "safe_satisfied",
         {
-            "f1_division_check": "satisfied",
-            "f2_power_check": "satisfied",
-            "f3_nested_check": "satisfied",
+            "toy_plant__fixture__f1_division_check__b973058cd670a967": "satisfied",
+            "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9": "satisfied",
+            "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5": "satisfied",
             "headline": "satisfied",
         },
     ),
     (
         "safe_violated",
         {
-            "f1_division_check": "violated",
-            "f2_power_check": "satisfied",
-            "f3_nested_check": "satisfied",
+            "toy_plant__fixture__f1_division_check__b973058cd670a967": "violated",
+            "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9": "satisfied",
+            "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5": "satisfied",
             "headline": "violated",
         },
     ),
     (
         "nonfinite_indeterminate",
         {
-            "f1_division_check": "indeterminate",
-            "f2_power_check": "satisfied",
-            "f3_nested_check": "satisfied",
+            "toy_plant__fixture__f1_division_check__b973058cd670a967": "indeterminate",
+            "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9": "satisfied",
+            "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5": "satisfied",
             "headline": "indeterminate",
         },
     ),
@@ -182,18 +186,21 @@ def test_both_backends_normalize_native_arithmetic_failure(
 @pytest.mark.parametrize(
     "case_name,earlier_channels,failed_channel",
     (
+        # Execution order is f3, f1, f2 (the projection's, not the declaration's), so which
+        # channels count as "earlier" moved when the fixture was regenerated from source.
         (
             "zero_negative_power",
-            ("f1_division_check__evaluation",),
-            "f2_power_check__evaluation",
+            (
+                "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation",
+                "toy_plant__fixture__f1_division_check__b973058cd670a967__evaluation",
+            ),
+            "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9__evaluation",
         ),
+        # f3 runs first, so nothing precedes it.
         (
             "nested_division",
-            (
-                "f1_division_check__evaluation",
-                "f2_power_check__evaluation",
-            ),
-            "f3_nested_check__evaluation",
+            (),
+            "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation",
         ),
     ),
 )

@@ -64,7 +64,10 @@ def test_unconditional_success_verifier_rejected_before_exec(tmp_path):
     )
 
 
-@pytest.mark.parametrize("skewed_version", ["2.0.0", "0.9.0"])
+# Both directions around the ACCEPTED version, which moved 1.0.0 -> 2.0.0 at
+# CONSTRAINT-SEMANTICS Item 3. `1.0.0` is now the older-package direction (it was the accepted
+# one before the item) and `3.0.0` the newer-runtime direction.
+@pytest.mark.parametrize("skewed_version", ["1.0.0", "3.0.0"])
 def test_version_skew_fails_closed_both_directions(tmp_path, skewed_version):
     pkg = _copy_package(tmp_path)
     seal_path = pkg / "contracts" / "package_contract.json"

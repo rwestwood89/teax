@@ -11,9 +11,9 @@ Inputs:
 Outputs:
     - area: area result
 
-SysML Source: root-0/constraint_free_library.sysml:4
+SysML Source: models/constraint_free_library.sysml:4
 
-SysML Source: root-0/constraint_free_library.sysml:4
+SysML Source: models/constraint_free_library.sysml:4
 
 GAP: Code generator does NOT implement calc logic - only wrapper structure.
 Handwritten implementation required in handwritten/constraint_free_library/area_calc_impl.py
@@ -46,9 +46,9 @@ Inputs:
 Outputs:
     - area: area result
 
-SysML Source: root-0/constraint_free_library.sysml:4
+SysML Source: models/constraint_free_library.sysml:4
 
-    SysML Source: root-0/constraint_free_library.sysml:4
+    SysML Source: models/constraint_free_library.sysml:4
 
     Calculation Specification:
         area = width * 3.0

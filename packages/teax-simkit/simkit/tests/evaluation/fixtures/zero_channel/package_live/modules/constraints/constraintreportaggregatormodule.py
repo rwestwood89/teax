@@ -9,9 +9,20 @@ from pydantic import BaseModel
 from simkit.config.schema import MultiOutput
 from simkit.core.base import ModuleBase, ModuleResult
 
-from zero_channel.schemas.constraint_types import ConstraintEvaluation, ConstraintReport
+from zero_channel.schemas.constraint_types import (
+    ConstraintEvaluation,
+    ConstraintReport,
+    CoverageAccount,
+)
 
 EXPECTED_IDS = ('zero_plant_zeroPlant_within_6c6ab9e3b1afb20e',)
+
+#: The coverage account, derived at generation from the sealed catalog by
+#: `generation/coverage.py::coverage_account` and baked here exactly the way
+#: CATALOG_FINGERPRINT and EXPECTED_IDS are. Which gates are applicable and which were
+#: assessed depends on the model, never on this candidate's input values, so recomputing it
+#: per evaluation would recompute a constant.
+COVERAGE = {'authored_usage_total': 1, 'applicable_gate_total': 1, 'assessed_gate_count': 1, 'unassessed_gate_count': 0, 'inapplicable_gate_count': 0, 'unassessed_reasons': {}, 'coverage_state': 'complete'}
 
 
 class ConstraintReportAggregatorInput(BaseModel):
@@ -30,26 +41,38 @@ class ConstraintReportAggregatorModule(
     name: str = "constraint_report_aggregator"
     version: str = "v0.1"
 
-    CATALOG_FINGERPRINT = "ead563949377c3163ff3ac5e82eba6e5e708eb19fd79f8aedcb393466e6ad2d2"
+    CATALOG_FINGERPRINT = "344a54772ab64668e5f845adf774cb7c5a53fff0f65183e6ac6e360055fb7b93"
 
     def run(self, **evaluations) -> ModuleResult[ConstraintReportAggregatorOutput]:
         validated = ConstraintReportAggregatorInput(**evaluations)
         results = [getattr(validated, cid) for cid in EXPECTED_IDS]
         statuses = [r.status for r in results]
+        coverage = CoverageAccount(**COVERAGE)
+
+        # Statuses decide the top two arms; the account decides the rest. The status set
+        # contains only occurrences of applicable assessed gates by construction, so the
+        # `violation` arm cannot fire from a gate outside the denominator: an inapplicable
+        # gate is either unassessed (no entries, no results) or refused at generation.
+        #
+        # Result-list non-emptiness stops deciding anything. That was the whole defect —
+        # `all_satisfied` meant "nothing that arrived failed", whatever fraction arrived.
         if "violated" in statuses:
             headline = "violation"
         elif "indeterminate" in statuses:
             headline = "indeterminate"
-        elif results:
-            headline = "all_satisfied"
+        elif coverage.unassessed_gate_count == 0 and coverage.assessed_gate_count > 0:
+            headline = "full_satisfaction"
+        elif coverage.applicable_gate_total > 0:
+            headline = "partial_coverage"
         else:
             headline = "not_assessed"
         return ModuleResult(
             data=ConstraintReportAggregatorOutput(
                 constraint_report=ConstraintReport(
                     catalog_fingerprint=self.CATALOG_FINGERPRINT,
-                    assessed_count=len(results),
+                    assessed_entry_count=len(results),
                     headline=headline,
+                    coverage=coverage,
                     results=results,
                 )
             )

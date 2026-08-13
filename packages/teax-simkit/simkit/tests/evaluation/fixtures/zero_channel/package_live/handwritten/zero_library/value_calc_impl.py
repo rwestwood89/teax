@@ -2,7 +2,7 @@
 
 AUTO_IMPLEMENTED = True
 
-SysML Source: root-0/zero_library.sysml:4
+SysML Source: models/zero_library.sysml:4
 
 SysML Expressions:
     value = 2.0 * 3.0
@@ -21,7 +21,7 @@ def run_value_calc(inputs: Value_CalcInput) -> float:
 
 Constant output, no `in` parameters -> not an entry channel.
 
-SysML Source: root-0/zero_library.sysml:4
+SysML Source: models/zero_library.sysml:4
 
 SysML Expressions:
     value = 2.0 * 3.0

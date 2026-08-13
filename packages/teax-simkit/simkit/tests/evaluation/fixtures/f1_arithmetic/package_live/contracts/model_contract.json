@@ -1,55 +1,130 @@
 {
+  "catalog_schema_version": "3.0.0",
   "constraint_catalog": {
     "concrete_entries": [
       {
-        "constraint_id": "f1_division_check",
-        "evaluation_channel": "f1_division_check__evaluation",
+        "constraint_id": "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5",
+        "declaration_id": "05ccde9b-0ea1-5759-825c-6ab6b32ef1f7",
+        "definition_qualified_name": null,
+        "evaluation_channel": "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation",
         "expected_value": true,
         "is_negated": false,
-        "membership_kind": "assert",
+        "membership_kind": null,
         "owner_instance_path": "toy_plant__fixture",
-        "predicate_ir": "{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"a\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"b\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"/\",\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"literal\",\"literal\":{\"kind\":\"LiteralRational\",\"result_type\":\"real\",\"value\":0.0},\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\">\",\"schema_version\":\"expression-ir/v1\"}",
-        "usage_qualified_name": "f1_arithmetic::Fixture::f1_division_check"
+        "owner_qualified_name": "toy_plant::'Toy Plant'",
+        "predicate_ir": "{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"operator\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"operands\":[{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"nested_a\",\"target\":{\"kind\":\"AttributeUsage\",\"name\":\"nested_a\",\"qualified_name\":\"toy_plant::'Toy Plant'::nested_a\"},\"target_types\":[\"ScalarValues::Real\",\"Base::DataValue\",\"Base::Anything\"]},\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"nested_b\",\"target\":{\"kind\":\"AttributeUsage\",\"name\":\"nested_b\",\"qualified_name\":\"toy_plant::'Toy Plant'::nested_b\"},\"target_types\":[\"ScalarValues::Real\",\"Base::DataValue\",\"Base::Anything\"]},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"/\",\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"literal\",\"literal\":{\"kind\":\"LiteralRational\",\"result_type\":\"ScalarValues::Rational\",\"value\":0.0},\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\">\",\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"nested_a\",\"target\":{\"kind\":\"AttributeUsage\",\"name\":\"nested_a\",\"qualified_name\":\"toy_plant::'Toy Plant'::nested_a\"},\"target_types\":[\"ScalarValues::Real\",\"Base::DataValue\",\"Base::Anything\"]},\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"operator\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"operands\":[{\"kind\":\"literal\",\"literal\":{\"kind\":\"LiteralRational\",\"result_type\":\"ScalarValues::Rational\",\"value\":1.0},\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"-\",\"schema_version\":\"expression-ir/v1\"}],\"operator\":\">\",\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"and\",\"schema_version\":\"expression-ir/v1\"}",
+        "predicate_source_key": "inline:toy_plant::'Toy Plant'::f3_nested_check",
+        "source_form": "inline",
+        "source_local_identity": "f3_nested_check",
+        "usage_qualified_name": "toy_plant::'Toy Plant'::f3_nested_check"
       },
       {
-        "constraint_id": "f2_power_check",
-        "evaluation_channel": "f2_power_check__evaluation",
+        "constraint_id": "toy_plant__fixture__f1_division_check__b973058cd670a967",
+        "declaration_id": "1d56331b-a2f0-509b-92c4-ec5e7333fcad",
+        "definition_qualified_name": null,
+        "evaluation_channel": "toy_plant__fixture__f1_division_check__b973058cd670a967__evaluation",
         "expected_value": true,
         "is_negated": false,
-        "membership_kind": "assert",
+        "membership_kind": null,
         "owner_instance_path": "toy_plant__fixture",
-        "predicate_ir": "{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"a\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"b\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"**\",\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"literal\",\"literal\":{\"kind\":\"LiteralRational\",\"result_type\":\"real\",\"value\":0.0},\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\">\",\"schema_version\":\"expression-ir/v1\"}",
-        "usage_qualified_name": "f1_arithmetic::Fixture::f2_power_check"
+        "owner_qualified_name": "toy_plant::'Toy Plant'",
+        "predicate_ir": "{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"operator\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"operands\":[{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"division_a\",\"target\":{\"kind\":\"AttributeUsage\",\"name\":\"division_a\",\"qualified_name\":\"toy_plant::'Toy Plant'::division_a\"},\"target_types\":[\"ScalarValues::Real\",\"Base::DataValue\",\"Base::Anything\"]},\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"division_b\",\"target\":{\"kind\":\"AttributeUsage\",\"name\":\"division_b\",\"qualified_name\":\"toy_plant::'Toy Plant'::division_b\"},\"target_types\":[\"ScalarValues::Real\",\"Base::DataValue\",\"Base::Anything\"]},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"/\",\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"literal\",\"literal\":{\"kind\":\"LiteralRational\",\"result_type\":\"ScalarValues::Rational\",\"value\":0.0},\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\">\",\"schema_version\":\"expression-ir/v1\"}",
+        "predicate_source_key": "inline:toy_plant::'Toy Plant'::f1_division_check",
+        "source_form": "inline",
+        "source_local_identity": "f1_division_check",
+        "usage_qualified_name": "toy_plant::'Toy Plant'::f1_division_check"
       },
       {
-        "constraint_id": "f3_nested_check",
-        "evaluation_channel": "f3_nested_check__evaluation",
+        "constraint_id": "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9",
+        "declaration_id": "d44f45de-3733-5d0f-b734-3ee04377db56",
+        "definition_qualified_name": null,
+        "evaluation_channel": "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9__evaluation",
         "expected_value": true,
         "is_negated": false,
-        "membership_kind": "assert",
+        "membership_kind": null,
         "owner_instance_path": "toy_plant__fixture",
-        "predicate_ir": "{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"a\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"b\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"/\",\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"literal\",\"literal\":{\"kind\":\"LiteralRational\",\"result_type\":\"real\",\"value\":0.0},\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\">\",\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"a\",\"target\":null,\"target_types\":[]},\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"literal\",\"literal\":{\"kind\":\"LiteralRational\",\"result_type\":\"real\",\"value\":-1.0},\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\">\",\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"and\",\"schema_version\":\"expression-ir/v1\"}",
-        "usage_qualified_name": "f1_arithmetic::Fixture::f3_nested_check"
+        "owner_qualified_name": "toy_plant::'Toy Plant'",
+        "predicate_ir": "{\"kind\":\"operator\",\"operand_type\":null,\"operands\":[{\"kind\":\"operator\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"operands\":[{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"power_a\",\"target\":{\"kind\":\"AttributeUsage\",\"name\":\"power_a\",\"qualified_name\":\"toy_plant::'Toy Plant'::power_a\"},\"target_types\":[\"ScalarValues::Real\",\"Base::DataValue\",\"Base::Anything\"]},\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"feature_ref\",\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"reference\":{\"chain_segments\":[],\"source_name\":\"power_b\",\"target\":{\"kind\":\"AttributeUsage\",\"name\":\"power_b\",\"qualified_name\":\"toy_plant::'Toy Plant'::power_b\"},\"target_types\":[\"ScalarValues::Real\",\"Base::DataValue\",\"Base::Anything\"]},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\"**\",\"schema_version\":\"expression-ir/v1\"},{\"kind\":\"literal\",\"literal\":{\"kind\":\"LiteralRational\",\"result_type\":\"ScalarValues::Rational\",\"value\":0.0},\"operand_type\":{\"category\":\"real\",\"enumeration\":null,\"unit\":null},\"schema_version\":\"expression-ir/v1\"}],\"operator\":\">\",\"schema_version\":\"expression-ir/v1\"}",
+        "predicate_source_key": "inline:toy_plant::'Toy Plant'::f2_power_check",
+        "source_form": "inline",
+        "source_local_identity": "f2_power_check",
+        "usage_qualified_name": "toy_plant::'Toy Plant'::f2_power_check"
       }
     ],
     "excluded_records": [],
-    "fingerprint": "fc026ea0a166bfa5c3afb2d15e88b5f417f7a011aadf74c0d64031d2b80d65f1",
-    "source_records": []
+    "fingerprint": "53cc6d2914d6fb738c85e6554b34f28506d2a0c56e956765f1ccb95069688d51",
+    "source_records": [],
+    "usage_records": [
+      {
+        "declaration_id": "05ccde9b-0ea1-5759-825c-6ab6b32ef1f7",
+        "definition_qualified_name": null,
+        "disposition_detail": "toy_plant::'Toy Plant'::f3_nested_check profile eligibility admit",
+        "disposition_kind": "eligible",
+        "disposition_reason": "admitted",
+        "disposition_severity": "info",
+        "expected_value": true,
+        "inapplicability_reason": null,
+        "is_negated": false,
+        "membership_kind": null,
+        "occurrence_count": 1,
+        "owner_kind": "part_def",
+        "owner_qualified_name": "toy_plant::'Toy Plant'",
+        "source_form": "inline",
+        "source_local_identity": "f3_nested_check",
+        "usage_qualified_name": "toy_plant::'Toy Plant'::f3_nested_check"
+      },
+      {
+        "declaration_id": "1d56331b-a2f0-509b-92c4-ec5e7333fcad",
+        "definition_qualified_name": null,
+        "disposition_detail": "toy_plant::'Toy Plant'::f1_division_check profile eligibility admit",
+        "disposition_kind": "eligible",
+        "disposition_reason": "admitted",
+        "disposition_severity": "info",
+        "expected_value": true,
+        "inapplicability_reason": null,
+        "is_negated": false,
+        "membership_kind": null,
+        "occurrence_count": 1,
+        "owner_kind": "part_def",
+        "owner_qualified_name": "toy_plant::'Toy Plant'",
+        "source_form": "inline",
+        "source_local_identity": "f1_division_check",
+        "usage_qualified_name": "toy_plant::'Toy Plant'::f1_division_check"
+      },
+      {
+        "declaration_id": "d44f45de-3733-5d0f-b734-3ee04377db56",
+        "definition_qualified_name": null,
+        "disposition_detail": "toy_plant::'Toy Plant'::f2_power_check profile eligibility admit",
+        "disposition_kind": "eligible",
+        "disposition_reason": "admitted",
+        "disposition_severity": "info",
+        "expected_value": true,
+        "inapplicability_reason": null,
+        "is_negated": false,
+        "membership_kind": null,
+        "occurrence_count": 1,
+        "owner_kind": "part_def",
+        "owner_qualified_name": "toy_plant::'Toy Plant'",
+        "source_form": "inline",
+        "source_local_identity": "f2_power_check",
+        "usage_qualified_name": "toy_plant::'Toy Plant'::f2_power_check"
+      }
+    ]
   },
   "evaluation_semantics": "kleene-three-valued",
   "outputs": [
     {
-      "channel_name": "f1_division_check__evaluation",
+      "channel_name": "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation",
       "field_name": "evaluation",
       "python_type": "ConstraintEvaluation"
     },
     {
-      "channel_name": "f2_power_check__evaluation",
+      "channel_name": "toy_plant__fixture__f1_division_check__b973058cd670a967__evaluation",
       "field_name": "evaluation",
       "python_type": "ConstraintEvaluation"
     },
     {
-      "channel_name": "f3_nested_check__evaluation",
+      "channel_name": "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9__evaluation",
       "field_name": "evaluation",
       "python_type": "ConstraintEvaluation"
     },
@@ -65,43 +140,43 @@
       "entry_type": "design_attribute",
       "param_group": "toy_plant_params",
       "python_type": "float",
-      "qualified_name": "toy_plant__Toy_Plant__division_a"
+      "qualified_name": "toy_plant__fixture__division_a"
     },
     {
       "default_value": 1.0,
       "entry_type": "design_attribute",
       "param_group": "toy_plant_params",
       "python_type": "float",
-      "qualified_name": "toy_plant__Toy_Plant__division_b"
+      "qualified_name": "toy_plant__fixture__division_b"
     },
     {
       "default_value": 2.0,
       "entry_type": "design_attribute",
       "param_group": "toy_plant_params",
       "python_type": "float",
-      "qualified_name": "toy_plant__Toy_Plant__nested_a"
+      "qualified_name": "toy_plant__fixture__nested_a"
     },
     {
       "default_value": 1.0,
       "entry_type": "design_attribute",
       "param_group": "toy_plant_params",
       "python_type": "float",
-      "qualified_name": "toy_plant__Toy_Plant__nested_b"
+      "qualified_name": "toy_plant__fixture__nested_b"
     },
     {
       "default_value": 2.0,
       "entry_type": "design_attribute",
       "param_group": "toy_plant_params",
       "python_type": "float",
-      "qualified_name": "toy_plant__Toy_Plant__power_a"
+      "qualified_name": "toy_plant__fixture__power_a"
     },
     {
       "default_value": 2.0,
       "entry_type": "design_attribute",
       "param_group": "toy_plant_params",
       "python_type": "float",
-      "qualified_name": "toy_plant__Toy_Plant__power_b"
+      "qualified_name": "toy_plant__fixture__power_b"
     }
   ],
-  "semantic_fingerprint": "67463b8218c51c7ebded14001c799d9fcaca8977938f1501978d345af3f29e59"
+  "semantic_fingerprint": "367c23a644b80962bd6c9b26b71947a421cba9e2480762fc4f638edc7dd14b6b"
 }

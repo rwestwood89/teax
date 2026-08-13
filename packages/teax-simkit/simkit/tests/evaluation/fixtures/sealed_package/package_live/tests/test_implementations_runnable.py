@@ -50,7 +50,7 @@ def create_dummy_input(input_class: type[BaseModel]) -> BaseModel:
 class TestPanel_AreaRunnable:
     """Verify panel_area implementation runs without error.
 
-    SysML Source: root-0/toy_library.sysml:4
+    SysML Source: models/toy_library.sysml:4
     """
 
     def test_import_and_run(self):
@@ -90,7 +90,7 @@ class TestPanel_AreaRunnable:
 class TestPanel_CostRunnable:
     """Verify panel_cost implementation runs without error.
 
-    SysML Source: root-0/toy_library.sysml:26
+    SysML Source: models/toy_library.sysml:26
     """
 
     def test_import_and_run(self):

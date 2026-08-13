@@ -182,11 +182,23 @@ EXCL_SPEC = EXCL_DIR / "pipelines" / "pipeline.yaml"
 EXCL_ENTRY = EXCL_DIR / "inputs" / "excl_plant_params.json"
 
 
-def test_excluded_only_is_not_assessed_distinct_from_constraint_free(tmp_path):
-    """An excluded-only package (constraints present but all ineligible -> zero
-    EXPECTED_IDS) emits a real report with headline `not_assessed`. Structurally
-    distinct from constraint-free empty evidence: a present report + a headline,
-    not `{}`/`None`."""
+def test_excluded_only_reads_partial_coverage_distinct_from_constraint_free(tmp_path):
+    """An excluded-only package emits a real report, and it now says what it did not assess.
+
+    The model authors one `assert constraint` whose predicate the executable profile refuses
+    (`non_numerical`), so it produces zero eligible entries. It is still an **asserted gate the
+    author wrote**, so CONSTRAINT-SEMANTICS Item 3 keeps it in the feasibility denominator as
+    an unassessed one: `applicable_gate_total 1, assessed 0, unassessed 1` -> headline
+    `partial_coverage`.
+
+    Before that item this read `not_assessed`, which conflated "one gate, refused by the
+    profile" with "no applicable gate at all" — the second of the two zero-input branches
+    collapsing into the first. The distinction is the point: a design search must be able to
+    tell a candidate nobody checked from a candidate with nothing to check.
+
+    Structurally still distinct from constraint-free empty evidence, which is the other half
+    of this test: a present report and a headline, not `{}` / `None`.
+    """
     loader = ProvisionalPackageLoader(
         package_dir=EXCL_DIR, package_name="excl_only", link_root=tmp_path / "links"
     )
@@ -195,7 +207,17 @@ def test_excluded_only_is_not_assessed_distinct_from_constraint_free(tmp_path):
     candidate = json.loads(EXCL_ENTRY.read_text())
     evidence = prepared.evaluate(CandidateBridge(prepared.entry_models).build(candidate))
 
-    assert evidence.responses["headline"] == "not_assessed"
+    assert evidence.responses["headline"] == "partial_coverage"
     assert evidence.report is not None  # a real report, unlike constraint-free
-    assert evidence.report["assessed_count"] == 0
+    assert evidence.report["assessed_entry_count"] == 0
     assert list(evidence.report["results"]) == []
+    # The account is what carries the distinction the headline alone cannot.
+    assert dict(evidence.report["coverage"]) == {
+        "authored_usage_total": 1,
+        "applicable_gate_total": 1,
+        "assessed_gate_count": 0,
+        "unassessed_gate_count": 1,
+        "inapplicable_gate_count": 0,
+        "unassessed_reasons": {"non_numerical": 1},
+        "coverage_state": "partial",
+    }

@@ -13,10 +13,17 @@ from simkit.evaluation.package_load import ProvisionalPackageLoader
 F1_ROOT = Path(__file__).parent / "fixtures" / "f1_arithmetic"
 PACKAGE_DIR = F1_ROOT / "package_live"
 PACKAGE_NAME = "f1_arithmetic_constraints"
+# Identity moved when this fixture was regenerated at CONSTRAINT-SEMANTICS Item 3. The ids now
+# carry the owner path and occurrence hash, which is codegen's current scheme -- PRE-EXISTING
+# fa0e06a-to-HEAD drift surfaced by regeneration, NOT an Item 3 change. The order is the
+# projection's, not the declaration's.
+#   f1_division_check -> toy_plant__fixture__f1_division_check__b973058cd670a967
+#   f2_power_check    -> toy_plant__fixture__f2_power_check__b4ca916c6d129ce9
+#   f3_nested_check   -> toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5
 EXPECTED_CONSTRAINT_ORDER = (
-    "f1_division_check",
-    "f2_power_check",
-    "f3_nested_check",
+    "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5",
+    "toy_plant__fixture__f1_division_check__b973058cd670a967",
+    "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9",
 )
 EXPECTED_MODULE_ORDER = (
     "entry_fusion",

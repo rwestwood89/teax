@@ -34,17 +34,17 @@ MANY = {"chan_a": ChannelA, "chan_b": ChannelB}
 # --- ONE: the real single-channel toy fixture -------------------------------
 def test_bridge_one_channel_builds_and_validates(prepared):
     bridge = CandidateBridge(prepared.entry_models)
-    entry = bridge.build({"toy_plant__Toy_Plant__plant_budget": 6000.0, **FIXED})
+    entry = bridge.build({"toy_plant__demo_plant__plant_budget": 6000.0, **FIXED})
     assert set(entry) == {ENTRY_CH}
     prepared._source.validate(entry)  # must not raise ENTRY_VALIDATION
 
 
 def test_bridge_one_defaults_unselected(prepared):
     bridge = CandidateBridge(prepared.entry_models)
-    entry = bridge.build({"toy_plant__Toy_Plant__plant_budget": 6000.0})
+    entry = bridge.build({"toy_plant__demo_plant__plant_budget": 6000.0})
     model = entry[ENTRY_CH]
-    assert model.toy_plant__Toy_Plant__plant_length == 4.0  # modeled default retained
-    assert model.toy_plant__Toy_Plant__plant_budget == 6000.0
+    assert model.toy_plant__demo_plant__plant_length == 4.0  # modeled default retained
+    assert model.toy_plant__demo_plant__plant_budget == 6000.0
 
 
 # --- MANY: candidate fields partition across channels; unselected default ----

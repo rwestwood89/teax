@@ -50,7 +50,7 @@ def create_dummy_input(input_class: type[BaseModel]) -> BaseModel:
 class TestArea_CalcRunnable:
     """Verify area_calc implementation runs without error.
 
-    SysML Source: root-0/constraint_free_library.sysml:4
+    SysML Source: models/constraint_free_library.sysml:4
     """
 
     def test_import_and_run(self):

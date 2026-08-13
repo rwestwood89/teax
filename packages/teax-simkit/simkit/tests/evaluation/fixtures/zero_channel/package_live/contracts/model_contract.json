@@ -1,9 +1,10 @@
 {
-  "catalog_schema_version": "2.0.0",
+  "catalog_schema_version": "3.0.0",
   "constraint_catalog": {
     "concrete_entries": [
       {
         "constraint_id": "zero_plant__zeroPlant__within__6c6ab9e3b1afb20e",
+        "declaration_id": "e9d8ce91-6b3d-596e-8f1e-9dee56a54615",
         "definition_qualified_name": "zero_library::'Within Limit'",
         "evaluation_channel": "zero_plant__zeroPlant__within__6c6ab9e3b1afb20e__evaluation",
         "expected_value": true,
@@ -19,7 +20,7 @@
       }
     ],
     "excluded_records": [],
-    "fingerprint": "ead563949377c3163ff3ac5e82eba6e5e708eb19fd79f8aedcb393466e6ad2d2",
+    "fingerprint": "344a54772ab64668e5f845adf774cb7c5a53fff0f65183e6ac6e360055fb7b93",
     "source_records": [
       {
         "definition_qualified_name": "zero_library::'Within Limit'",
@@ -31,10 +32,17 @@
     ],
     "usage_records": [
       {
+        "declaration_id": "e9d8ce91-6b3d-596e-8f1e-9dee56a54615",
         "definition_qualified_name": "zero_library::'Within Limit'",
+        "disposition_detail": "zero_plant::'Zero Plant'::within profile eligibility admit",
+        "disposition_kind": "eligible",
+        "disposition_reason": "admitted",
+        "disposition_severity": "info",
         "expected_value": true,
+        "inapplicability_reason": null,
         "is_negated": false,
         "membership_kind": null,
+        "occurrence_count": 1,
         "owner_kind": "part_def",
         "owner_qualified_name": "zero_plant::'Zero Plant'",
         "source_form": "definition_typed",
@@ -67,5 +75,5 @@
     }
   ],
   "parameters": [],
-  "semantic_fingerprint": "cadf0e15f233ae1f45ae324d48354e43242d6349fde4ff9f9ec83635a27f4a00"
+  "semantic_fingerprint": "8bb28a36a612ae4041e8d1646f0db4f8ed17d665f042951c96985fe22bd3f366"
 }

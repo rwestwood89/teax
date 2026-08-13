@@ -32,11 +32,11 @@ COST_CH = "toy_plant__demo_plant__cost_calc__cost"
 
 # Fixed design attributes; only plant_budget varies unless a test says otherwise.
 FIXED = {
-    "toy_plant__Toy_Plant__plant_length": 4.0,
-    "toy_plant__Toy_Plant__plant_unit_cost": 250.0,
-    "toy_plant__Toy_Plant__plant_width": 3.0,
+    "toy_plant__demo_plant__plant_length": 4.0,
+    "toy_plant__demo_plant__plant_unit_cost": 250.0,
+    "toy_plant__demo_plant__plant_width": 3.0,
 }
-GRID_VAR = "toy_plant__Toy_Plant__plant_budget"
+GRID_VAR = "toy_plant__demo_plant__plant_budget"
 GRID_STUDY_ID = "toy-grid-demo"
 
 
@@ -48,7 +48,7 @@ def write_grid_config(
     edit: str | None = None,
 ) -> Path:
     """Write the illustrative grid study-config YAML (design.md's schema),
-    varying `toy_plant__Toy_Plant__plant_budget` over `budgets` (default
+    varying `toy_plant__demo_plant__plant_budget` over `budgets` (default
     [1000, 3000, 6000] — cost is 3000 under `FIXED`, so this spans
     violated/boundary/satisfied). `edit` perturbs exactly one
     definition-shaping field, for the fingerprint-sensitivity tests.
@@ -67,7 +67,7 @@ def write_grid_config(
     elif edit == "grid_domain":
         domain = [value + 1.0 for value in domain]
     elif edit == "fixed":
-        fixed["toy_plant__Toy_Plant__plant_length"] += 1.0
+        fixed["toy_plant__demo_plant__plant_length"] += 1.0
     elif edit == "policy":
         objectives = [{"output": COST_CH, "role": "maximize"}]
     elif edit == "budget":
@@ -144,7 +144,7 @@ ZERO_ASSERTION_BUDGET = -998.0
 
 
 def _budget_only(value: float) -> dict:
-    return {"toy_plant__Toy_Plant__plant_budget": value}
+    return {"toy_plant__demo_plant__plant_budget": value}
 
 
 # Index -> proposal; candidate_id is minted from this position (positional
@@ -154,7 +154,7 @@ PROPOSALS: list[dict] = [
     _budget_only(6000.0),                      # 0 -> completed / satisfied
     _budget_only(1000.0),                      # 1 -> completed / violated
     _budget_only(float("nan")),                # 2 -> completed / indeterminate
-    {"toy_plant__Toy_Plant__plant_budget": "not-a-number"},  # 3 -> INVALID proposal
+    {"toy_plant__demo_plant__plant_budget": "not-a-number"},  # 3 -> INVALID proposal
     _budget_only(EXEC_FAIL_BUDGET),             # 4 -> execution_failed (named fault)
     _budget_only(6100.0),                       # 5 -> assessment_failed (policy rejects)
     _budget_only(ZERO_ASSERTION_BUDGET),        # 6 -> completed / not_assessed (named affordance)
@@ -166,10 +166,10 @@ PROPOSALS: list[dict] = [
 
 def validate_proposal(raw: dict) -> dict | None:
     """Malformed/missing/wrong-type only — never non-finite (spec.md#runner)."""
-    value = raw.get("toy_plant__Toy_Plant__plant_budget")
+    value = raw.get("toy_plant__demo_plant__plant_budget")
     if not isinstance(value, (int, float)) or isinstance(value, bool):
         return None
-    return {"toy_plant__Toy_Plant__plant_budget": float(value)}
+    return {"toy_plant__demo_plant__plant_budget": float(value)}
 
 
 class NamedFaultEvaluator:
@@ -183,7 +183,7 @@ class NamedFaultEvaluator:
         self._prepared = prepared_evaluator
 
     def evaluate(self, typed_inputs):
-        budget = typed_inputs[ENTRY_CH].toy_plant__Toy_Plant__plant_budget
+        budget = typed_inputs[ENTRY_CH].toy_plant__demo_plant__plant_budget
         if budget == EXEC_FAIL_BUDGET:
             raise EvaluationFailed(
                 EvaluationFailure(
@@ -201,8 +201,18 @@ class NamedFaultEvaluator:
         # `ModelEvidence.report` is the sealed `model_dump(mode="json")` tree (D2),
         # not the live model — mirror what `project` would attach.
         report = ConstraintReport(
-            catalog_fingerprint="zero-assertion-affordance", assessed_count=0,
-            headline="not_assessed", results=[],
+            catalog_fingerprint="zero-assertion-affordance", assessed_entry_count=0,
+            headline="not_assessed",
+            # The zero-input branch's account: this affordance stands in for a package that
+            # declares a constraint but assesses none of it, so nothing is applicable and
+            # nothing was assessed.
+            coverage={
+                "authored_usage_total": 1, "applicable_gate_total": 0,
+                "assessed_gate_count": 0, "unassessed_gate_count": 0,
+                "inapplicable_gate_count": 0, "unassessed_reasons": {},
+                "coverage_state": "none",
+            },
+            results=[],
         ).model_dump(mode="json")
         provenance = EvidenceProvenance(
             executable_fingerprint=self._prepared.fingerprint,

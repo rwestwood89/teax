@@ -75,9 +75,25 @@ def _coverage_of(evidence: ModelEvidence) -> dict[str, Any]:
     if report is None:
         return {}
     return {
-        "coverage": report.get("coverage"),
+        "coverage": _thawed(report.get("coverage")),
         "catalog_fingerprint": report.get("catalog_fingerprint"),
     }
+
+
+def _thawed(value: Any) -> Any:
+    """Plain, JSON-serializable containers from evidence's frozen ones.
+
+    ``ModelEvidence`` deep-freezes the report tree at attach (invariant 41), so `coverage`
+    arrives as a ``MappingProxyType`` of ``MappingProxyType``. `assessment_json` is
+    ``json.dumps``-ed into the case row, and ``json`` refuses a mappingproxy. Thawing on the
+    way *out* is the right direction: the evidence copy stays frozen and unshared, and the
+    assessment gets its own plain structure to serialize.
+    """
+    if isinstance(value, Mapping):
+        return {key: _thawed(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_thawed(item) for item in value]
+    return value
 
 
 class AssessmentFailed(Exception):

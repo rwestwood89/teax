@@ -123,7 +123,7 @@ def test_malformed_mapping_is_recorded_classified_failure(tmp_path, prepared):
     def passthrough(raw):
         return dict(raw)  # let a malformed value reach the bridge
 
-    proposals = [{"toy_plant__Toy_Plant__plant_budget": "not-a-number"}]
+    proposals = [{"toy_plant__demo_plant__plant_budget": "not-a-number"}]
     definition = _bridge_defect_definition(
         prepared, entry_models=prepared.entry_models,
         validate=passthrough, proposals=proposals,

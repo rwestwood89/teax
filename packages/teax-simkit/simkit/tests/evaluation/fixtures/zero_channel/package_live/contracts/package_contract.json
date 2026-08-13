@@ -3,29 +3,29 @@
     "IMPLEMENTATION_BACKLOG.md": "d96d3c7aab209db02031ba1657e4ad98c6bdc0882fcf40db9cf4fbe0db1f7148",
     "__init__.py": "97ce2ab21298e5af1a6319a1a897ba03b5800600247c0bd43c94da2f22f5014c",
     "contracts/generation_manifest.json": "d76b38305f9decfefe64b60f5d0ceb59dddd879bcde5bf592b513980491b56d7",
-    "contracts/model_contract.json": "907c3daa6555662cc8bf7b902def96c8a194dd39d719c9b19c9a34d23010be68",
+    "contracts/model_contract.json": "5038176143c26f5f8eae8ae333481049d3686dbca2146732a870d30919cffde7",
     "contracts/verify.py": "ad0a855af17d18af5f3e8c36b1a6c500f492d88ec777b40f307c646306c67284",
     "handwritten/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
     "handwritten/zero_library/__init__.py": "200b1c90d646c8c58c2644945ee551dddc12adcfdab30b7ae4197891284a70c8",
-    "handwritten/zero_library/limit_calc_impl.py": "3bfd4c65b3907969c993df4373b5c1fb76359b6ddc571790204642e9a3e7d01a",
-    "handwritten/zero_library/value_calc_impl.py": "ddeac757fe4ddaa2611cd8fe702d9b436c5cd7b4bd51c93dbf120a89a04fb7c0",
+    "handwritten/zero_library/limit_calc_impl.py": "214abba67447c2847004c29eb3f659a5f550200bae6d6875dbbf70fca485a837",
+    "handwritten/zero_library/value_calc_impl.py": "5aaf3ac9d7833d9714a657fdf7fbf81e463abd68fe934a5972162df4981cfb6f",
     "inputs/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
     "modules/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
     "modules/constraints/__init__.py": "0fc3fea2d8e92bff93b86e656a302cf2800727bd2c3f9ff8d264930dcc73c8e1",
-    "modules/constraints/constraintreportaggregatormodule.py": "3faf35d01a10add7e9d76f83a91381b9cfa37bfe9545ecee10d37d39c7a52b0d",
+    "modules/constraints/constraintreportaggregatormodule.py": "27c57f097bcfb524402f9fe8ba10e4c243b035c8994560f2561e44dd3244ea9d",
     "modules/constraints/predicates.py": "a1d1ad378b0f69ba36b4a3fd9c52cf9bf5ee69e4934686573fdd6c528c6b869c",
     "modules/zero_library/__init__.py": "0fc3fea2d8e92bff93b86e656a302cf2800727bd2c3f9ff8d264930dcc73c8e1",
-    "modules/zero_library/limit_calc.py": "46afa6f8ba44ebdaedf0592bfb149556d66358c0e13461c16e7f9056edbb3b1a",
-    "modules/zero_library/value_calc.py": "f121c926c293dad197ca726dec1b2247e352ced66084060c9b1fc63bc12d7fd8",
+    "modules/zero_library/limit_calc.py": "6502a603b432d81606326b8e28ea3542351a76cabbadea5ec614453ae40b1ff8",
+    "modules/zero_library/value_calc.py": "897ae6bcac5d4ed70a710bb979e049564252183b1dcfe54ea897321ed54a692a",
     "modules/zero_plant/__init__.py": "0fc3fea2d8e92bff93b86e656a302cf2800727bd2c3f9ff8d264930dcc73c8e1",
     "modules/zero_plant/zeroplantwithinconstraintmodule.py": "8a24aa223d227056142a39c5a7d7160c317387b1beeea1980d3c2c26cb23750c",
     "pipelines/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
     "pipelines/pipeline.yaml": "ab82bd0962e4ebc8c59c8fe88b75dbd77c0abe90a2103fc7b6094687c1583bfe",
     "primitives.py": "1bc6be58e5290b102d762227c33f138ecc4f9feaa00fa2f4cfd02f87f5f71998",
     "schemas/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
-    "schemas/constraint_types.py": "d7604d2dd2b575760e0f722481d9d49df953a94a59c7c2316ff4e1e12bea4740",
+    "schemas/constraint_types.py": "c7910f974bd106e6d58f61bd0ae5ce28a2f63135bf841327a6b76a7a1d21cc49",
     "tests/__init__.py": "fdb87b916dfcceb58c446d8769dc3583722ec7cbc0206ceec05ecd830cbe440c",
-    "tests/test_implementations_runnable.py": "b1b1bbf71f3e04ec144e10da3b8a6930116b9592e4131dc949f7153c58ad4c67"
+    "tests/test_implementations_runnable.py": "4cbdbbc8deb579c74592e96f09d6084bb69af29057c2cf4a77e9aefd7e164942"
   },
   "coverage_policy": {
     "exclude_globs": [
@@ -34,8 +34,8 @@
     ],
     "runtime_output_globs": []
   },
-  "executable_fingerprint": "ffbc29064f5a7e96925589ac92e28067fd2dd5eb11a38261b8ff79be628712ac",
+  "executable_fingerprint": "115394bf1f4626d17f9be07dc718c096cc415546e6c1029c87fffc499fd9c2f6",
   "generator_version": "0.1.0",
   "package_name": "zero_channel",
-  "runtime_contract_version": "1.0.0"
+  "runtime_contract_version": "2.0.0"
 }

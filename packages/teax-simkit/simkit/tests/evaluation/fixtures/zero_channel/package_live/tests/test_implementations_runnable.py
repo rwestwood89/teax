@@ -50,7 +50,7 @@ def create_dummy_input(input_class: type[BaseModel]) -> BaseModel:
 class TestValue_CalcRunnable:
     """Verify value_calc implementation runs without error.
 
-    SysML Source: root-0/zero_library.sysml:4
+    SysML Source: models/zero_library.sysml:4
     """
 
     def test_import_and_run(self):
@@ -90,7 +90,7 @@ class TestValue_CalcRunnable:
 class TestLimit_CalcRunnable:
     """Verify limit_calc implementation runs without error.
 
-    SysML Source: root-0/zero_library.sysml:9
+    SysML Source: models/zero_library.sysml:9
     """
 
     def test_import_and_run(self):

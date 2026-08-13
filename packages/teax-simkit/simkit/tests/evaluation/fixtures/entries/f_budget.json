@@ -1,6 +1,6 @@
 {
-  "toy_plant__Toy_Plant__plant_budget": NaN,
-  "toy_plant__Toy_Plant__plant_length": 4.0,
-  "toy_plant__Toy_Plant__plant_unit_cost": 250.0,
-  "toy_plant__Toy_Plant__plant_width": 3.0
+  "toy_plant__demo_plant__plant_budget": NaN,
+  "toy_plant__demo_plant__plant_length": 4.0,
+  "toy_plant__demo_plant__plant_unit_cost": 250.0,
+  "toy_plant__demo_plant__plant_width": 3.0
 }

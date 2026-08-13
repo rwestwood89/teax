@@ -14,6 +14,27 @@ class _PredicateResult(NamedTuple):
     margin: object         # signed float or None (simple-inequality roots only)
 
 
+class _PredicateBodyResult(NamedTuple):
+    actual_value: object
+    source_margin: object
+
+
+def _finalize_assertion(body, *, is_negated, expected_value):
+    if type(is_negated) is not bool or type(expected_value) is not bool:
+        raise ValueError("assertion finalization requires Boolean polarity fields")
+    if expected_value is not (not is_negated):
+        raise ValueError("assertion polarity fields must be complementary")
+    if body.actual_value is None:
+        return _PredicateResult(None, "indeterminate", None)
+    status = "satisfied" if body.actual_value == expected_value else "violated"
+    margin = body.source_margin
+    if margin is not None:
+        margin = -margin if is_negated else margin
+        if margin == 0:
+            margin = 0.0
+    return _PredicateResult(body.actual_value, status, margin)
+
+
 def _fin(x):
     return isinstance(x, (int, float)) and math.isfinite(x)
 
@@ -49,35 +70,17 @@ def _norm0(x):
     """Normalize an exact-boundary signed zero (-0.0) to 0.0 (`[HARD]`)."""
     return 0.0 if x == 0.0 else x
 
-# f1_arithmetic::Fixture::f1_division_check
-def constraint_pred_f1_arithmetic__fixture__f1_division_check(a, b):
-    value = _cmp('>', (a / b), 0.0)
-    if value is None:
-        status = "indeterminate"
-    elif value == True:
-        status = "satisfied"
-    else:
-        status = "violated"
-    return _PredicateResult(actual_value=value, status=status, margin=(_norm0(((a / b) - 0.0)) if (_fin((a / b)) and _fin(0.0)) else None))
+# inline:toy_plant::'Toy Plant'::f3_nested_check
+def constraint_pred_inline_toy_plant__toy_plant__f3_nested_check(nested_a, nested_b):
+    value = _and(_cmp('>', (nested_a / nested_b), 0.0), _cmp('>', nested_a, (-1.0)))
+    return _PredicateBodyResult(actual_value=value, source_margin=None)
 
-# f1_arithmetic::Fixture::f2_power_check
-def constraint_pred_f1_arithmetic__fixture__f2_power_check(a, b):
-    value = _cmp('>', (a ** b), 0.0)
-    if value is None:
-        status = "indeterminate"
-    elif value == True:
-        status = "satisfied"
-    else:
-        status = "violated"
-    return _PredicateResult(actual_value=value, status=status, margin=(_norm0(((a ** b) - 0.0)) if (_fin((a ** b)) and _fin(0.0)) else None))
+# inline:toy_plant::'Toy Plant'::f1_division_check
+def constraint_pred_inline_toy_plant__toy_plant__f1_division_check(division_a, division_b):
+    value = _cmp('>', (division_a / division_b), 0.0)
+    return _PredicateBodyResult(actual_value=value, source_margin=(_norm0(((division_a / division_b) - 0.0)) if (_fin((division_a / division_b)) and _fin(0.0)) else None))
 
-# f1_arithmetic::Fixture::f3_nested_check
-def constraint_pred_f1_arithmetic__fixture__f3_nested_check(a, b):
-    value = _and(_cmp('>', (a / b), 0.0), _cmp('>', a, -1.0))
-    if value is None:
-        status = "indeterminate"
-    elif value == True:
-        status = "satisfied"
-    else:
-        status = "violated"
-    return _PredicateResult(actual_value=value, status=status, margin=None)
+# inline:toy_plant::'Toy Plant'::f2_power_check
+def constraint_pred_inline_toy_plant__toy_plant__f2_power_check(power_a, power_b):
+    value = _cmp('>', (power_a ** power_b), 0.0)
+    return _PredicateBodyResult(actual_value=value, source_margin=(_norm0(((power_a ** power_b) - 0.0)) if (_fin((power_a ** power_b)) and _fin(0.0)) else None))
