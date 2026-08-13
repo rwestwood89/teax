@@ -175,7 +175,10 @@ def test_entry_load_failure_not_over_emitted_as_output_write(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# INV-B — excluded-only -> exact not_assessed surface, distinct from empty
+# INV-B — excluded-only -> exact partial_coverage surface, distinct from empty
+#
+# Its one asserted gate is excluded as non_numerical, which since Item 3 keeps it in the
+# feasibility denominator as unassessed rather than dropping it out of the question.
 
 EXCL_DIR = FIXTURES / "excluded_only" / "package_live"
 EXCL_SPEC = EXCL_DIR / "pipelines" / "pipeline.yaml"

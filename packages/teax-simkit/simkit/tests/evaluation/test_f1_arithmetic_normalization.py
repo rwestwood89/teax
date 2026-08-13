@@ -183,30 +183,38 @@ def test_both_backends_normalize_native_arithmetic_failure(
     assert file_backed._entry_path.read_bytes() == case_path.read_bytes()
 
 
+# Execution order is f3, f1, f2 — the projection's, not the declaration's. It moved when the
+# fixture was regenerated from source at CONSTRAINT-SEMANTICS Item 3, which changed which
+# channels count as "earlier" for each failing case.
 @pytest.mark.parametrize(
     "case_name,earlier_channels,failed_channel",
     (
-        # Execution order is f3, f1, f2 (the projection's, not the declaration's), so which
-        # channels count as "earlier" moved when the fixture was regenerated from source.
+        # f1 is second, so f3's evidence precedes it.
+        (
+            "division_by_zero",
+            ("toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation",),
+            "toy_plant__fixture__f1_division_check__b973058cd670a967__evaluation",
+        ),
+        # f2 is last, so both others precede it.
         (
             "zero_negative_power",
-            (
-                "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation",
-                "toy_plant__fixture__f1_division_check__b973058cd670a967__evaluation",
-            ),
+            ("toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation", "toy_plant__fixture__f1_division_check__b973058cd670a967__evaluation"),
             "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9__evaluation",
         ),
-        # f3 runs first, so nothing precedes it.
-        (
-            "nested_division",
-            (),
-            "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation",
-        ),
     ),
+    ids=["fails-second", "fails-last"],
 )
 def test_later_failure_keeps_earlier_work_internal_without_aggregate(
     tmp_path, case_name, earlier_channels, failed_channel
 ):
+    """Earlier constraint evidence survives a later arithmetic failure, and stays internal.
+
+    Both cases carry at least one earlier channel. That is load-bearing: a case whose failing
+    module runs *first* has nothing earlier to preserve, so its loop would be empty and the
+    test would pass while proving nothing. The reorder at regeneration emptied one such case
+    once; the assertion below stops that recurring silently.
+    """
+    assert earlier_channels, "a case with no earlier channels proves nothing here"
     _, evaluator, _, _ = _evaluators(tmp_path)
     case_path = CASES_DIR / f"{case_name}.json"
     evaluator._entry_path.write_bytes(case_path.read_bytes())
@@ -219,6 +227,25 @@ def test_later_failure_keeps_earlier_work_internal_without_aggregate(
     for channel in earlier_channels:
         assert channel in context.channels
     assert failed_channel not in context.channels
+    assert "constraint_report" not in context.channels
+
+
+def test_a_failure_in_the_first_constraint_leaves_no_evidence_and_no_aggregate(tmp_path):
+    """The other half: f3 runs first, so a failure there has nothing earlier to preserve.
+
+    Stated as its own test with a real assertion rather than as a parametrized case with an
+    empty `earlier_channels` tuple, which is what it degenerated into when regeneration moved
+    the execution order. An empty loop asserts nothing; this asserts the actual property —
+    *no* constraint evaluation channel is present, and no aggregate was formed.
+    """
+    _, evaluator, _, _ = _evaluators(tmp_path)
+    evaluator._entry_path.write_bytes((CASES_DIR / "nested_division.json").read_bytes())
+    context = PipelineExecutionContext(evaluator._registry)
+
+    with pytest.raises((ZeroDivisionError, OverflowError)):
+        evaluator._executor.run(evaluator._graph, context, persist_outputs=False)
+
+    assert not [key for key in context.channels if key.endswith("__evaluation")]
     assert "constraint_report" not in context.channels
 
 

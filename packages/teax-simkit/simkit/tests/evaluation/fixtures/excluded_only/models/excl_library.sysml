@@ -9,7 +9,13 @@ package excl_library {
     constraint def 'Flag Set' {
         doc /* A non-numerical (boolean) predicate: codegen cannot lower it to a
         numeric margin, so it is excluded -> the package has a constraint report
-        aggregator with zero eligible entries -> headline not_assessed. */
+        aggregator with zero eligible entries -> headline partial_coverage.
+
+        It reads partial, not not_assessed: this is still an ASSERTED gate the author
+        wrote, and CONSTRAINT-SEMANTICS Item 3 keeps such a gate in the feasibility
+        denominator as an unassessed one (1 applicable, 0 assessed, reason
+        non_numerical). Reading it as not_assessed conflated "one gate, refused by the
+        profile" with "no applicable gate at all". */
         in attribute flag : Boolean;
         flag == true
     }

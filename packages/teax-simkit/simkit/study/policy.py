@@ -107,7 +107,11 @@ class Policy(Protocol):
 
 class DispositionPolicy:
     """Maps evidence to a disposition using the real canonical headline
-    vocabulary (`satisfied|violated|indeterminate|not_assessed`).
+    vocabulary (`satisfied|violated|indeterminate|partial_coverage|not_assessed`).
+
+    `partial_coverage` joined at CONSTRAINT-SEMANTICS Item 3 and gets its own disposition
+    rather than folding into `feasible` or `infeasible`: a candidate whose gates were only
+    partly assessed is neither.
 
     `reject_candidate_ids` is an injected set this policy raises
     `AssessmentFailed` for — the seam Item 11 needs to exercise
