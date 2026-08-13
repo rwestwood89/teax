@@ -221,3 +221,48 @@ def test_excluded_only_reads_partial_coverage_distinct_from_constraint_free(tmp_
         "unassessed_reasons": {"non_numerical": 1},
         "coverage_state": "partial",
     }
+
+
+def test_the_nested_coverage_block_is_unmutable_through_evidence(tmp_path):
+    """Invariant 41 over the block this item added — at BOTH levels of nesting.
+
+    `ModelEvidence._freeze` recurses mappings at attach, so `coverage` and the
+    `unassessed_reasons` histogram inside it are each a `MappingProxyType`. The obligation was a
+    test, not a mechanism: nothing reachable from `ModelEvidence.report["coverage"]` may be
+    mutable, and a nested block is exactly where a recursion bug would hide.
+
+    Asserted at both levels deliberately. A `_freeze` that stopped recursing one level down
+    would still pass a top-level-only check while leaving the histogram writable — and the
+    histogram is the field that says *why* gates went unassessed.
+    """
+    loader = ProvisionalPackageLoader(
+        package_dir=EXCL_DIR, package_name="excl_only", link_root=tmp_path / "links"
+    )
+    loader.load()
+    prepared = PreparedEvaluator(loader, EXCL_SPEC, expects_constraint_report=True)
+    candidate = json.loads(EXCL_ENTRY.read_text())
+    evidence = prepared.evaluate(CandidateBridge(prepared.entry_models).build(candidate))
+
+    coverage = evidence.report["coverage"]
+
+    # Level 1: the block itself.
+    with pytest.raises(TypeError):
+        coverage["assessed_gate_count"] = 99
+    with pytest.raises(TypeError):
+        coverage["a_field_nobody_defined"] = 1
+    with pytest.raises(TypeError):
+        del coverage["coverage_state"]
+
+    # Level 2: the histogram inside it.
+    with pytest.raises(TypeError):
+        coverage["unassessed_reasons"]["non_numerical"] = 0
+    with pytest.raises(TypeError):
+        coverage["unassessed_reasons"]["invented_reason"] = 1
+
+    # And the report tree above it, so the block cannot be swapped out wholesale.
+    with pytest.raises(TypeError):
+        evidence.report["coverage"] = {}
+
+    # Nothing above actually changed anything.
+    assert coverage["assessed_gate_count"] == 0
+    assert dict(coverage["unassessed_reasons"]) == {"non_numerical": 1}
