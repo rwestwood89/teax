@@ -59,3 +59,19 @@ def load_model_contract(package_dir: str | Path) -> ModelContractData:
         usage_records=list(catalog.get("usage_records", [])),
         raw=raw,
     )
+
+
+def ships_constraint_report(contract: ModelContractData) -> bool:
+    """Does this package ship a constraint report? The one consumer-side authority.
+
+    The same population the producer's rule reads: a report exists iff the model authored at
+    least one constraint usage. Reading `concrete_entries` instead answers "is there anything
+    to execute", which since CONSTRAINT-SEMANTICS Item 3 is a different question — a model
+    with 65 declared constraints and none eligible ships a report that says so.
+
+    This used to be answered twice on the consumer side: here, from the catalog, and again in
+    `evaluation/evaluator.py` from the pipeline spec. The evaluation layer is isolation-clean
+    and genuinely has no catalog authority, so its derivation was invented rather than read;
+    it is deleted and `expects_constraint_report` is a required argument there instead.
+    """
+    return bool(contract.usage_records)

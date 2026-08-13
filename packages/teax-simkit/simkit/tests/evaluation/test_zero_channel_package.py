@@ -26,7 +26,7 @@ def prepared(tmp_path_factory) -> PreparedEvaluator:
         package_dir=FIXTURE_DIR, package_name="zero_channel", link_root=link_root
     )
     loader.load()
-    return PreparedEvaluator(loader, SPEC_PATH)
+    return PreparedEvaluator(loader, SPEC_PATH, expects_constraint_report=True)
 
 
 def test_zero_channel_package_has_no_entry_channels(prepared):

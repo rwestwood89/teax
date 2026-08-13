@@ -52,7 +52,7 @@ def _cfree_loader(tmp_path: Path) -> ProvisionalPackageLoader:
 
 def test_constraint_free_prepared_empty_evidence(tmp_path):
     loader = _cfree_loader(tmp_path)
-    prepared = PreparedEvaluator(loader, CFREE_SPEC)
+    prepared = PreparedEvaluator(loader, CFREE_SPEC, expects_constraint_report=False)
     candidate = json.loads(CFREE_ENTRY.read_text())
     evidence = prepared.evaluate(CandidateBridge(prepared.entry_models).build(candidate))
 
@@ -64,7 +64,10 @@ def test_constraint_free_prepared_empty_evidence(tmp_path):
 
 def test_constraint_free_file_backed_empty_evidence(tmp_path):
     loader = _cfree_loader(tmp_path)
-    fb = FileBackedEvaluator(loader, CFREE_DIR, tmp_path / "work", tmp_path / "out")
+    fb = FileBackedEvaluator(
+        loader, CFREE_DIR, tmp_path / "work", tmp_path / "out",
+        expects_constraint_report=False,
+    )
     entry = tmp_path / "entry.json"
     entry.write_bytes(CFREE_ENTRY.read_bytes())
     evidence = fb.evaluate(entry)
@@ -98,7 +101,7 @@ def _f1_prepared(tmp_path) -> PreparedEvaluator:
         package_dir=F1_DIR, package_name="f1_arithmetic_constraints", link_root=tmp_path / "l"
     )
     loader.load()
-    return PreparedEvaluator(loader, F1_SPEC)
+    return PreparedEvaluator(loader, F1_SPEC, expects_constraint_report=True)
 
 
 def test_sealed_evidence_chain_cannot_be_mutated(tmp_path):
@@ -135,7 +138,9 @@ def test_output_write_failure_stamps_output_write(tmp_path):
     loader.load()
     ro_output = tmp_path / "ro_out"
     ro_output.mkdir()
-    fb = FileBackedEvaluator(loader, F1_DIR, tmp_path / "work", ro_output)
+    fb = FileBackedEvaluator(
+        loader, F1_DIR, tmp_path / "work", ro_output, expects_constraint_report=True
+    )
     entry = tmp_path / "entry.json"
     entry.write_bytes(F1_CASE.read_bytes())
     os.chmod(ro_output, stat.S_IRUSR | stat.S_IXUSR)  # read-only: write phase fails
@@ -157,7 +162,10 @@ def test_entry_load_failure_not_over_emitted_as_output_write(tmp_path):
         package_dir=F1_DIR, package_name="f1_arithmetic_constraints", link_root=tmp_path / "l"
     )
     loader.load()
-    fb = FileBackedEvaluator(loader, F1_DIR, tmp_path / "work", tmp_path / "out")
+    fb = FileBackedEvaluator(
+        loader, F1_DIR, tmp_path / "work", tmp_path / "out",
+        expects_constraint_report=True,
+    )
     entry = tmp_path / "entry.json"
     entry.write_text("{ this is not valid json")
     with pytest.raises(EvaluationFailed) as caught:
@@ -183,7 +191,7 @@ def test_excluded_only_is_not_assessed_distinct_from_constraint_free(tmp_path):
         package_dir=EXCL_DIR, package_name="excl_only", link_root=tmp_path / "links"
     )
     loader.load()
-    prepared = PreparedEvaluator(loader, EXCL_SPEC)
+    prepared = PreparedEvaluator(loader, EXCL_SPEC, expects_constraint_report=True)
     candidate = json.loads(EXCL_ENTRY.read_text())
     evidence = prepared.evaluate(CandidateBridge(prepared.entry_models).build(candidate))
 

@@ -40,11 +40,13 @@ def _loader(tmp_path_factory) -> ProvisionalPackageLoader:
 
 @pytest.fixture(scope="session")
 def prepared(_loader) -> PreparedEvaluator:
-    return PreparedEvaluator(_loader, SPEC_PATH)
+    return PreparedEvaluator(_loader, SPEC_PATH, expects_constraint_report=True)
 
 
 @pytest.fixture(scope="session")
 def file_backed(_loader, tmp_path_factory) -> FileBackedEvaluator:
     work_dir = tmp_path_factory.mktemp("file_backed_work")
     output_dir = tmp_path_factory.mktemp("file_backed_output")
-    return FileBackedEvaluator(_loader, FIXTURE_DIR, work_dir, output_dir)
+    return FileBackedEvaluator(
+        _loader, FIXTURE_DIR, work_dir, output_dir, expects_constraint_report=True
+    )

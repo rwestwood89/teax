@@ -51,6 +51,15 @@ class CaseView:
     verdicts: Mapping[str, str]  # constraint_id -> satisfied|violated|indeterminate|not_assessed
     headline: str | None
     disposition: str | None
+    #: The generated report's coverage account, copied verbatim into `assessment_json` by the
+    #: policy (CONSTRAINT-SEMANTICS Item 3 / D7). `None` for a constraint-free package, and
+    #: for any case recorded before the policy carried it. Surfaced on the row so a study
+    #: query answers "how covered was this candidate" without opening evidence artifacts.
+    coverage: Mapping[str, Any] | None
+    #: The catalog the coverage account summarizes, by fingerprint. The per-usage detail
+    #: behind these numbers lives in the package's `contracts/model_contract.json` and
+    #: nowhere else — the account is a summary addressed to it, never a second inventory.
+    catalog_fingerprint: str | None
     assessment: Mapping[str, Any] | None
     executable_fingerprint: str
     evidence_digest: str | None
@@ -128,6 +137,8 @@ class StudyQuery:
             verdicts=verdicts,
             headline=headline,
             disposition=assessment.get("disposition") if assessment else None,
+            coverage=assessment.get("coverage") if assessment else None,
+            catalog_fingerprint=assessment.get("catalog_fingerprint") if assessment else None,
             assessment=assessment,
             executable_fingerprint=fingerprint,
             evidence_digest=row["evidence_digest"],

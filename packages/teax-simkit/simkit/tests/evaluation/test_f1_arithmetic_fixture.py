@@ -52,7 +52,10 @@ def test_f1_fixture_seal_name_fingerprint_and_order(tmp_path):
         == "../inputs/toy_plant_params.json"
     )
 
-    evaluator = PreparedEvaluator(loader, PACKAGE_DIR / "pipelines" / "pipeline.yaml")
+    evaluator = PreparedEvaluator(
+        loader, PACKAGE_DIR / "pipelines" / "pipeline.yaml",
+        expects_constraint_report=True,
+    )
     assert tuple(evaluator._graph.topological_order) == EXPECTED_MODULE_ORDER
 
     generation_record = (F1_ROOT / "GENERATION.md").read_text(encoding="utf-8")

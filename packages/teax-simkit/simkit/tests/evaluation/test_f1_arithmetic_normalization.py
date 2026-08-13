@@ -109,11 +109,11 @@ def _evaluators(tmp_path: Path):
         package_name=PACKAGE_NAME,
         link_root=tmp_path / "links",
     )
-    prepared = PreparedEvaluator(loader, SPEC_PATH)
+    prepared = PreparedEvaluator(loader, SPEC_PATH, expects_constraint_report=True)
     output_root = tmp_path / "candidate-output"
     work_root = tmp_path / "scratch"
     file_backed = FileBackedEvaluator(
-        loader, PACKAGE_DIR, work_root, output_root
+        loader, PACKAGE_DIR, work_root, output_root, expects_constraint_report=True
     )
     return prepared, file_backed, work_root, output_root
 

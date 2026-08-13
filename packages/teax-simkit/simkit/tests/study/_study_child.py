@@ -26,7 +26,7 @@ def run(db_path: Path, link_root: Path, crash_spec: str | None) -> None:
     loader = ProvisionalPackageLoader(
         package_dir=FIXTURE_DIR, package_name="wi014_s4", link_root=link_root
     )
-    prepared = PreparedEvaluator(loader, SPEC_PATH)
+    prepared = PreparedEvaluator(loader, SPEC_PATH, expects_constraint_report=True)
     policy = DispositionPolicy(reject_candidate_ids=frozenset({mint_candidate_id(STUDY_ID, 5)}))
     definition = build_definition(prepared, policy)
 

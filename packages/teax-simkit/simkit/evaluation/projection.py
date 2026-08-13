@@ -10,10 +10,10 @@ from __future__ import annotations
 from typing import Any
 
 from .evidence import (
-    CANONICAL_HEADLINE,
     CorruptConstraintEvidence,
     EvidenceProvenance,
     ModelEvidence,
+    canonical_headline,
 )
 
 #: The pipeline channel/field carrying the aggregated constraint report. The
@@ -56,7 +56,7 @@ def project(result: Any, *, provenance: EvidenceProvenance, expects_report: bool
         responses: dict[str, Any] = {}
         report_tree = None
     else:
-        responses = {"headline": CANONICAL_HEADLINE[report.headline]}
+        responses = {"headline": canonical_headline(report.headline)}
         for constraint_result in report.results:
             responses[constraint_result.constraint_id] = constraint_result.status
         # Seal at attach: dump once here, freeze in ``ModelEvidence`` (D2). The

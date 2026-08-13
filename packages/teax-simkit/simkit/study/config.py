@@ -42,6 +42,15 @@ class PolicyConfig(StrictBaseModel):
     name: str
     objectives: tuple[ObjectiveConfig, ...] = ()
     response_roles: dict[str, str] = Field(default_factory=dict)
+    #: What a partially-covered candidate does in the search (CONSTRAINT-SEMANTICS Item 3).
+    #:
+    #: The default keeps it as boundary evidence and out of the steering loop, because "every
+    #: gate that ran passed" is not "this candidate is feasible". ``"feed-strategy"`` opts the
+    #: study into treating it exactly as ``satisfied`` — one visible YAML line, ``extra="forbid"``
+    #: fails closed on a typo, and because the whole policy block is digested into
+    #: ``StudyConfig.semantic_fingerprint()`` the flip **starts a new study lineage** rather
+    #: than silently changing a running study's meaning.
+    partial_coverage: Literal["keep-for-boundary", "feed-strategy"] = "keep-for-boundary"
 
 
 class StudyConfig(StrictBaseModel):

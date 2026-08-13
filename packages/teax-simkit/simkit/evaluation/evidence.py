@@ -35,20 +35,61 @@ class CorruptConstraintEvidence(RuntimeError):
     ``EvaluationFailed``, so the run stops instead of recording a healthy-looking
     empty case."""
 
-# Runtime-owned verdict vocabulary. A per-constraint status is one of the
-# first three; the aggregate headline can additionally be "not_assessed".
-ResponseEntry = Literal["satisfied", "violated", "indeterminate", "not_assessed"]
+class UnknownHeadlineToken(RuntimeError):
+    """A report or canonical headline token this runtime cannot map.
 
-# Read-only projection from the generated report's headline vocabulary
-# (underscore) onto the runtime-owned canonical vocabulary (D6).
-CANONICAL_HEADLINE: Mapping[str, ResponseEntry] = MappingProxyType(
+    Deliberately **not** an ``AssessmentFailed``: a token the runtime cannot map means the
+    runtime does not understand the package, which must stop the run — not record a per-case
+    policy failure that looks healthy in the store. It is also not a
+    ``CorruptConstraintEvidence``: the evidence is intact, the vocabulary is not shared.
+
+    This is the fail-closed half of CONSTRAINT-SEMANTICS Item 3's rename. The generated
+    ``all_satisfied`` became ``full_satisfaction`` because state 3's meaning strengthened from
+    "nothing failed" to "everything was checked and passed". A reader that silently defaulted
+    on the unknown token would hide the strengthened claim; one that raises exposes it.
+    """
+
+
+# Runtime-owned verdict vocabulary, split so one type stops doing two jobs.
+#
+# A per-constraint status is a verdict about one assertion in one context. A headline is a
+# statement about the whole design point, and it has states no single constraint can have —
+# "partial" is not a kind of satisfaction, it is a statement about the denominator.
+ConstraintStatus = Literal["satisfied", "violated", "indeterminate"]
+HeadlineResponse = Literal[
+    "satisfied", "violated", "indeterminate", "partial_coverage", "not_assessed"
+]
+ResponseEntry = ConstraintStatus | HeadlineResponse
+
+# Read-only projection from the generated report's headline vocabulary (underscore) onto the
+# runtime-owned canonical vocabulary (D6). One report token per canonical token, both ways.
+CANONICAL_HEADLINE: Mapping[str, HeadlineResponse] = MappingProxyType(
     {
-        "all_satisfied": "satisfied",
         "violation": "violated",
         "indeterminate": "indeterminate",
+        "full_satisfaction": "satisfied",
+        "partial_coverage": "partial_coverage",
         "not_assessed": "not_assessed",
     }
 )
+
+
+def canonical_headline(token: str) -> HeadlineResponse:
+    """Map a generated report headline onto the canonical vocabulary, or refuse by name.
+
+    The bare subscript this replaces raised ``KeyError`` on an unmapped token, which
+    invariant 46a forbids: an unrecognized token must never be swallowed into something that
+    reads satisfied or unconstrained.
+    """
+    try:
+        return CANONICAL_HEADLINE[token]
+    except KeyError:
+        raise UnknownHeadlineToken(
+            f"generated report headline {token!r} is not one of "
+            f"{sorted(CANONICAL_HEADLINE)}: this runtime does not understand the package it "
+            "is reading. If the package is older than this runtime, regenerate it; if it is "
+            "newer, update the runtime."
+        ) from None
 
 
 class EvidenceProvenance(StrictBaseModel):

@@ -101,7 +101,7 @@ def _loader(tmp_path_factory) -> ProvisionalPackageLoader:
 
 @pytest.fixture(scope="session")
 def prepared(_loader) -> PreparedEvaluator:
-    return PreparedEvaluator(_loader, SPEC_PATH)
+    return PreparedEvaluator(_loader, SPEC_PATH, expects_constraint_report=True)
 
 
 def run_store_child(db: Path, crash_at: str | None = None) -> int:

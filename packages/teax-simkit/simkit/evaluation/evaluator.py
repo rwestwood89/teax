@@ -76,17 +76,6 @@ def _normalize_run_failure(
     ) from error
 
 
-def _report_declared_in_spec(spec: Any) -> bool:
-    """Spec-derived default for ``expects_report``: does the exit module declare
-    the ``constraint_report`` output field? A constraint-free package omits it
-    (46a). The study layer overrides this with the catalog authority; the two
-    must agree."""
-    exit_spec = next((m for m in spec.modules.values() if m.is_exit), None)
-    if exit_spec is None:
-        return False
-    return REPORT_CHANNEL in exit_spec.outputs
-
-
 def _entry_artifact_path(spec: Any, spec_path: Path, work_dir: Path) -> Path:
     """The on-disk entry-artifact path the file-backed route writes the candidate
     to, derived from the spec's single entry binding (relative to the spec) — not
@@ -117,7 +106,18 @@ class PreparedEvaluator:
     """In-memory evaluator: prepare once (topology + write-handler validation,
     INV3), evaluate per case with a fresh context (no channel bleed)."""
 
-    EVIDENCE_SCHEMA_VERSION = "v1"
+    EVIDENCE_SCHEMA_VERSION = "v2"
+    """The shape of the evidence artifact this evaluator produces.
+
+    `v1` -> `v2` at CONSTRAINT-SEMANTICS Item 3: the report tree inside `ModelEvidence.report`
+    gained a required `coverage` block, renamed `assessed_count` to `assessed_entry_count`,
+    and replaced its headline vocabulary. This is a **bound** `Compatibility` field, so it is
+    the carrier that makes reopening a pre-Item-3 store raise `IncompatibleStore` — the
+    archive-and-begin route, already mechanized. `model_contract_fingerprint` cannot carry it:
+    the item adds no catalog field and keeps `CATALOG_SCHEMA_VERSION` at 3.0.0, so for an
+    already-constraint-bearing package whose channel set does not move, that fingerprint is
+    byte-identical across the item.
+    """
     EVALUATOR_VERSION = "v1"
 
     def __init__(
@@ -125,7 +125,7 @@ class PreparedEvaluator:
         loader: PackageLoader,
         spec_path: Path,
         *,
-        expects_constraint_report: bool | None = None,
+        expects_constraint_report: bool,
     ) -> None:
         self.package, self.fingerprint = loader.load()
         custom_types = list(self.package.CUSTOM_SCHEMA_TYPES)
@@ -134,13 +134,7 @@ class PreparedEvaluator:
         registry_factory = getattr(self.package, f"create_{self.package.__name__}_registry")
         self._registry = registry_factory()
         spec = entry_point_validate(spec_path)
-        # Catalog authority (M3) when the study layer supplies it; spec-derived
-        # default otherwise so evaluation-layer tests stay self-contained.
-        self._expects_report = (
-            _report_declared_in_spec(spec)
-            if expects_constraint_report is None
-            else expects_constraint_report
-        )
+        self._expects_report = expects_constraint_report
 
         router = create_output_router_with_json_schemas(
             [t.__name__ for t in custom_types], include_builtins=True, in_memory=True
@@ -204,7 +198,7 @@ class FileBackedEvaluator:
         work_dir: Path,
         output_dir: Path,
         *,
-        expects_constraint_report: bool | None = None,
+        expects_constraint_report: bool,
     ) -> None:
         self.package, self.fingerprint = loader.load()
         custom_types = list(self.package.CUSTOM_SCHEMA_TYPES)
@@ -240,11 +234,7 @@ class FileBackedEvaluator:
                 )
             ) from error
         self._registry = registry
-        self._expects_report = (
-            _report_declared_in_spec(spec)
-            if expects_constraint_report is None
-            else expects_constraint_report
-        )
+        self._expects_report = expects_constraint_report
         # Write the candidate to the entry artifact path the spec actually
         # declares, derived from the single entry binding — not a hardcoded
         # fixture filename — so any generated single-group package loads.
