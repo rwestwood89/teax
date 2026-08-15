@@ -2,7 +2,7 @@
 
 AUTO_IMPLEMENTED = True
 
-SysML Source: root-0/excl_library.sysml:4
+SysML Source: models/excl_library.sysml:4
 
 SysML Expressions:
     area = width * 3.0
@@ -16,7 +16,7 @@ from excl_only.modules.excl_library.area_calc import Area_CalcInput
 def run_area_calc(inputs: Area_CalcInput) -> float:
     """Execute Area_Calc calculation.
 
-SysML Source: root-0/excl_library.sysml:4
+SysML Source: models/excl_library.sysml:4
 
 SysML Expressions:
     area = width * 3.0

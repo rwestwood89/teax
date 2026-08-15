@@ -67,9 +67,10 @@ PROVENANCE = EvidenceProvenance(
 @pytest.mark.parametrize(
     "generated_headline,canonical",
     [
-        ("all_satisfied", "satisfied"),
+        ("full_satisfaction", "satisfied"),
         ("violation", "violated"),
         ("indeterminate", "indeterminate"),
+        ("partial_coverage", "partial_coverage"),
         ("not_assessed", "not_assessed"),
     ],
 )
@@ -84,7 +85,7 @@ def test_headline_normalization(generated_headline, canonical):
 
 def test_per_constraint_status_pass_through():
     report = FakeReport(
-        headline="all_satisfied",
+        headline="full_satisfaction",
         results=[
             FakeConstraintEvaluation("toy_plant__demo_plant__affordable", "satisfied"),
         ],
@@ -97,7 +98,7 @@ def test_per_constraint_status_pass_through():
 
 
 def test_output_unwrap_and_non_scalar_exclusion():
-    report = FakeReport(headline="all_satisfied", results=[])
+    report = FakeReport(headline="full_satisfaction", results=[])
     result = FakeRunResult(
         outputs={
             "area": FakeRootModel(12.0),
@@ -114,7 +115,7 @@ def test_output_unwrap_and_non_scalar_exclusion():
 
 def test_report_attached_as_faithful_frozen_copy():
     report = FakeReport(
-        headline="all_satisfied",
+        headline="full_satisfaction",
         results=[FakeConstraintEvaluation("c1", "satisfied")],
     )
     result = FakeRunResult(outputs={REPORT_CHANNEL: report})

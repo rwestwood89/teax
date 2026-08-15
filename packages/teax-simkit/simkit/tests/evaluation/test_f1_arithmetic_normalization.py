@@ -19,11 +19,15 @@ CASES_DIR = F1_ROOT / "cases"
 SPEC_PATH = PACKAGE_DIR / "pipelines" / "pipeline.yaml"
 PACKAGE_NAME = "f1_arithmetic_constraints"
 ENTRY_CHANNEL = "toy_plant_params"
+# The projection's order, not the declaration's. Regenerating this fixture from source at
+# CONSTRAINT-SEMANTICS Item 3 also moved the ids onto codegen's current owner-path + occurrence
+# -hash scheme; both are PRE-EXISTING fa0e06a-to-HEAD drift surfaced by regeneration, not an
+# Item 3 change.
 EXPECTED_MODULE_ORDER = (
     "entry_fusion",
-    "f1_division_check",
-    "f2_power_check",
-    "f3_nested_check",
+    "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5",
+    "toy_plant__fixture__f1_division_check__b973058cd670a967",
+    "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9",
     "constraint_report_aggregator",
     "exit_point",
 )
@@ -33,25 +37,25 @@ ARITHMETIC_CASES = (
         "division_by_zero",
         ZeroDivisionError,
         "float division by zero",
-        "f1_division_check",
+        "toy_plant__fixture__f1_division_check__b973058cd670a967",
     ),
     (
         "zero_negative_power",
         ZeroDivisionError,
         "0.0 cannot be raised to a negative power",
-        "f2_power_check",
+        "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9",
     ),
     (
         "exponent_overflow",
         OverflowError,
         "(34, 'Numerical result out of range')",
-        "f2_power_check",
+        "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9",
     ),
     (
         "nested_division",
         ZeroDivisionError,
         "float division by zero",
-        "f3_nested_check",
+        "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5",
     ),
 )
 
@@ -59,27 +63,27 @@ SAFE_CASES = (
     (
         "safe_satisfied",
         {
-            "f1_division_check": "satisfied",
-            "f2_power_check": "satisfied",
-            "f3_nested_check": "satisfied",
+            "toy_plant__fixture__f1_division_check__b973058cd670a967": "satisfied",
+            "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9": "satisfied",
+            "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5": "satisfied",
             "headline": "satisfied",
         },
     ),
     (
         "safe_violated",
         {
-            "f1_division_check": "violated",
-            "f2_power_check": "satisfied",
-            "f3_nested_check": "satisfied",
+            "toy_plant__fixture__f1_division_check__b973058cd670a967": "violated",
+            "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9": "satisfied",
+            "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5": "satisfied",
             "headline": "violated",
         },
     ),
     (
         "nonfinite_indeterminate",
         {
-            "f1_division_check": "indeterminate",
-            "f2_power_check": "satisfied",
-            "f3_nested_check": "satisfied",
+            "toy_plant__fixture__f1_division_check__b973058cd670a967": "indeterminate",
+            "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9": "satisfied",
+            "toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5": "satisfied",
             "headline": "indeterminate",
         },
     ),
@@ -109,11 +113,11 @@ def _evaluators(tmp_path: Path):
         package_name=PACKAGE_NAME,
         link_root=tmp_path / "links",
     )
-    prepared = PreparedEvaluator(loader, SPEC_PATH)
+    prepared = PreparedEvaluator(loader, SPEC_PATH, expects_constraint_report=True)
     output_root = tmp_path / "candidate-output"
     work_root = tmp_path / "scratch"
     file_backed = FileBackedEvaluator(
-        loader, PACKAGE_DIR, work_root, output_root
+        loader, PACKAGE_DIR, work_root, output_root, expects_constraint_report=True
     )
     return prepared, file_backed, work_root, output_root
 
@@ -179,27 +183,38 @@ def test_both_backends_normalize_native_arithmetic_failure(
     assert file_backed._entry_path.read_bytes() == case_path.read_bytes()
 
 
+# Execution order is f3, f1, f2 — the projection's, not the declaration's. It moved when the
+# fixture was regenerated from source at CONSTRAINT-SEMANTICS Item 3, which changed which
+# channels count as "earlier" for each failing case.
 @pytest.mark.parametrize(
     "case_name,earlier_channels,failed_channel",
     (
+        # f1 is second, so f3's evidence precedes it.
+        (
+            "division_by_zero",
+            ("toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation",),
+            "toy_plant__fixture__f1_division_check__b973058cd670a967__evaluation",
+        ),
+        # f2 is last, so both others precede it.
         (
             "zero_negative_power",
-            ("f1_division_check__evaluation",),
-            "f2_power_check__evaluation",
-        ),
-        (
-            "nested_division",
-            (
-                "f1_division_check__evaluation",
-                "f2_power_check__evaluation",
-            ),
-            "f3_nested_check__evaluation",
+            ("toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation", "toy_plant__fixture__f1_division_check__b973058cd670a967__evaluation"),
+            "toy_plant__fixture__f2_power_check__b4ca916c6d129ce9__evaluation",
         ),
     ),
+    ids=["fails-second", "fails-last"],
 )
 def test_later_failure_keeps_earlier_work_internal_without_aggregate(
     tmp_path, case_name, earlier_channels, failed_channel
 ):
+    """Earlier constraint evidence survives a later arithmetic failure, and stays internal.
+
+    Both cases carry at least one earlier channel. That is load-bearing: a case whose failing
+    module runs *first* has nothing earlier to preserve, so its loop would be empty and the
+    test would pass while proving nothing. The reorder at regeneration emptied one such case
+    once; the assertion below stops that recurring silently.
+    """
+    assert earlier_channels, "a case with no earlier channels proves nothing here"
     _, evaluator, _, _ = _evaluators(tmp_path)
     case_path = CASES_DIR / f"{case_name}.json"
     evaluator._entry_path.write_bytes(case_path.read_bytes())
@@ -212,6 +227,25 @@ def test_later_failure_keeps_earlier_work_internal_without_aggregate(
     for channel in earlier_channels:
         assert channel in context.channels
     assert failed_channel not in context.channels
+    assert "constraint_report" not in context.channels
+
+
+def test_a_failure_in_the_first_constraint_leaves_no_evidence_and_no_aggregate(tmp_path):
+    """The other half: f3 runs first, so a failure there has nothing earlier to preserve.
+
+    Stated as its own test with a real assertion rather than as a parametrized case with an
+    empty `earlier_channels` tuple, which is what it degenerated into when regeneration moved
+    the execution order. An empty loop asserts nothing; this asserts the actual property —
+    *no* constraint evaluation channel is present, and no aggregate was formed.
+    """
+    _, evaluator, _, _ = _evaluators(tmp_path)
+    evaluator._entry_path.write_bytes((CASES_DIR / "nested_division.json").read_bytes())
+    context = PipelineExecutionContext(evaluator._registry)
+
+    with pytest.raises((ZeroDivisionError, OverflowError)):
+        evaluator._executor.run(evaluator._graph, context, persist_outputs=False)
+
+    assert not [key for key in context.channels if key.endswith("__evaluation")]
     assert "constraint_report" not in context.channels
 
 

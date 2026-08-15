@@ -10,10 +10,10 @@ from __future__ import annotations
 from typing import Any
 
 from .evidence import (
-    CANONICAL_HEADLINE,
     CorruptConstraintEvidence,
     EvidenceProvenance,
     ModelEvidence,
+    canonical_headline,
 )
 
 #: The pipeline channel/field carrying the aggregated constraint report. The
@@ -41,9 +41,17 @@ def project(result: Any, *, provenance: EvidenceProvenance, expects_report: bool
       constraint-bearing package whose report channel vanished. Loud, never a
       silent empty case.
 
-    ``expects_report`` is the catalog authority: the study layer derives it from
-    ``load_model_contract(...).concrete_entries`` (empty iff constraint-free) and
-    passes it down; the evaluator's spec-derived default agrees.
+    ``expects_report`` is the catalog authority, and since CONSTRAINT-SEMANTICS Item 3 it
+    is derived in exactly ONE place: ``study.model_contract.ships_constraint_report``, over
+    ``usage_records`` — the same population the producer's rule reads. A model that declares
+    constraints and executes none of them still ships a report, so ``concrete_entries`` is the
+    wrong question and is no longer asked.
+
+    The evaluation layer has no spec-derived default any more. It had one, and its docstring
+    said "the two must agree", which is what a second derivation always has to say. It was
+    deleted rather than re-synced, and ``expects_constraint_report`` is a required constructor
+    argument on both evaluators — this layer is isolation-clean and genuinely has no catalog
+    authority to derive one from, so every caller states its expectation instead of inventing it.
     """
     report = result.outputs.get(REPORT_CHANNEL)
     if report is None:
@@ -56,7 +64,7 @@ def project(result: Any, *, provenance: EvidenceProvenance, expects_report: bool
         responses: dict[str, Any] = {}
         report_tree = None
     else:
-        responses = {"headline": CANONICAL_HEADLINE[report.headline]}
+        responses = {"headline": canonical_headline(report.headline)}
         for constraint_result in report.results:
             responses[constraint_result.constraint_id] = constraint_result.status
         # Seal at attach: dump once here, freeze in ``ModelEvidence`` (D2). The

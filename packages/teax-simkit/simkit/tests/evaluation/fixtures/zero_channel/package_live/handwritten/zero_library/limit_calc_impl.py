@@ -2,7 +2,7 @@
 
 AUTO_IMPLEMENTED = True
 
-SysML Source: root-0/zero_library.sysml:9
+SysML Source: models/zero_library.sysml:9
 
 SysML Expressions:
     limit = 10.0
@@ -21,7 +21,7 @@ def run_limit_calc(inputs: Limit_CalcInput) -> float:
 
 Constant limit, no `in` parameters -> not an entry channel.
 
-SysML Source: root-0/zero_library.sysml:9
+SysML Source: models/zero_library.sysml:9
 
 SysML Expressions:
     limit = 10.0

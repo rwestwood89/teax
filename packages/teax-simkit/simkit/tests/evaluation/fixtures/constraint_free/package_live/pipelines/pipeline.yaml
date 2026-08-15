@@ -19,7 +19,7 @@ modules:
   constraint_free_plant__freeplant__area_calc:
     module_type: constraint_free_library.Area_CalcModule
     inputs:
-      width: float constraint_free_plant_params.constraint_free_plant__Free_Plant__width_design
+      width: float constraint_free_plant_params.constraint_free_plant__freePlant__width_design
     outputs:
       root: RootModel[float] constraint_free_plant__freePlant__area_calc__area
 

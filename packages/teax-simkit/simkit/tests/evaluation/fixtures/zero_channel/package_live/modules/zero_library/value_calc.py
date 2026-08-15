@@ -7,9 +7,9 @@ Constant output, no `in` parameters -> not an entry channel.
 Outputs:
     - value: value result
 
-SysML Source: root-0/zero_library.sysml:4
+SysML Source: models/zero_library.sysml:4
 
-SysML Source: root-0/zero_library.sysml:4
+SysML Source: models/zero_library.sysml:4
 
 GAP: Code generator does NOT implement calc logic - only wrapper structure.
 Handwritten implementation required in handwritten/zero_library/value_calc_impl.py
@@ -36,9 +36,9 @@ Constant output, no `in` parameters -> not an entry channel.
 Outputs:
     - value: value result
 
-SysML Source: root-0/zero_library.sysml:4
+SysML Source: models/zero_library.sysml:4
 
-    SysML Source: root-0/zero_library.sysml:4
+    SysML Source: models/zero_library.sysml:4
 
     Calculation Specification:
         value = 2.0 * 3.0

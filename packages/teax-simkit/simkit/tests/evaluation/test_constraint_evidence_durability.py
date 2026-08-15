@@ -52,7 +52,7 @@ def _cfree_loader(tmp_path: Path) -> ProvisionalPackageLoader:
 
 def test_constraint_free_prepared_empty_evidence(tmp_path):
     loader = _cfree_loader(tmp_path)
-    prepared = PreparedEvaluator(loader, CFREE_SPEC)
+    prepared = PreparedEvaluator(loader, CFREE_SPEC, expects_constraint_report=False)
     candidate = json.loads(CFREE_ENTRY.read_text())
     evidence = prepared.evaluate(CandidateBridge(prepared.entry_models).build(candidate))
 
@@ -64,7 +64,10 @@ def test_constraint_free_prepared_empty_evidence(tmp_path):
 
 def test_constraint_free_file_backed_empty_evidence(tmp_path):
     loader = _cfree_loader(tmp_path)
-    fb = FileBackedEvaluator(loader, CFREE_DIR, tmp_path / "work", tmp_path / "out")
+    fb = FileBackedEvaluator(
+        loader, CFREE_DIR, tmp_path / "work", tmp_path / "out",
+        expects_constraint_report=False,
+    )
     entry = tmp_path / "entry.json"
     entry.write_bytes(CFREE_ENTRY.read_bytes())
     evidence = fb.evaluate(entry)
@@ -98,7 +101,7 @@ def _f1_prepared(tmp_path) -> PreparedEvaluator:
         package_dir=F1_DIR, package_name="f1_arithmetic_constraints", link_root=tmp_path / "l"
     )
     loader.load()
-    return PreparedEvaluator(loader, F1_SPEC)
+    return PreparedEvaluator(loader, F1_SPEC, expects_constraint_report=True)
 
 
 def test_sealed_evidence_chain_cannot_be_mutated(tmp_path):
@@ -135,7 +138,9 @@ def test_output_write_failure_stamps_output_write(tmp_path):
     loader.load()
     ro_output = tmp_path / "ro_out"
     ro_output.mkdir()
-    fb = FileBackedEvaluator(loader, F1_DIR, tmp_path / "work", ro_output)
+    fb = FileBackedEvaluator(
+        loader, F1_DIR, tmp_path / "work", ro_output, expects_constraint_report=True
+    )
     entry = tmp_path / "entry.json"
     entry.write_bytes(F1_CASE.read_bytes())
     os.chmod(ro_output, stat.S_IRUSR | stat.S_IXUSR)  # read-only: write phase fails
@@ -157,7 +162,10 @@ def test_entry_load_failure_not_over_emitted_as_output_write(tmp_path):
         package_dir=F1_DIR, package_name="f1_arithmetic_constraints", link_root=tmp_path / "l"
     )
     loader.load()
-    fb = FileBackedEvaluator(loader, F1_DIR, tmp_path / "work", tmp_path / "out")
+    fb = FileBackedEvaluator(
+        loader, F1_DIR, tmp_path / "work", tmp_path / "out",
+        expects_constraint_report=True,
+    )
     entry = tmp_path / "entry.json"
     entry.write_text("{ this is not valid json")
     with pytest.raises(EvaluationFailed) as caught:
@@ -167,27 +175,97 @@ def test_entry_load_failure_not_over_emitted_as_output_write(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# INV-B — excluded-only -> exact not_assessed surface, distinct from empty
+# INV-B — excluded-only -> exact partial_coverage surface, distinct from empty
+#
+# Its one asserted gate is excluded as non_numerical, which since Item 3 keeps it in the
+# feasibility denominator as unassessed rather than dropping it out of the question.
 
 EXCL_DIR = FIXTURES / "excluded_only" / "package_live"
 EXCL_SPEC = EXCL_DIR / "pipelines" / "pipeline.yaml"
 EXCL_ENTRY = EXCL_DIR / "inputs" / "excl_plant_params.json"
 
 
-def test_excluded_only_is_not_assessed_distinct_from_constraint_free(tmp_path):
-    """An excluded-only package (constraints present but all ineligible -> zero
-    EXPECTED_IDS) emits a real report with headline `not_assessed`. Structurally
-    distinct from constraint-free empty evidence: a present report + a headline,
-    not `{}`/`None`."""
+def test_excluded_only_reads_partial_coverage_distinct_from_constraint_free(tmp_path):
+    """An excluded-only package emits a real report, and it now says what it did not assess.
+
+    The model authors one `assert constraint` whose predicate the executable profile refuses
+    (`non_numerical`), so it produces zero eligible entries. It is still an **asserted gate the
+    author wrote**, so CONSTRAINT-SEMANTICS Item 3 keeps it in the feasibility denominator as
+    an unassessed one: `applicable_gate_total 1, assessed 0, unassessed 1` -> headline
+    `partial_coverage`.
+
+    Before that item this read `not_assessed`, which conflated "one gate, refused by the
+    profile" with "no applicable gate at all" — the second of the two zero-input branches
+    collapsing into the first. The distinction is the point: a design search must be able to
+    tell a candidate nobody checked from a candidate with nothing to check.
+
+    Structurally still distinct from constraint-free empty evidence, which is the other half
+    of this test: a present report and a headline, not `{}` / `None`.
+    """
     loader = ProvisionalPackageLoader(
         package_dir=EXCL_DIR, package_name="excl_only", link_root=tmp_path / "links"
     )
     loader.load()
-    prepared = PreparedEvaluator(loader, EXCL_SPEC)
+    prepared = PreparedEvaluator(loader, EXCL_SPEC, expects_constraint_report=True)
     candidate = json.loads(EXCL_ENTRY.read_text())
     evidence = prepared.evaluate(CandidateBridge(prepared.entry_models).build(candidate))
 
-    assert evidence.responses["headline"] == "not_assessed"
+    assert evidence.responses["headline"] == "partial_coverage"
     assert evidence.report is not None  # a real report, unlike constraint-free
-    assert evidence.report["assessed_count"] == 0
+    assert evidence.report["assessed_entry_count"] == 0
     assert list(evidence.report["results"]) == []
+    # The account is what carries the distinction the headline alone cannot.
+    assert dict(evidence.report["coverage"]) == {
+        "authored_usage_total": 1,
+        "applicable_gate_total": 1,
+        "assessed_gate_count": 0,
+        "unassessed_gate_count": 1,
+        "inapplicable_gate_count": 0,
+        "unassessed_reasons": {"non_numerical": 1},
+        "coverage_state": "partial",
+    }
+
+
+def test_the_nested_coverage_block_is_unmutable_through_evidence(tmp_path):
+    """Invariant 41 over the block this item added — at BOTH levels of nesting.
+
+    `ModelEvidence._freeze` recurses mappings at attach, so `coverage` and the
+    `unassessed_reasons` histogram inside it are each a `MappingProxyType`. The obligation was a
+    test, not a mechanism: nothing reachable from `ModelEvidence.report["coverage"]` may be
+    mutable, and a nested block is exactly where a recursion bug would hide.
+
+    Asserted at both levels deliberately. A `_freeze` that stopped recursing one level down
+    would still pass a top-level-only check while leaving the histogram writable — and the
+    histogram is the field that says *why* gates went unassessed.
+    """
+    loader = ProvisionalPackageLoader(
+        package_dir=EXCL_DIR, package_name="excl_only", link_root=tmp_path / "links"
+    )
+    loader.load()
+    prepared = PreparedEvaluator(loader, EXCL_SPEC, expects_constraint_report=True)
+    candidate = json.loads(EXCL_ENTRY.read_text())
+    evidence = prepared.evaluate(CandidateBridge(prepared.entry_models).build(candidate))
+
+    coverage = evidence.report["coverage"]
+
+    # Level 1: the block itself.
+    with pytest.raises(TypeError):
+        coverage["assessed_gate_count"] = 99
+    with pytest.raises(TypeError):
+        coverage["a_field_nobody_defined"] = 1
+    with pytest.raises(TypeError):
+        del coverage["coverage_state"]
+
+    # Level 2: the histogram inside it.
+    with pytest.raises(TypeError):
+        coverage["unassessed_reasons"]["non_numerical"] = 0
+    with pytest.raises(TypeError):
+        coverage["unassessed_reasons"]["invented_reason"] = 1
+
+    # And the report tree above it, so the block cannot be swapped out wholesale.
+    with pytest.raises(TypeError):
+        evidence.report["coverage"] = {}
+
+    # Nothing above actually changed anything.
+    assert coverage["assessed_gate_count"] == 0
+    assert dict(coverage["unassessed_reasons"]) == {"non_numerical": 1}

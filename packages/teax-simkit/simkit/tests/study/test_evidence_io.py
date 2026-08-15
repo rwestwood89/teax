@@ -17,7 +17,7 @@ from .conftest import ENTRY_CH, FIXED
 
 
 def test_evidence_roundtrip_nonfinite(prepared):  # INV-H, D3
-    params = prepared.entry_models[ENTRY_CH](toy_plant__Toy_Plant__plant_budget=float("nan"), **FIXED)
+    params = prepared.entry_models[ENTRY_CH](toy_plant__demo_plant__plant_budget=float("nan"), **FIXED)
     evidence = prepared.evaluate({ENTRY_CH: params})
 
     encoded = encode_evidence(evidence)

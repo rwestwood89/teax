@@ -7,9 +7,9 @@ Constant limit, no `in` parameters -> not an entry channel.
 Outputs:
     - limit: limit result
 
-SysML Source: root-0/zero_library.sysml:9
+SysML Source: models/zero_library.sysml:9
 
-SysML Source: root-0/zero_library.sysml:9
+SysML Source: models/zero_library.sysml:9
 
 GAP: Code generator does NOT implement calc logic - only wrapper structure.
 Handwritten implementation required in handwritten/zero_library/limit_calc_impl.py
@@ -36,9 +36,9 @@ Constant limit, no `in` parameters -> not an entry channel.
 Outputs:
     - limit: limit result
 
-SysML Source: root-0/zero_library.sysml:9
+SysML Source: models/zero_library.sysml:9
 
-    SysML Source: root-0/zero_library.sysml:9
+    SysML Source: models/zero_library.sysml:9
 
     Calculation Specification:
         limit = 10.0

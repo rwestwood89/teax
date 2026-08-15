@@ -2,7 +2,7 @@
 
 AUTO_IMPLEMENTED = True
 
-SysML Source: root-0/constraint_free_library.sysml:4
+SysML Source: models/constraint_free_library.sysml:4
 
 SysML Expressions:
     area = width * 3.0
@@ -23,7 +23,7 @@ def run_area_calc(inputs: Area_CalcInput) -> float:
 A calc with an `in` parameter -> a real entry channel. The package
 has NO constraints anywhere, so codegen emits no constraint report.
 
-SysML Source: root-0/constraint_free_library.sysml:4
+SysML Source: models/constraint_free_library.sysml:4
 
 SysML Expressions:
     area = width * 3.0

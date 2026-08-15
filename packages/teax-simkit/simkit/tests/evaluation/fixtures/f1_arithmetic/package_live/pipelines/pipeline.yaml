@@ -15,40 +15,40 @@ modules:
       toy_plant_params: ToyPlantParams ../inputs/toy_plant_params.json
 
 
-  # toy_plant.FixtureF1DivisionCheckConstraintModule
-  f1_division_check:
-    module_type: toy_plant.FixtureF1DivisionCheckConstraintModule
-    inputs:
-      a: float toy_plant_params.toy_plant__Toy_Plant__division_a
-      b: float toy_plant_params.toy_plant__Toy_Plant__division_b
-    outputs:
-      evaluation: ConstraintEvaluation f1_division_check__evaluation
-
-  # toy_plant.FixtureF2PowerCheckConstraintModule
-  f2_power_check:
-    module_type: toy_plant.FixtureF2PowerCheckConstraintModule
-    inputs:
-      a: float toy_plant_params.toy_plant__Toy_Plant__power_a
-      b: float toy_plant_params.toy_plant__Toy_Plant__power_b
-    outputs:
-      evaluation: ConstraintEvaluation f2_power_check__evaluation
-
   # toy_plant.FixtureF3NestedCheckConstraintModule
-  f3_nested_check:
+  toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5:
     module_type: toy_plant.FixtureF3NestedCheckConstraintModule
     inputs:
-      a: float toy_plant_params.toy_plant__Toy_Plant__nested_a
-      b: float toy_plant_params.toy_plant__Toy_Plant__nested_b
+      nested_a: float toy_plant_params.toy_plant__fixture__nested_a
+      nested_b: float toy_plant_params.toy_plant__fixture__nested_b
     outputs:
-      evaluation: ConstraintEvaluation f3_nested_check__evaluation
+      evaluation: ConstraintEvaluation toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation
+
+  # toy_plant.FixtureF1DivisionCheckConstraintModule
+  toy_plant__fixture__f1_division_check__b973058cd670a967:
+    module_type: toy_plant.FixtureF1DivisionCheckConstraintModule
+    inputs:
+      division_b: float toy_plant_params.toy_plant__fixture__division_b
+      division_a: float toy_plant_params.toy_plant__fixture__division_a
+    outputs:
+      evaluation: ConstraintEvaluation toy_plant__fixture__f1_division_check__b973058cd670a967__evaluation
+
+  # toy_plant.FixtureF2PowerCheckConstraintModule
+  toy_plant__fixture__f2_power_check__b4ca916c6d129ce9:
+    module_type: toy_plant.FixtureF2PowerCheckConstraintModule
+    inputs:
+      power_a: float toy_plant_params.toy_plant__fixture__power_a
+      power_b: float toy_plant_params.toy_plant__fixture__power_b
+    outputs:
+      evaluation: ConstraintEvaluation toy_plant__fixture__f2_power_check__b4ca916c6d129ce9__evaluation
 
   # constraints.ConstraintReportAggregatorModule
   constraint_report_aggregator:
     module_type: constraints.ConstraintReportAggregatorModule
     inputs:
-      f1_division_check: ConstraintEvaluation f1_division_check__evaluation
-      f2_power_check: ConstraintEvaluation f2_power_check__evaluation
-      f3_nested_check: ConstraintEvaluation f3_nested_check__evaluation
+      toy_plant_fixture_f3_nested_check_8b3352fdf1f62ba5: ConstraintEvaluation toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation
+      toy_plant_fixture_f1_division_check_b973058cd670a967: ConstraintEvaluation toy_plant__fixture__f1_division_check__b973058cd670a967__evaluation
+      toy_plant_fixture_f2_power_check_b4ca916c6d129ce9: ConstraintEvaluation toy_plant__fixture__f2_power_check__b4ca916c6d129ce9__evaluation
     outputs:
       constraint_report: ConstraintReport constraint_report
 
@@ -57,7 +57,7 @@ modules:
   exit_point:
     module_type: ExitPoint
     outputs:
-      f1_division_check__evaluation: ConstraintEvaluation f1_division_check__evaluation.json
-      f2_power_check__evaluation: ConstraintEvaluation f2_power_check__evaluation.json
-      f3_nested_check__evaluation: ConstraintEvaluation f3_nested_check__evaluation.json
+      toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation: ConstraintEvaluation toy_plant__fixture__f3_nested_check__8b3352fdf1f62ba5__evaluation.json
+      toy_plant__fixture__f1_division_check__b973058cd670a967__evaluation: ConstraintEvaluation toy_plant__fixture__f1_division_check__b973058cd670a967__evaluation.json
+      toy_plant__fixture__f2_power_check__b4ca916c6d129ce9__evaluation: ConstraintEvaluation toy_plant__fixture__f2_power_check__b4ca916c6d129ce9__evaluation.json
       constraint_report: ConstraintReport constraint_report.json

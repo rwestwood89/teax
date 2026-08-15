@@ -30,19 +30,29 @@ from pathlib import Path
 from types import ModuleType
 from typing import Protocol
 
-ACCEPTED_RUNTIME_CONTRACT_VERSIONS = frozenset({"1.0.0"})
+ACCEPTED_RUNTIME_CONTRACT_VERSIONS = frozenset({"2.0.0"})
 """The runtime-contract versions this loader accepts. Vendored from
 ``sysml_codegen.contracts.versions.RUNTIME_CONTRACT_VERSION`` (one image per version, Item 7
 D3). A seal recorded against a version outside this set is rejected — fail-closed whether the
-package is newer or older than the runtime."""
+package is newer or older than the runtime.
 
-ACCEPTED_CATALOG_SCHEMA_VERSIONS = frozenset({"2.0.0"})
+Re-vendored to ``2.0.0`` at CONSTRAINT-SEMANTICS Item 3. The set is **replaced, not extended**:
+a package built before that item emits the retired headline token ``all_satisfied`` and carries
+no ``coverage`` block, so accepting it would mean reading a report this runtime cannot map.
+Refusing at seal verification is the earliest and clearest place to say so."""
+
+ACCEPTED_CATALOG_SCHEMA_VERSIONS = frozenset({"3.0.0"})
 """The embedded-catalog schema versions this runtime reads (Item 8). Vendored from
 ``sysml_codegen.contracts.versions.CATALOG_SCHEMA_VERSION`` — the same by-copy rail as the
 runtime-contract set (B3 forbids importing sysml-codegen). ``study.model_contract.load_model_contract``
 fails closed on any ``catalog_schema_version`` outside this set, before reading a catalog field,
 in both skew directions. Re-vendor in lockstep with a codegen schema bump; codegen's
-``test_catalog_schema_version`` guards the source side."""
+``test_catalog_schema_version`` guards the source side.
+
+Re-vendored to ``3.0.0`` at CONSTRAINT-SEMANTICS Item 3, catching up with Item 2's codegen-side
+bump — that widened ``usage_records`` from admitted-only to the whole authored domain and re-keyed
+every row on ``declaration_id``, which is exactly the population ``ships_constraint_report`` now
+reads. Item 3 itself adds no catalog field."""
 
 TRUSTED_VERIFIER_SHA256 = "ad0a855af17d18af5f3e8c36b1a6c500f492d88ec777b40f307c646306c67284"
 """sha256 of the canonical ``contracts/verify.py``, vendored from

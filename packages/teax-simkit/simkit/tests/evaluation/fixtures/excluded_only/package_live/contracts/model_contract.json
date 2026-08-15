@@ -1,13 +1,14 @@
 {
-  "catalog_schema_version": "2.0.0",
+  "catalog_schema_version": "3.0.0",
   "constraint_catalog": {
     "concrete_entries": [],
     "excluded_records": [
       {
-        "constraint_id": "excl_plant__Excl_Plant__flag_ok__flag_ok__a03fd3912ace4ae7",
+        "constraint_id": "excl_plant__exclPlant__flag_ok__a03fd3912ace4ae7",
+        "declaration_id": "5f7f4585-6a9b-5f55-8135-a9ea3540a53c",
         "exclusion": {
           "kind": "non_numerical",
-          "location": "root-0/excl_plant.sysml:11:9",
+          "location": "root-0/excl_plant.sysml:11",
           "reasons": [
             "warn_non_numerical_equality"
           ]
@@ -17,16 +18,28 @@
         "usage_qualified_name": "excl_plant::'Excl Plant'::flag_ok"
       }
     ],
-    "fingerprint": "2de1097f8d2d3358738c231f123443484ac2177a626f1d601a449640f8cd6948",
-    "source_records": [
+    "fingerprint": "088d14efd557977b10877d23e962ac8af7a8129646e60fe6573c66dd685364d5",
+    "source_records": [],
+    "usage_records": [
       {
+        "declaration_id": "5f7f4585-6a9b-5f55-8135-a9ea3540a53c",
         "definition_qualified_name": "excl_library::'Flag Set'",
-        "formal_names": [
-          "flag"
-        ]
+        "disposition_detail": "excl_plant::'Excl Plant'::flag_ok profile eligibility non_numerical",
+        "disposition_kind": "excluded",
+        "disposition_reason": "non_numerical",
+        "disposition_severity": "info",
+        "expected_value": true,
+        "inapplicability_reason": null,
+        "is_negated": false,
+        "membership_kind": null,
+        "occurrence_count": 1,
+        "owner_kind": "part_def",
+        "owner_qualified_name": "excl_plant::'Excl Plant'",
+        "source_form": "definition_typed",
+        "source_local_identity": "flag_ok",
+        "usage_qualified_name": "excl_plant::'Excl Plant'::flag_ok"
       }
-    ],
-    "usage_records": []
+    ]
   },
   "evaluation_semantics": "kleene-three-valued",
   "outputs": [
@@ -47,8 +60,8 @@
       "entry_type": "design_attribute",
       "param_group": "excl_plant_params",
       "python_type": "float",
-      "qualified_name": "excl_plant__Excl_Plant__width_design"
+      "qualified_name": "excl_plant__exclPlant__width_design"
     }
   ],
-  "semantic_fingerprint": "7d44ae7656d2eaf7f044da21716ec7781053d77e1e8d434bf2b94eb682516774"
+  "semantic_fingerprint": "bf46c0734339ac244666d8c2621e58b60658b4633aa9aa63d6e0da4b2b6a9231"
 }

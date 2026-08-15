@@ -21,7 +21,7 @@ from .config import StudyConfig, build_definition, load_study_config
 from .crash import CrashController
 from .definition import StudyDefinition
 from .failures import IncompatibleStore
-from .model_contract import load_model_contract
+from .model_contract import load_model_contract, ships_constraint_report
 from .query import StudyQuery
 from .runner import StudyRunner
 from .store import StudyStore
@@ -36,10 +36,11 @@ def _prepared_evaluator(config: StudyConfig, store_path: Path) -> PreparedEvalua
         link_root=link_root,
     )
     spec_path = package_dir / config.package.spec
-    # Catalog is the authority for whether a constraint report is expected (M3):
-    # empty concrete_entries iff constraint-free. An absent report on a package
-    # whose catalog declares constraints is corruption, not empty evidence.
-    expects_report = bool(load_model_contract(package_dir).concrete_entries)
+    # The catalog is the authority for whether a constraint report is expected (M3), and
+    # `ships_constraint_report` is the single place that question is answered on this side. An
+    # absent report on a package whose catalog declares constraints is corruption, not empty
+    # evidence.
+    expects_report = ships_constraint_report(load_model_contract(package_dir))
     return PreparedEvaluator(loader, spec_path, expects_constraint_report=expects_report)
 
 

@@ -11,15 +11,15 @@ the usage level inside the part def.
 *Basis**: Synthetic validation fixture — no domain content
 
 Inputs:
-    - area: area parameter
     - unit_cost: unit_cost parameter
+    - area: area parameter
 
 Outputs:
     - cost: cost result
 
-SysML Source: root-0/toy_library.sysml:26
+SysML Source: models/toy_library.sysml:26
 
-SysML Source: root-0/toy_library.sysml:26
+SysML Source: models/toy_library.sysml:26
 
 GAP: Code generator does NOT implement calc logic - only wrapper structure.
 Handwritten implementation required in handwritten/toy_library/panel_cost_impl.py
@@ -35,11 +35,11 @@ class Panel_CostInput(BaseModel):
     """Input model for Panel_CostModule.
 
     Attributes:
-        area: area input
         unit_cost: unit_cost input
+        area: area input
     """
-    area: float = Field(..., description="area input")
     unit_cost: float = Field(..., description="unit_cost input")
+    area: float = Field(..., description="area input")
 
 
 class Panel_CostModule(ModuleBase[Panel_CostInput, Float]):
@@ -54,15 +54,15 @@ the usage level inside the part def.
 *Basis**: Synthetic validation fixture — no domain content
 
 Inputs:
-    - area: area parameter
     - unit_cost: unit_cost parameter
+    - area: area parameter
 
 Outputs:
     - cost: cost result
 
-SysML Source: root-0/toy_library.sysml:26
+SysML Source: models/toy_library.sysml:26
 
-    SysML Source: root-0/toy_library.sysml:26
+    SysML Source: models/toy_library.sysml:26
 
     Calculation Specification:
         cost = area * unit_cost
@@ -86,31 +86,31 @@ the usage level inside the part def.
     version: str = "v0.1"
 
     def validate_and_fill_default(
-        self, area: float, unit_cost: float    ) -> Panel_CostInput:
+        self, unit_cost: float, area: float    ) -> Panel_CostInput:
         """Validate inputs and fill defaults.
 
         Args:
-            area: area input
             unit_cost: unit_cost input
+            area: area input
 
         Returns:
             Validated input model
         """
-        return Panel_CostInput(area=area, unit_cost=unit_cost)
+        return Panel_CostInput(unit_cost=unit_cost, area=area)
 
     def run(
-        self, area: float, unit_cost: float    ) -> ModuleResult[Float]:
+        self, unit_cost: float, area: float    ) -> ModuleResult[Float]:
         """Execute calculation.
 
         Args:
-            area: area input
             unit_cost: unit_cost input
+            area: area input
 
         Returns:
             Module result with Float (single-output mode)
         """
         # Validate inputs
-        validated_inputs = self.validate_and_fill_default(area, unit_cost)
+        validated_inputs = self.validate_and_fill_default(unit_cost, area)
 
         # Import handwritten implementation
         from wi014_s4.handwritten.toy_library.panel_cost_impl import (

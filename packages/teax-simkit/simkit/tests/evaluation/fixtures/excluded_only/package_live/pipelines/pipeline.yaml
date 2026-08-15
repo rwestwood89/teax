@@ -19,7 +19,7 @@ modules:
   excl_plant__exclplant__area_calc:
     module_type: excl_library.Area_CalcModule
     inputs:
-      width: float excl_plant_params.excl_plant__Excl_Plant__width_design
+      width: float excl_plant_params.excl_plant__exclPlant__width_design
     outputs:
       root: RootModel[float] excl_plant__exclPlant__area_calc__area
 

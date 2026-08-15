@@ -69,6 +69,7 @@ def _file_evaluator(tmp_path: Path, output_dir: Path) -> FileBackedEvaluator:
         FIXTURE_DIR,
         tmp_path / "work",
         output_dir,
+        expects_constraint_report=True,
     )
 
 
