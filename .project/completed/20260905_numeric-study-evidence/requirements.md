@@ -15,7 +15,9 @@
 
 - [x] Implement projection and version transition.
 - [x] Add regressions and migration documentation.
-- [x] Run full repository checks: 432 passed. Commit prepared for cross-repository acceptance.
+- [x] Run full repository checks: 432 passed. Implementation committed as `ca5d490`.
+- [x] Parent-agent review inspected the projection and tests with no blockers (2026-09-05).
+- [x] Real stellarator package acceptance: all four heating outputs (100.0, 50.0, 50.0, 0.5) reached stored evidence and a reopened query; the historical exporter emitted `50.0` for restored `p_coupled_probe`. Wrapped LCOE remained 313.5134115016116. Evidence contained 98 numeric outputs under schema v3 with unchanged executable fingerprint `d4be395197a060590238ff74aa0c5e30fa65c94f0c9390055697da61d62be708`. Temporary trace: `/tmp/fixed-heating-acceptance-trace.json`; no historical artifacts were changed.
 
 Validation command: `UV_CACHE_DIR=/tmp/teax-uv-cache UV_PROJECT_ENVIRONMENT=/home/reid/1cfe/teax/.venv PYTHONPATH=/tmp/teax-numeric-evidence/packages/teax-simkit:/tmp/teax-numeric-evidence/packages/battery-tea-demo uv run --no-sync python -m pytest`. Explicit worktree `PYTHONPATH` makes subprocess crash/resume tests use the same v3 runtime as the parent process when reusing the original checkout's environment.
 

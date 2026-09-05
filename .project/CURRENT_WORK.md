@@ -4,10 +4,6 @@
 
 ## Active Work
 
-### Numeric study evidence
-
-Bare numeric ExitPoint outputs now reach evidence beside wrapped numbers. Evidence schema v3 binds the expanded numeric membership and excludes Booleans in both forms; a v2 store requires a fresh lineage for v3 execution. Both evaluator backends and a reopened study query assert exact mixed-output values. Full repository validation: 432 passed. Requirements and validation command: `.project/active/numeric-study-evidence/requirements.md`. Migration: `docs/evaluation-and-study.md#numeric-publication-and-evidence-v3`.
-
 ### GAP-CLOSE-F1-TEAX-NORMALIZATION: Exceptional arithmetic failure normalization
 
 - Certified against Revision 3 by independent audit. Both evaluators report the exact failed
@@ -18,6 +14,10 @@ Bare numeric ExitPoint outputs now reach evidence beside wrapped numbers. Eviden
   `.project/active/gap-close-f1-normalization/audit.md`.
 
 ## Recently Completed
+
+### 2026-09-05: Numeric study evidence
+
+Bare numeric ExitPoint outputs now reach evidence beside wrapped numbers. Evidence schema v3 binds the expanded numeric membership and excludes Booleans in both forms; a v2 store requires a fresh lineage for v3 execution. Both evaluator backends and a reopened study query assert exact mixed-output values. Full repository validation: 432 passed. Parent-agent review found no blockers. Real stellarator heating acceptance preserved all four numeric outputs and the wrapped LCOE control through storage/reopen/export. Requirements and validation command: `.project/completed/20260905_numeric-study-evidence/requirements.md`. Migration: `docs/evaluation-and-study.md#numeric-publication-and-evidence-v3`.
 
 ### 2026-07-13: CONSTRAINT-EXEC Items 0, 10–12 (epic closed, archived)
 - Integration spike, model evaluator + typed entry API, crash-safe study store/runner, and the
