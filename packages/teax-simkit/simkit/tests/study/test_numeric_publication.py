@@ -65,8 +65,8 @@ def test_mixed_outputs_survive_both_evaluators_and_reopened_store(tmp_path, toy_
         expects_constraint_report=False,
     )
     expected_cases = [
-        {"public_fraction": 2.5, "integer": 10.0, "wrapped": 20.0},
-        {"public_fraction": 3.0, "integer": 12.0, "wrapped": 24.0},
+        {"public_fraction": 2.5, "integer": 10.0, "wrapped": 20.0, "flag": 1.0},
+        {"public_fraction": 3.0, "integer": 12.0, "wrapped": 24.0, "flag": 1.0},
     ]
     for value, expected in zip((10.0, 12.0), expected_cases):
         evidence = prepared.evaluate({"input_value": ToyInput(value=value)})

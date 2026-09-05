@@ -109,8 +109,8 @@ class PreparedEvaluator:
     EVIDENCE_SCHEMA_VERSION = "v3"
     """The shape and numeric publication contract of this evaluator's evidence.
 
-    `v2` -> `v3`: publish bare int/float ExitPoint values alongside numeric root wrappers,
-    excluding bool in either representation. Bind the expanded membership to a new study
+    `v2` -> `v3`: publish bare real ExitPoint values alongside numeric root wrappers,
+    including Python bool as 0.0/1.0. Bind the expanded membership to a new study
     lineage even when package fingerprints remain unchanged. Historical stores remain readable.
 
     `v1` -> `v2` at CONSTRAINT-SEMANTICS Item 3: the report tree inside `ModelEvidence.report`

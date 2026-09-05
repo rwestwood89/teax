@@ -7,6 +7,7 @@ INV1 and B1.
 """
 from __future__ import annotations
 
+from numbers import Real
 from typing import Any
 
 from .evidence import (
@@ -23,9 +24,9 @@ REPORT_CHANNEL = "constraint_report"
 
 
 def _numeric_output(value: Any) -> float | None:
-    """Extract a bare or one-level wrapped number; Boolean flags are not measurements."""
+    """Extract a bare or one-level wrapped real number, including Python bool."""
     scalar = getattr(value, "root", value)
-    if isinstance(scalar, (int, float)) and not isinstance(scalar, bool):
+    if isinstance(scalar, Real):
         return float(scalar)
     return None
 
