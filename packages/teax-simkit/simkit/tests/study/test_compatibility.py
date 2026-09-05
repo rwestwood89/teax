@@ -94,4 +94,17 @@ def test_the_evaluator_stamps_the_version_this_item_moved_to():
     unreachable in practice, which is the way an archive-and-begin transition silently becomes
     a no-op.
     """
-    assert PreparedEvaluator.EVIDENCE_SCHEMA_VERSION == "v2"
+    assert PreparedEvaluator.EVIDENCE_SCHEMA_VERSION == "v3"
+
+
+def test_numeric_publication_requires_new_lineage(tmp_path):
+    db = tmp_path / "study.db"
+    legacy = _compat_with_evidence_schema_version("v2")
+    current = _compat_with_evidence_schema_version(PreparedEvaluator.EVIDENCE_SCHEMA_VERSION)
+    StudyStore.create_or_open(db, legacy).close()
+    with pytest.raises(IncompatibleStore, match="evidence_schema_version"):
+        StudyStore.create_or_open(db, current)
+    StudyStore(db).close()  # Historical query access does not bind a new evaluator.
+    fresh = tmp_path / "fresh.db"
+    StudyStore.create_or_open(fresh, current).close()
+    StudyStore.create_or_open(fresh, current).close()

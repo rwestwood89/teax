@@ -81,6 +81,12 @@ fingerprint, schema versions, input digest), and the generated `report` itself,
 held opaque. `projection.project()` builds a `ModelEvidence` from a raw pipeline
 result and report by reading only those few duck-typed attributes.
 
+### Numeric publication and evidence v3
+
+Every ExitPoint-selected Python `int` or `float`, bare or carried in a one-level numeric `.root` wrapper, becomes a float in `ModelEvidence.outputs` under its existing exit key. Exit aliases are preserved. Multi-output fields already extracted by the executor follow the same rule as single-output wrappers. Boolean values (bare and wrapped), strings, containers, and structured constraint objects are excluded. Projection does not recursively flatten objects. NaN and positive/negative infinity remain evidence values; the study codec stores them with its existing nonfinite tags and restores them on query. Constraint reports keep their separate structured evidence path.
+
+This publication contract is evidence schema `v3`. Version `v2` omitted bare numbers and admitted wrapped Booleans as numbers. The store binds `evidence_schema_version`, so resuming a v2 study with the v3 evaluator raises `IncompatibleStore` even if the generated package and model fingerprints are unchanged. Keep the old store as historical evidence and run into a fresh store/lineage. Old stores remain readable; querying them cannot recover values that were never persisted. Record the runtime/evidence transition on new exports. No package regeneration or arithmetic change is required for this repair.
+
 #### The headline is a coverage claim, not just a pass/fail
 
 *Updated 2026-08-14 (CONSTRAINT-SEMANTICS Item 7) to document what Item 3 landed.*

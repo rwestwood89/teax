@@ -1,8 +1,12 @@
 # Current Work
 
-**Last Updated**: 2026-07-18
+**Last Updated**: 2026-09-05
 
 ## Active Work
+
+### Numeric study evidence
+
+Bare numeric ExitPoint outputs now reach evidence beside wrapped numbers. Evidence schema v3 binds the expanded numeric membership and excludes Booleans in both forms; a v2 store requires a fresh lineage for v3 execution. Both evaluator backends and a reopened study query assert exact mixed-output values. Full repository validation: 432 passed. Requirements and validation command: `.project/active/numeric-study-evidence/requirements.md`. Migration: `docs/evaluation-and-study.md#numeric-publication-and-evidence-v3`.
 
 ### GAP-CLOSE-F1-TEAX-NORMALIZATION: Exceptional arithmetic failure normalization
 
