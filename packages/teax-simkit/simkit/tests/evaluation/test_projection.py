@@ -6,6 +6,7 @@ generated ConstraintReport/ConstraintEvaluation expose.
 """
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from types import MappingProxyType
@@ -125,3 +126,34 @@ def test_report_attached_as_faithful_frozen_copy():
     # Attached by value (the sealed model_dump tree), not the live object.
     assert _plain(evidence.report) == report.model_dump(mode="json")
     assert evidence.report is not report
+
+
+@pytest.mark.parametrize("wrapped", [False, True])
+@pytest.mark.parametrize("value", [
+    0, -7, 2.5, True, False, float("nan"), float("inf"), float("-inf"),
+    np.float32(2.5), np.float64(-3.5), np.int64(7), np.int32(-2),
+    np.float32("nan"), np.float32("inf"), np.float32("-inf"),
+])
+def test_numeric_forms_survive_projection_and_codec(value, wrapped):
+    import math
+
+    from simkit.study.evidence_io import decode_evidence, encode_evidence
+
+    output = FakeRootModel(value) if wrapped else value
+    evidence = project(FakeRunResult({"exit_key": output}), provenance=PROVENANCE, expects_report=False)
+    decoded = decode_evidence(encode_evidence(evidence))
+    assert set(evidence.outputs) == {"exit_key"}
+    actual = decoded["outputs"]["exit_key"]
+    assert type(actual) is float
+    assert math.isnan(actual) if math.isnan(value) else actual == float(value)
+
+
+@pytest.mark.parametrize("value", [
+    "2.5", None, [2.5], {"number": 2.5}, np.bool_(True), np.bool_(False),
+    complex(1, 2), np.complex64(1 + 2j),
+])
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_nonnumeric_forms_excluded(value, wrapped):
+    output = FakeRootModel(value) if wrapped else value
+    evidence = project(FakeRunResult({"excluded": output}), provenance=PROVENANCE, expects_report=False)
+    assert evidence.outputs == {}

@@ -1,6 +1,6 @@
 # Current Work
 
-**Last Updated**: 2026-07-18
+**Last Updated**: 2026-09-05
 
 ## Active Work
 
@@ -14,6 +14,10 @@
   `.project/active/gap-close-f1-normalization/audit.md`.
 
 ## Recently Completed
+
+### 2026-09-05: Numeric study evidence
+
+Bare numeric ExitPoint outputs now reach evidence beside wrapped numbers. Evidence schema v3 binds the expanded `numbers.Real` membership, including Python bool as 0.0/1.0 and NumPy real scalars; a v2 store requires a fresh lineage for v3 execution. Both evaluator backends and a reopened study query assert exact mixed-output values. Parent-agent review corrections preserve Boolean behavior and document existing result/exit keys. Full repository validation after corrections: 454 passed. Real stellarator heating acceptance preserved all four numeric outputs and the wrapped LCOE control through storage/reopen/export. Requirements and validation command: `.project/completed/20260905_numeric-study-evidence/requirements.md`. Migration: `docs/evaluation-and-study.md#numeric-publication-and-evidence-v3`.
 
 ### 2026-07-13: CONSTRAINT-EXEC Items 0, 10–12 (epic closed, archived)
 - Integration spike, model evaluator + typed entry API, crash-safe study store/runner, and the

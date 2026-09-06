@@ -112,8 +112,10 @@ class ModelEvidence(StrictBaseModel):
 
     ``responses`` is keyed by constraint ID plus the reserved key
     ``"headline"`` for the aggregate verdict — empty (``{}``) for a
-    constraint-free package. ``outputs`` holds selected numeric outputs,
-    unwrapped from ``RootModel[float]``. ``report`` is the generated report's
+    constraint-free package. ``outputs`` holds ExitPoint-selected ``numbers.Real`` values,
+    bare or unwrapped once from numeric ``.root`` wrappers, converted to float under
+    their existing exit keys. Python bool becomes 0.0/1.0; non-real values are excluded. Nonfinite
+    floats are retained. ``report`` is the generated report's
     ``model_dump(mode="json")`` tree, deep-frozen at attach (D2) — never the
     live generated model — or ``None`` when there is no constraint report. All
     three are sealed read-only so nested status/margin cannot be mutated

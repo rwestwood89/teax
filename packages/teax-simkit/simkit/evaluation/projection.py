@@ -7,6 +7,7 @@ INV1 and B1.
 """
 from __future__ import annotations
 
+from numbers import Real
 from typing import Any
 
 from .evidence import (
@@ -22,9 +23,12 @@ from .evidence import (
 REPORT_CHANNEL = "constraint_report"
 
 
-def _is_scalar_output(value: Any) -> bool:
-    """True for a duck-typed ``RootModel[float]``: has ``.root``, no report shape."""
-    return hasattr(value, "root") and isinstance(value.root, (int, float))
+def _numeric_output(value: Any) -> float | None:
+    """Extract a bare or one-level wrapped real number, including Python bool."""
+    scalar = getattr(value, "root", value)
+    if isinstance(scalar, Real):
+        return float(scalar)
+    return None
 
 
 def project(result: Any, *, provenance: EvidenceProvenance, expects_report: bool) -> ModelEvidence:
@@ -72,9 +76,9 @@ def project(result: Any, *, provenance: EvidenceProvenance, expects_report: bool
         report_tree = report.model_dump(mode="json")
 
     outputs = {
-        key: float(value.root)
+        key: scalar
         for key, value in result.outputs.items()
-        if _is_scalar_output(value)
+        if (scalar := _numeric_output(value)) is not None
     }
 
     return ModelEvidence(
